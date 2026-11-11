@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.25.1
+// @version      1.25.2
 // @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、自动收菜（原独立脚本并入，全后台化）：进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块并按原作物补种，收获成果合并为一条通知，种植页可按农场设置跳过地块。设置开关位置：游戏设置-「其他」标签页；自动收菜在当前行动「取消」左侧保留快捷开关。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
@@ -2479,7 +2479,7 @@
         // ---------------- 自动收菜（原独立脚本「猫娘自动收菜 v2.3.0」并入，全后台化） ----------------
         // 每 30 秒检查一次：通过 UI.plantState 读取各地块状态（state=ready，或 growing 且
         // mature_at 已过——快照可能滞后于实际成熟，与游戏自身判定同口径），对可收获且未被
-        // 跳过的地块直接发送收获消息，1 秒后按地块原作物自动补种。初始化与收发全程后台进行：
+        // 跳过的地块直接发送收获消息，随后按地块原作物自动补种（1/3/6 秒三次重试，覆盖慢响应）。初始化与收发全程后台进行：
         // 不切页、不抢焦点、不遮挡操作。受总开关与本开关双重控制；队列位置（当前行动「取消」
         // 左侧）的快捷开关保留。
         // 标记位供独立版收菜脚本检测，避免双开重复发送收获消息
@@ -2573,7 +2573,24 @@
             return false;
         }
 
-        // 可收获且未被跳过的地块 → 逐块发送收获消息
+        // ---- 在途请求记录：防止对同一地块重复收发消息 ----
+        // 收获/播种消息发出后，响应落盘前地块状态仍是旧值；若不记录在途，重试扫描会
+        // 对同一地块重复发送，服务端会拒绝并弹「该地块已有作物/未种植」错误提示。
+        // 记录带 15 秒过期：响应迟迟不来时允许超时重发，状态更新后立即清除。
+        const PENDING_MAX_AGE = 15000;
+        const pendingHarvest = {};   // { farmId: { plotIdx: 发送时间戳 } }
+        const pendingSeed = {};      // 同上
+        function pendingFresh(map, farmId, i) {
+            const e = map[farmId] && map[farmId][i];
+            if (!e) return false;
+            if (Date.now() - e > PENDING_MAX_AGE) { delete map[farmId][i]; return false; }
+            return true;
+        }
+        function markPending(map, farmId, i) { (map[farmId] = map[farmId] || {})[i] = Date.now(); }
+        function clearPending(map, farmId, i) { if (map[farmId]) delete map[farmId][i]; }
+
+        // 可收获且未被跳过的地块 → 逐块发送收获消息；
+        // 随后安排播种重试（响应慢于 1 秒时第一次播种扫描会扑空，多次重试兜底）
         function tickPlanting() {
             try {
                 if (typeof UI === 'undefined' || typeof MSG === 'undefined') return;
@@ -2581,37 +2598,50 @@
                     ensurePlantState();   // 后台拉取种植数据，不打断当前页面
                     return;
                 }
+                harvestDataTries = 0;   // 数据已就位，重置失败计数（否则 3 次失败后永不重试）
                 let sent = 0;
                 eachFarm(function (farm, skipped) {
                     (farm.plots || []).forEach(function (pd, i) {
-                        if (!isHarvestable(pd)) return;
+                        if (!isHarvestable(pd)) {
+                            if (pd && pd.state !== 'ready') clearPending(pendingHarvest, farm.id, i);
+                            return;
+                        }
                         if (skipped.indexOf(i) >= 0) return;
+                        if (pendingFresh(pendingHarvest, farm.id, i)) return;   // 在途，等响应
+                        markPending(pendingHarvest, farm.id, i);
                         MSG.send('plant_harvest', { farm_id: farm.id, plot_index: i });
                         sent++;
                     });
                 });
-                if (sent) {
-                    hlog('已发送 ' + sent + ' 个地块的收获请求，' +
-                        HARVEST_SEED_DELAY / 1000 + ' 秒后自动播种');
-                    setTimeout(seedEmptyPlots, HARVEST_SEED_DELAY);
-                    // 收获响应会把 plantState 刷新为最新，待播种响应也落定后重建角标状态
-                    scheduleBadgeSync(HARVEST_SEED_DELAY + 1500);
-                }
+                if (sent) hlog('已发送 ' + sent + ' 个地块的收获请求，随后自动播种');
+                // 无论本轮有没有新收获都安排播种：上一轮响应慢导致的漏种空地，
+                // 在下一轮也要能被补上（播种扫描是幂等的，已种下的地块会被状态过滤）
+                [HARVEST_SEED_DELAY, 3000, 6000].forEach(function (d) {
+                    setTimeout(seedEmptyPlots, d);
+                });
+                if (sent) scheduleBadgeSync(7500);   // 三次播种重试都落定后重建角标
             } catch (e) {
                 hlog('种植调度异常：', e && e.message);
             }
         }
 
-        // 空地且未被跳过的地块 → 按地块原作物（crop_id）补种，背包没种子则跳过
+        // 空地且未被跳过的地块 → 按地块原作物（crop_id）补种，背包没种子则跳过；
+        // 可被多次调用（收获后的 1s/3s/6s 重试 + 每轮主循环），在途记录防重复发送
         function seedEmptyPlots() {
             try {
                 if (!UI.plantState) return;
                 let sent = 0;
                 eachFarm(function (farm, skipped) {
                     (farm.plots || []).forEach(function (pd, i) {
-                        if (!pd || pd.state !== 'empty' || !(pd.crop_id > 0)) return;
+                        if (!pd || pd.state !== 'empty' || !(pd.crop_id > 0)) {
+                            // 状态已不是空地：说明播种响应已落盘或地块被占用，清除在途记录
+                            if (pd && pd.state !== 'empty') clearPending(pendingSeed, farm.id, i);
+                            return;
+                        }
                         if (skipped.indexOf(i) >= 0) return;
+                        if (pendingFresh(pendingSeed, farm.id, i)) return;   // 在途，等响应
                         if (!(game.getItemQuantity(pd.crop_id) > 0)) return;
+                        markPending(pendingSeed, farm.id, i);
                         MSG.send('plant_seed', { farm_id: farm.id, plot_index: i, seed_id: pd.crop_id });
                         sent++;
                     });
