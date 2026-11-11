@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.24.3
-// @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/钓鱼/生产/烹饪/炼金六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序。设置开关位置：游戏设置-「其他」标签页。
+// @version      1.25.0
+// @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、自动收菜（原独立脚本并入）：每30秒自动收获成熟地块并按原作物补种（无需切页），收获成果合并为一条通知，种植页可按农场设置跳过地块。设置开关位置：游戏设置-「其他」标签页；自动收菜在当前行动「取消」左侧保留快捷开关。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
 // @match        https://nekoidle.net/*
@@ -2476,6 +2476,416 @@
             applyEffMarkState();
         }
 
+        // ---------------- 自动收菜（原独立脚本「猫娘自动收菜 v2.3.0」并入） ----------------
+        // 每 30 秒检查一次：通过 UI.plantState 读取各地块状态（state=ready，或 growing 且
+        // mature_at 已过——快照可能滞后于实际成熟，与游戏自身判定同口径），对可收获且未被
+        // 跳过的地块直接发送收获消息（无需切换页面），1 秒后按地块原作物自动补种。
+        // 受总开关与本开关双重控制；队列位置（当前行动「取消」左侧）的快捷开关保留。
+        // 标记位供独立版收菜脚本检测，避免双开重复发送收获消息
+        window.__NEK_HARVEST_IN_ASSISTANT__ = true;
+        const HARVEST_TAG = '【自动收菜】';
+        const HARVEST_TICK_MS = 30000;           // 主循环：每 30 秒一次
+        const HARVEST_SEED_DELAY = 1000;         // 收获消息发出后 1 秒再播种
+        const HARVEST_SKIP_KEY = 'nek_harvest_skip';      // 跳过配置：{ farmId: [plotIndex,...] }
+        const LS_HARVEST_KEY = 'nek_harvest_enabled';     // 沿用独立版开关键，状态平滑迁移
+        const isHarvestEnabled = () => {
+            try { return localStorage.getItem(LS_HARVEST_KEY) !== '0'; } catch (e) { return true; }
+        };
+        const setHarvestEnabled = v => {
+            try { localStorage.setItem(LS_HARVEST_KEY, v ? '1' : '0'); } catch (e) { /* 忽略 */ }
+        };
+        // 开关切换后统一刷新队列位置按钮的文案与样式
+        const applyHarvestState = () => {
+            document.querySelectorAll('.nek-harvest-toggle').forEach(btn => paintToggleButton(btn));
+        };
+        function loadHarvestSkip() {
+            try { return JSON.parse(localStorage.getItem(HARVEST_SKIP_KEY) || '{}') || {}; }
+            catch (e) { return {}; }
+        }
+        function saveHarvestSkip(map) {
+            try { localStorage.setItem(HARVEST_SKIP_KEY, JSON.stringify(map)); } catch (e) { /* 忽略 */ }
+        }
+        function hlog() {
+            const args = [].slice.call(arguments);
+            args.unshift(HARVEST_TAG);
+            console.log.apply(console, args);
+        }
+
+        // ---- 核心：按地块直接收发消息（不依赖页面 DOM） ----
+
+        // 遍历所有农场：fn(farm, skipped数组, planet)
+        function eachFarm(fn) {
+            const ps = UI.plantState;
+            if (!ps || !ps.planets) return;
+            const skipMap = loadHarvestSkip();
+            ps.planets.forEach(function (p) {
+                (p.farms || []).forEach(function (farm) {
+                    fn(farm, skipMap[farm.id] || [], p);
+                });
+            });
+        }
+
+        // 地块是否可收获：state=ready，或 growing 且 mature_at 已过。
+        // plantState 是打开种植页那一刻的快照（plant_get_data 仅在种植页初始化时请求一次），
+        // 作物成熟后快照里的 state 仍是 growing——游戏自身的 syncPlantReadyWatch 也是按
+        // 「growing 且 mature_at <= 当前时间」计入可收获的，此处保持同口径
+        function isHarvestable(pd) {
+            if (!pd) return false;
+            if (pd.state === 'ready') return true;
+            return pd.state === 'growing' && pd.mature_at > 0 &&
+                pd.mature_at <= Math.floor(Date.now() / 1000);
+        }
+
+        // 种植数据初始化等待（防重入）：切到种植页后轮询 plant_get_data 响应，
+        // 数据一到立即判定一次收获，不等下一轮循环
+        let harvestInitPending = false;
+
+        function waitInitThenTick() {
+            if (harvestInitPending) return;
+            harvestInitPending = true;
+            let tries = 0;
+            const t = setInterval(function () {
+                tries++;
+                const ok = UI.plantState && (UI.plantState.planets || []).length > 0;
+                if (ok || tries > 24) {          // 最多等 12 秒
+                    clearInterval(t);
+                    harvestInitPending = false;
+                    if (ok) tickPlanting();
+                    else hlog('种植数据初始化超时，将在下一轮重试');
+                }
+            }, 500);
+        }
+
+        // 可收获且未被跳过的地块 → 逐块发送收获消息
+        function tickPlanting() {
+            try {
+                if (typeof UI === 'undefined' || typeof MSG === 'undefined') return;
+                if (!UI.plantState || !(UI.plantState.planets || []).length) {
+                    // plantState 在首次打开种植页时初始化：有可收获数据但缺状态时切一次页，
+                    // 数据加载完成后立即判定（读取本地跳过配置 → 判定收获），不等下一轮
+                    if (UI.plantWatch && UI.plantWatch.ready > 0 &&
+                        !document.querySelector('.sidebar-item.action-3.active')) {
+                        UI.changeContent('actions', { id: 3 });
+                        hlog('种植数据未初始化，已切到种植页，数据加载后立即判定收获');
+                        waitInitThenTick();
+                    } else if (UI.plantState &&
+                        document.querySelector('.sidebar-item.action-3.active')) {
+                        // 已在种植页但数据未到（plant_get_data 响应在途）：同样等待后立即判定
+                        waitInitThenTick();
+                    }
+                    return;
+                }
+                let sent = 0;
+                eachFarm(function (farm, skipped) {
+                    (farm.plots || []).forEach(function (pd, i) {
+                        if (!isHarvestable(pd)) return;
+                        if (skipped.indexOf(i) >= 0) return;
+                        MSG.send('plant_harvest', { farm_id: farm.id, plot_index: i });
+                        sent++;
+                    });
+                });
+                if (sent) {
+                    hlog('已发送 ' + sent + ' 个地块的收获请求，' +
+                        HARVEST_SEED_DELAY / 1000 + ' 秒后自动播种');
+                    setTimeout(seedEmptyPlots, HARVEST_SEED_DELAY);
+                    // 收获响应会把 plantState 刷新为最新，待播种响应也落定后重建角标状态
+                    scheduleBadgeSync(HARVEST_SEED_DELAY + 1500);
+                }
+            } catch (e) {
+                hlog('种植调度异常：', e && e.message);
+            }
+        }
+
+        // 空地且未被跳过的地块 → 按地块原作物（crop_id）补种，背包没种子则跳过
+        function seedEmptyPlots() {
+            try {
+                if (!UI.plantState) return;
+                let sent = 0;
+                eachFarm(function (farm, skipped) {
+                    (farm.plots || []).forEach(function (pd, i) {
+                        if (!pd || pd.state !== 'empty' || !(pd.crop_id > 0)) return;
+                        if (skipped.indexOf(i) >= 0) return;
+                        if (!(game.getItemQuantity(pd.crop_id) > 0)) return;
+                        MSG.send('plant_seed', { farm_id: farm.id, plot_index: i, seed_id: pd.crop_id });
+                        sent++;
+                    });
+                });
+                if (sent) {
+                    hlog('已发送 ' + sent + ' 个地块的播种请求（按原作物补种）');
+                    scheduleBadgeSync(1500);   // 播种响应落定后重建角标（新作物成熟时间进表）
+                }
+            } catch (e) {
+                hlog('播种异常：', e && e.message);
+            }
+        }
+
+        // ---- 侧边栏「种植」黄色角标同步 ----
+
+        // 角标由 UI.plantWatch（ready 计数 + 成熟时间表）驱动，但游戏只在种植页 UI 更新路径
+        // 中调用 syncPlantReadyWatch 重建它——免切页收获/播种时，响应虽然会更新
+        // plantState 数据，角标却停留在收获前的旧值。这里在每轮收种动作完成后防抖调用
+        // 游戏自带的 syncPlantReadyWatch：全部收种完成后可收获数归零、角标消失；
+        // 新作物的成熟时间进表，之后由游戏自身的 5 秒定时器在成熟时重新点亮。
+        let badgeTimer = null;
+        function scheduleBadgeSync(delay) {
+            if (badgeTimer) clearTimeout(badgeTimer);
+            badgeTimer = setTimeout(function () {
+                badgeTimer = null;
+                try {
+                    if (typeof UI !== 'undefined' && typeof UI.syncPlantReadyWatch === 'function' &&
+                        UI.plantState && (UI.plantState.planets || []).length) {
+                        UI.syncPlantReadyWatch(UI.plantState.planets);
+                    }
+                } catch (e) { /* 忽略 */ }
+            }, delay || 1500);
+        }
+
+        // ---- 收获成果：不弹窗（遮罩会黑屏），顶部 notifier 通知 ----
+
+        // 同一批批量收获会连续返回多条「收获成果」：先聚合（物品按 id 累加、经验累加），
+        // 2 秒内无新结果时合并为一条通知发出，避免一批收获刷出多条通知。
+        // 功能关闭时不拦截，恢复游戏原生「收获成果」弹窗。
+        const HARVEST_AGG_WINDOW_MS = 2000;
+        let harvestAgg = null;      // { items: {id: qty}, exp: n, count: n }
+        let harvestAggTimer = null;
+
+        function flushAgg() {
+            if (!harvestAgg) return;
+            try {
+                const ids = Object.keys(harvestAgg.items).map(Number).sort(function (a, b) { return a - b; });
+                const parts = ids.map(function (id) {
+                    const item = typeof game !== 'undefined' && game.getItem(id);
+                    return (item && item.name ? item.name : '#' + id) + '×' + harvestAgg.items[id];
+                });
+                let msg = parts.length ? '收获：' + parts.join('、') : '收获完成，没有获得物品';
+                if (harvestAgg.count > 1) msg = '收获 ' + harvestAgg.count + ' 块：' + msg.slice(3);
+                if (harvestAgg.exp > 0) msg += '（经验 +' + harvestAgg.exp + '）';
+                if (UI.notifier && UI.notifier.show) {
+                    UI.notifier.show(msg, 'success', 6000);
+                }
+                hlog(msg);
+            } catch (e0) { /* 通知失败不影响收获流程 */ }
+            harvestAgg = null;
+            if (harvestAggTimer) { clearTimeout(harvestAggTimer); harvestAggTimer = null; }
+        }
+
+        function patchResultModal() {
+            if (typeof UI.showResultModal !== 'function' || UI.__nekHarvestPatched) return;
+            const orig = UI.showResultModal.bind(UI);
+            UI.showResultModal = function (data) {
+                if (data && data.title === '收获成果') {
+                    if (!isEnabled() || !isHarvestEnabled()) return orig(data);   // 功能关闭：原生弹窗
+                    // 只拦截收获成果弹窗：物品与经验进聚合器，静默期后合并为一条通知
+                    try {
+                        if (!harvestAgg) harvestAgg = { items: {}, exp: 0, count: 0 };
+                        (data.items || []).forEach(function (it) {
+                            harvestAgg.items[it.id] = (harvestAgg.items[it.id] || 0) + (it.quantity || 0);
+                        });
+                        if (data.actionExp && data.actionExp.delta > 0) {
+                            harvestAgg.exp += data.actionExp.delta;
+                        }
+                        harvestAgg.count++;
+                        if (harvestAggTimer) clearTimeout(harvestAggTimer);
+                        harvestAggTimer = setTimeout(flushAgg, HARVEST_AGG_WINDOW_MS);
+                    } catch (e1) { /* 聚合失败不影响收获流程 */ }
+                    return null;   // 不渲染弹窗
+                }
+                return orig(data);
+            };
+            UI.__nekHarvestPatched = true;
+            hlog('收获成果已改为聚合通知（' + HARVEST_AGG_WINDOW_MS / 1000 + ' 秒静默合并，一批只发一条）');
+        }
+
+        // ---- 种植页「设置」按钮 + 跳过地块选择面板 ----
+
+        const HARVEST_STATE_TXT = { locked: '未解锁', empty: '空地', growing: '生长中', ready: '可收获' };
+
+        // 周期注入：每个农场按钮组「全部播种」左侧加「设置」按钮，并刷新跳过数量角标
+        function ensureSkipButtons() {
+            try {
+                if (!document.querySelector('.sidebar-item.action-3.active')) return;
+                document.querySelectorAll('.plant-farm .farm-btn-group').forEach(function (g) {
+                    let btn = g.querySelector('.nek-skip-btn');
+                    if (!btn) {
+                        // 借游戏挂载的 _plotMap（plotEl → {farmId, plotIndex}）解析所属农场 id
+                        let farmId = null;
+                        const farmEl = g.closest('.plant-farm');
+                        const plotEl = farmEl && farmEl.querySelector('.plant-plot');
+                        if (plotEl && UI.plantState && UI.plantState._plotMap) {
+                            const info = UI.plantState._plotMap.get(plotEl);
+                            if (info) farmId = info.farmId;
+                        }
+                        if (farmId == null) return;
+                        btn = document.createElement('div');
+                        btn.className = 'plant-mini-btn nek-skip-btn';
+                        btn.dataset.farmId = farmId;
+                        btn.addEventListener('click', function (e) {
+                            e.stopPropagation();
+                            toggleSkipPicker(+btn.dataset.farmId, btn);
+                        });
+                        g.insertBefore(btn, g.firstChild);   // 全部播种左边
+                    }
+                    const skipped = loadHarvestSkip()[+btn.dataset.farmId] || [];
+                    const label = skipped.length ? '设置·' + skipped.length : '设置';
+                    if (btn.textContent !== label) btn.textContent = label;
+                    btn.title = skipped.length
+                        ? '当前自动收菜跳过 ' + skipped.length + ' 个地块，点击修改'
+                        : '设置自动收菜跳过哪些地块';
+                });
+            } catch (e) { /* 忽略 */ }
+        }
+
+        function toggleSkipPicker(farmId, anchor) {
+            const existing = document.getElementById('nek-skip-picker');
+            if (existing) { existing.remove(); return; }
+            if (farmId == null || !UI.plantState) return;
+            let farm = null;
+            let planet = null;
+            eachFarm(function (f, skip, p) { if (f.id === farmId) { farm = f; planet = p; } });
+            if (!farm) return;
+            const skipped = loadHarvestSkip()[farmId] || [];
+            const panel = document.createElement('div');
+            panel.id = 'nek-skip-picker';
+            panel.className = 'nek-skip-picker';
+            let html = '<div class="nek-sp-title">跳过地块设置' +
+                (planet && planet.name ? ' · ' + planet.name : '') + '</div>';
+            for (let i = 0; i < 12; i++) {
+                const pd = (farm.plots || [])[i] || (farm.plots || {})[String(i)];
+                if (!pd || pd.state === 'locked') continue;
+                const crop = pd.crop_id > 0 && game.getItem(pd.crop_id);
+                html += '<label class="nek-sp-row"><input type="checkbox" data-plot="' + i + '"' +
+                    (skipped.indexOf(i) >= 0 ? ' checked' : '') + '><span>地块 ' + (i + 1) +
+                    '</span><span class="nek-sp-state">' + (HARVEST_STATE_TXT[pd.state] || pd.state) +
+                    (crop ? ' · ' + crop.name : '') + '</span></label>';
+            }
+            html += '<div class="nek-sp-tip">勾选后自动收获/播种将跳过该地块（手动批量按钮不受影响）</div>';
+            panel.innerHTML = html;
+            document.body.appendChild(panel);
+            const r = anchor.getBoundingClientRect();
+            panel.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 250)) + 'px';
+            panel.style.top = Math.min(r.bottom + 6, window.innerHeight - 200) + 'px';
+            panel.addEventListener('change', function (e) {
+                const cb = e.target;
+                if (!cb.dataset || cb.dataset.plot == null) return;
+                const idx = parseInt(cb.dataset.plot, 10);
+                const map = loadHarvestSkip();
+                const arr = map[farmId] || [];
+                const pos = arr.indexOf(idx);
+                if (cb.checked && pos < 0) arr.push(idx);
+                if (!cb.checked && pos >= 0) arr.splice(pos, 1);
+                if (arr.length) map[farmId] = arr; else delete map[farmId];
+                saveHarvestSkip(map);
+                hlog('农场 ' + farmId + ' 跳过地块：' +
+                    (arr.length ? arr.map(function (x) { return x + 1; }).join('、') : '无'));
+            });
+            // 点击面板外自动关闭
+            setTimeout(function () {
+                const closer = function (ev) {
+                    if (!panel.contains(ev.target) && !anchor.contains(ev.target)) {
+                        panel.remove();
+                        document.removeEventListener('mousedown', closer);
+                    }
+                };
+                document.addEventListener('mousedown', closer);
+            }, 0);
+        }
+
+        function injectSkipStyle() {
+            if (document.getElementById('nek-skip-style')) return;
+            const cssHp = [
+                '.nek-skip-picker { position: fixed; z-index: 9999; min-width: 230px; padding: 10px 14px;',
+                '  background: rgba(10, 25, 45, .96); border: 1px solid rgba(55, 226, 212, .45);',
+                '  border-radius: 8px; color: #d8fff9; font-size: 12px; box-shadow: 0 4px 18px rgba(0,0,0,.45); }',
+                '.nek-sp-title { font-weight: 700; color: #37e2d4; margin-bottom: 6px; }',
+                '.nek-sp-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; cursor: pointer; }',
+                '.nek-sp-row input { cursor: pointer; }',
+                '.nek-sp-state { color: #7fa8a3; margin-left: auto; }',
+                '.nek-sp-tip { margin-top: 6px; color: #ffd76e; }'
+            ].join('\n');
+            const s = document.createElement('style');
+            s.id = 'nek-skip-style';
+            s.textContent = cssHp;
+            document.head.appendChild(s);
+        }
+
+        // ---- 队列位置快捷开关（当前行动「取消」按钮左侧，保留独立版原位置） ----
+
+        function injectAutoStyle() {
+            if (document.getElementById('nek-harvest-style')) return;
+            const cssAuto = [
+                '.nek-harvest-toggle { position: relative; padding: 0 8px; border-radius: 4px; color: #333;',
+                '  background: var(--c-warning, #ffd93b); text-align: center; cursor: pointer;',
+                '  transition: all .2s ease; font-weight: 700; font-family: system-ui; font-size: 12px;',
+                '  height: 20px; line-height: 20px; letter-spacing: 1px;',
+                '  border: 2px solid var(--c-black, #000); white-space: nowrap; }',
+                '.nek-harvest-toggle:hover { filter: brightness(1.15); -webkit-filter: brightness(1.15); }',
+                '.nek-harvest-toggle.off { background: #f3f3ca; color: #939393; }'
+            ].join('\n');
+            const s = document.createElement('style');
+            s.id = 'nek-harvest-style';
+            s.textContent = cssAuto;
+            document.head.appendChild(s);
+        }
+
+        function paintToggleButton(btn) {
+            const on = isHarvestEnabled();
+            btn.textContent = '自动收菜：' + (on ? 'ON' : 'OFF');
+            btn.classList.toggle('off', !on);
+            btn.title = on ? '点击关闭自动收菜（种植自动收获+播种）'
+                           : '点击开启自动收菜（种植自动收获+播种）';
+        }
+
+        function ensureToggleButton() {
+            try {
+                injectAutoStyle();
+                const container = document.querySelector('.active-container');
+                if (!container) return;
+                const cancel = container.querySelector('.action-cancel-btn');
+                if (!cancel || !cancel.parentNode) return;
+                let btn = cancel.parentNode.querySelector('.nek-harvest-toggle');
+                if (!btn) {
+                    btn = document.createElement('div');
+                    btn.className = 'nek-harvest-toggle';
+                    cancel.parentNode.insertBefore(btn, cancel);
+                    btn.addEventListener('click', function () {
+                        setHarvestEnabled(!isHarvestEnabled());
+                        applyHarvestState();   // 同步刷新设置页开关（若打开）
+                        hlog('自动收菜已' + (isHarvestEnabled() ? '开启' : '关闭'));
+                    });
+                }
+                paintToggleButton(btn);
+            } catch (e) { /* 忽略 */ }
+        }
+
+        // ---- 自动收菜主循环 ----
+
+        function harvestTick() {
+            if (!isEnabled() || !isHarvestEnabled()) return;
+            tickPlanting();
+        }
+
+        let harvestStarted = false;
+
+        function initHarvest() {
+            if (harvestStarted) return;
+            if (typeof game === 'undefined' || typeof UI === 'undefined' ||
+                typeof MSG === 'undefined' || typeof Data === 'undefined' || !game.character) {
+                setTimeout(initHarvest, 1500);
+                return;
+            }
+            harvestStarted = true;
+            hlog('已并入小助手：每 ' + HARVEST_TICK_MS / 1000 + ' 秒检查一次（按地块收获+1秒后补种），' +
+                '当前状态：' + (isHarvestEnabled() ? 'ON' : 'OFF'));
+            patchResultModal();
+            injectSkipStyle();
+            ensureToggleButton();
+            ensureSkipButtons();
+            setInterval(ensureToggleButton, 2000);   // 游戏重绘行动区后自动补挂开关按钮
+            setInterval(ensureSkipButtons, 1500);    // 种植页重绘后自动补挂设置按钮
+            setInterval(harvestTick, HARVEST_TICK_MS);
+            setTimeout(harvestTick, 5000);
+        }
+
         // 结构复刻原生「动画效果」区块：
         // .setting-list 包裹各项，setting-name 与 label.slider-container 为平级兄弟，
         // 中间的空 .setting-input 占位把开关推到最右侧（与原生视觉一致）
@@ -2596,6 +3006,16 @@
                             '</div>' +
                         '</label>' +
                     '</div>' +
+                    '<div class="setting-item">' +
+                        '<div class="setting-name" title="原独立脚本「猫娘自动收菜」并入：每30秒检查一次，自动收获成熟地块并按原作物补种（无需切页）；收获成果合并为一条顶部通知；种植页每个农场可设置跳过地块；当前行动「取消」左侧保留快捷开关">自动收菜</div>' +
+                        '<div class="setting-input"></div>' +
+                        '<label class="slider-container">' +
+                            '<div class="toggle-switch">' +
+                                '<input type="checkbox" class="nek-assist-harvest-toggle">' +
+                                '<span class="toggle-slider"></span>' +
+                            '</div>' +
+                        '</label>' +
+                    '</div>' +
                 '</div>';
             content.appendChild(section);
 
@@ -2609,6 +3029,7 @@
             const foolproof = section.querySelector('.nek-assist-foolproof-toggle');
             const alcsort = section.querySelector('.nek-assist-alcsort-toggle');
             const cookjump = section.querySelector('.nek-assist-cookjump-toggle');
+            const harvest = section.querySelector('.nek-assist-harvest-toggle');
             master.checked = isEnabled();
             calc.checked = isCalcEnabled();
             market.checked = isMarketEnabled();
@@ -2619,6 +3040,7 @@
             if (foolproof) foolproof.checked = isFoolproofEnabled();
             if (alcsort) alcsort.checked = isAlcSortEnabled();
             if (cookjump) cookjump.checked = isCookJumpEnabled();
+            if (harvest) harvest.checked = isHarvestEnabled();
             master.addEventListener('change', function () {
                 setEnabled(master.checked);
                 applyEnabledState();
@@ -2659,6 +3081,10 @@
                 setCookJumpEnabled(cookjump.checked);
                 applyCookJumpState();
             });
+            if (harvest) harvest.addEventListener('change', function () {
+                setHarvestEnabled(harvest.checked);
+                applyHarvestState();   // 同步刷新队列位置快捷开关
+            });
         }
 
         // 页面重渲染导致区块被重建时，把开关勾选态对齐到存储值
@@ -2673,6 +3099,7 @@
             const foolproof = section.querySelector('.nek-assist-foolproof-toggle');
             const alcsort = section.querySelector('.nek-assist-alcsort-toggle');
             const cookjump = section.querySelector('.nek-assist-cookjump-toggle');
+            const harvest = section.querySelector('.nek-assist-harvest-toggle');
             if (!master || !calc || !market) return;
             if (master.checked !== isEnabled()) master.checked = isEnabled();
             if (calc.checked !== isCalcEnabled()) calc.checked = isCalcEnabled();
@@ -2684,6 +3111,7 @@
             if (foolproof && foolproof.checked !== isFoolproofEnabled()) foolproof.checked = isFoolproofEnabled();
             if (alcsort && alcsort.checked !== isAlcSortEnabled()) alcsort.checked = isAlcSortEnabled();
             if (cookjump && cookjump.checked !== isCookJumpEnabled()) cookjump.checked = isCookJumpEnabled();
+            if (harvest && harvest.checked !== isHarvestEnabled()) harvest.checked = isHarvestEnabled();
         }
 
         function scheduleDecorate() {
@@ -2715,6 +3143,7 @@
         applyFoolproofState();   // 启动时按开关状态应用防呆设置
         applyAlcSortState();   // 启动时按开关状态应用点金辅助
         applyCookJumpState();   // 启动时清理残留的跳转按钮（正常为空操作）
+        initHarvest();   // 启动自动收菜（等待游戏就绪后挂载主循环与队列位置开关）
     };
 
     // 注入页面上下文执行
