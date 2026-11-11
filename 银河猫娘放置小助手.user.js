@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.24.2
+// @version      1.24.3
 // @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/钓鱼/生产/烹饪/炼金六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序。设置开关位置：游戏设置-「其他」标签页。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
@@ -742,8 +742,10 @@
         // 单件期望产出（均与游戏自身口径一致，全部乘成功率），返回 {s: 分数, g: 材料档位}：
         // 点金收益 = value×3（金融所加成）×成功率；
         // 点金经验 = getAlchemyExpForLevel(grade,1,rarity)（含统一经验加成）×成功率；
-        // 研究经验 = getAlchemyExpForLevel(grade,7,rarity) 减半（v1110 起研究经验减半，与
-        //   服务端一致：baseExp = Math.floor(baseExp/2) 后再算统一加成）×成功率；
+                // 研究经验/时间 = 单次研究期望经验 ÷ 单次研究耗时。耗时 = 8秒基础 ÷ 全局效率
+                //   ÷ getAlchemyOverLevelMultiplier(grade)（炼金等级高于物品 grade 时每高 1 级
+                //   耗时效率 +1% 乘算，即低于自身等级的材料研究更快）；全局效率与 8 秒基础耗时
+                //   对所有物品相同、不影响排序，故分数 = 经验 × 成功率 × 阶差耗时乘数；
         // 研究类别 r_* = research.quantity×成功率（期望份数），仅限产出该类别研究材料的物品，
         //   g = 材料档位序号（0=最高档，如钓鱼的时之沙原），多材料类别按 g 升序分组显示。
         // 成功率与游戏 alchemyGetSuccessRate(grade) 一致（炼金等级不足时 50%~100%）。
@@ -773,19 +775,23 @@
                     return { s: q * rate, g: 0 };
                 }
                 let exp;
+                let over = 1;
                 let rar = 0;
                 try { rar = Math.max(0, parseInt(def.rarity, 10) || 0); } catch (e4) { /* 忽略 */ }
                 if (mode === 'resexp') {
                     if (!def.research || !def.research.itemId) return NG;   // 不可研究，沉底
                     // v1110 起研究经验减半（与游戏原子炼金面板一致：floor(baseExp/2) 后再算统一加成）
                     try { exp = game.calcExpWithBonus(Math.floor(game.getAlchemyExpForLevel(def.grade, 7, rar) / 2)); } catch (e3) { return NG; }
+                    // 单位时间口径：额外乘反应阶差耗时乘数（炼金等级 > 物品 grade 时耗时更短）
+                    try { over = game.getAlchemyOverLevelMultiplier ? game.getAlchemyOverLevelMultiplier(def.grade) : 1; } catch (e5) { over = 1; }
+                    if (!isFinite(over) || over <= 0) over = 1;
                 } else {
                     // 稀有度必须传入：游戏详情页经验为 getAlchemyExpForLevel(grade,type,rarity)，
                     // 漏传会把不同稀有度的同等级物品算成同分（如星屑螺钉 509 vs 客家酿豆腐 764）
                     try { exp = game.calcExpWithBonus(game.getAlchemyExpForLevel(def.grade, 1, rar)); } catch (e3) { return NG; }
                 }
                 if (!isFinite(exp)) return NG;
-                return { s: exp * rate, g: 0 };
+                return { s: exp * rate * over, g: 0 };
             } catch (e) { return NG; }
         }
 
@@ -935,7 +941,7 @@
                         ['default', '默认', '游戏原始排序'],
                         ['meow', '点金收益', '按单件点金期望喵点产出倒序（含金融所加成与点金成功率）'],
                         ['exp', '点金经验', '按单件点金期望经验倒序（含稀有度、统一经验加成与点金成功率）'],
-                        ['resexp', '研究经验', '按单次研究期望经验倒序（含稀有度、统一经验加成与研究成功率）']
+                        ['resexp', '经验/时间', '按单位时间研究期望经验倒序：单次期望经验÷单次研究耗时（含稀有度、统一经验加成、研究成功率与反应阶差耗时加成——炼金等级高于物品等级时每高1级耗时效率+1%乘算；基础8秒与全局效率对所有物品相同，不影响排序）']
                     ],
                     ALC_RESEARCH_CATS.map(c => [c.mode, c.label, catTip(c)])
                 ];
