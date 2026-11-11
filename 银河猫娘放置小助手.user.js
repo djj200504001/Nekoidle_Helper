@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.25.0
-// @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、自动收菜（原独立脚本并入）：每30秒自动收获成熟地块并按原作物补种（无需切页），收获成果合并为一条通知，种植页可按农场设置跳过地块。设置开关位置：游戏设置-「其他」标签页；自动收菜在当前行动「取消」左侧保留快捷开关。
+// @version      1.25.1
+// @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、自动收菜（原独立脚本并入，全后台化）：进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块并按原作物补种，收获成果合并为一条通知，种植页可按农场设置跳过地块。设置开关位置：游戏设置-「其他」标签页；自动收菜在当前行动「取消」左侧保留快捷开关。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
 // @match        https://nekoidle.net/*
@@ -2476,11 +2476,12 @@
             applyEffMarkState();
         }
 
-        // ---------------- 自动收菜（原独立脚本「猫娘自动收菜 v2.3.0」并入） ----------------
+        // ---------------- 自动收菜（原独立脚本「猫娘自动收菜 v2.3.0」并入，全后台化） ----------------
         // 每 30 秒检查一次：通过 UI.plantState 读取各地块状态（state=ready，或 growing 且
         // mature_at 已过——快照可能滞后于实际成熟，与游戏自身判定同口径），对可收获且未被
-        // 跳过的地块直接发送收获消息（无需切换页面），1 秒后按地块原作物自动补种。
-        // 受总开关与本开关双重控制；队列位置（当前行动「取消」左侧）的快捷开关保留。
+        // 跳过的地块直接发送收获消息，1 秒后按地块原作物自动补种。初始化与收发全程后台进行：
+        // 不切页、不抢焦点、不遮挡操作。受总开关与本开关双重控制；队列位置（当前行动「取消」
+        // 左侧）的快捷开关保留。
         // 标记位供独立版收菜脚本检测，避免双开重复发送收获消息
         window.__NEK_HARVEST_IN_ASSISTANT__ = true;
         const HARVEST_TAG = '【自动收菜】';
@@ -2536,24 +2537,40 @@
                 pd.mature_at <= Math.floor(Date.now() / 1000);
         }
 
-        // 种植数据初始化等待（防重入）：切到种植页后轮询 plant_get_data 响应，
-        // 数据一到立即判定一次收获，不等下一轮循环
-        let harvestInitPending = false;
+        // 种植数据后台初始化：plant_get_data 响应处理（plant_getData）只要求 UI.plantState
+        // 已存在即可落盘（UI.plantRefresh 在种植页未构建时为 undefined，可选调用自动跳过），
+        // 收获/播种响应也只调用 plantState.updateFarmPlots。因此直接挂一个最小状态骨架并发送
+        // 数据请求即可完成初始化，全程不切换页面、不触碰行动区 DOM。
+        // 用户之后首次打开种植页时，游戏会重建真实 state 并重新拉数据，无缝接管。
+        let harvestDataTries = 0;
 
-        function waitInitThenTick() {
-            if (harvestInitPending) return;
-            harvestInitPending = true;
-            let tries = 0;
-            const t = setInterval(function () {
-                tries++;
-                const ok = UI.plantState && (UI.plantState.planets || []).length > 0;
-                if (ok || tries > 24) {          // 最多等 12 秒
-                    clearInterval(t);
-                    harvestInitPending = false;
-                    if (ok) tickPlanting();
-                    else hlog('种植数据初始化超时，将在下一轮重试');
+        function ensurePlantState() {
+            if (UI.plantState && (UI.plantState.planets || []).length) return true;
+            // 最多连发 3 次请求（每 2 秒一次），失败则等下一轮 30 秒主循环再试
+            if (harvestDataTries < 3) {
+                harvestDataTries++;
+                if (!UI.plantState) {
+                    // 最小骨架：满足 plant_getData 落盘与收获/播种响应的 updateFarmPlots 调用
+                    UI.plantState = {
+                        planets: [], price_config: {}, plot_prices: {}, player_level: 1,
+                        updateFarmPlots: function (farmId, plotsArr) {
+                            const farms = [];
+                            (this.planets || []).forEach(p => (p.farms || []).forEach(f => farms.push(f)));
+                            const farm = farms.find(f => f.id === farmId);
+                            if (!farm) return;
+                            if (!farm.plots) farm.plots = [];
+                            for (let i = 0; i < 12; i++) {
+                                const pd = plotsArr && (plotsArr[i] || plotsArr[String(i)]);
+                                farm.plots[i] = pd || { state: 'empty' };
+                            }
+                        }
+                    };
                 }
-            }, 500);
+                MSG.send('plant_get_data');
+                // 数据响应通常 1 秒内返回：短暂等待后立即判定，不等下一轮 30 秒
+                setTimeout(tickPlanting, 2000);
+            }
+            return false;
         }
 
         // 可收获且未被跳过的地块 → 逐块发送收获消息
@@ -2561,18 +2578,7 @@
             try {
                 if (typeof UI === 'undefined' || typeof MSG === 'undefined') return;
                 if (!UI.plantState || !(UI.plantState.planets || []).length) {
-                    // plantState 在首次打开种植页时初始化：有可收获数据但缺状态时切一次页，
-                    // 数据加载完成后立即判定（读取本地跳过配置 → 判定收获），不等下一轮
-                    if (UI.plantWatch && UI.plantWatch.ready > 0 &&
-                        !document.querySelector('.sidebar-item.action-3.active')) {
-                        UI.changeContent('actions', { id: 3 });
-                        hlog('种植数据未初始化，已切到种植页，数据加载后立即判定收获');
-                        waitInitThenTick();
-                    } else if (UI.plantState &&
-                        document.querySelector('.sidebar-item.action-3.active')) {
-                        // 已在种植页但数据未到（plant_get_data 响应在途）：同样等待后立即判定
-                        waitInitThenTick();
-                    }
+                    ensurePlantState();   // 后台拉取种植数据，不打断当前页面
                     return;
                 }
                 let sent = 0;
@@ -2861,6 +2867,7 @@
 
         function harvestTick() {
             if (!isEnabled() || !isHarvestEnabled()) return;
+            harvestDataTries = 0;   // 每轮主循环重置后台拉数据重试计数
             tickPlanting();
         }
 
@@ -2874,8 +2881,8 @@
                 return;
             }
             harvestStarted = true;
-            hlog('已并入小助手：每 ' + HARVEST_TICK_MS / 1000 + ' 秒检查一次（按地块收获+1秒后补种），' +
-                '当前状态：' + (isHarvestEnabled() ? 'ON' : 'OFF'));
+            hlog('已并入小助手：每 ' + HARVEST_TICK_MS / 1000 + ' 秒后台检查一次（按地块收获+1秒后补种，' +
+                '初始化直接拉取数据不切页），当前状态：' + (isHarvestEnabled() ? 'ON' : 'OFF'));
             patchResultModal();
             injectSkipStyle();
             ensureToggleButton();
@@ -3007,7 +3014,7 @@
                         '</label>' +
                     '</div>' +
                     '<div class="setting-item">' +
-                        '<div class="setting-name" title="原独立脚本「猫娘自动收菜」并入：每30秒检查一次，自动收获成熟地块并按原作物补种（无需切页）；收获成果合并为一条顶部通知；种植页每个农场可设置跳过地块；当前行动「取消」左侧保留快捷开关">自动收菜</div>' +
+                        '<div class="setting-name" title="原独立脚本「猫娘自动收菜」并入：初始化与收获全程后台进行（直接拉取种植数据，不切页不打断操作）；每30秒自动收获成熟地块并按原作物补种；收获成果合并为一条顶部通知；种植页每个农场可设置跳过地块；当前行动「取消」左侧保留快捷开关">自动收菜</div>' +
                         '<div class="setting-input"></div>' +
                         '<label class="slider-container">' +
                             '<div class="toggle-switch">' +
