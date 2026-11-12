@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.25.4
-// @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、自动收菜（原独立脚本并入，全后台化）：进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知，种植页可按农场设置跳过地块。设置开关位置：游戏设置-「其他」标签页；自动收菜在当前行动「取消」左侧保留快捷开关。
+// @version      1.26.0
+// @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知，种植页可按农场设置跳过地块；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
 // @match        https://nekoidle.net/*
@@ -2531,18 +2531,27 @@
         // 补种交给游戏原生的「自动播种」：地块右上圆点（A 按钮）点亮后 auto_enabled 存储在
         // 服务端，收获时服务端自动消耗背包种子补种，收获响应的 plots 即补种后的最新状态，
         // 客户端无需再发 plant_seed（原生帮助：「收获后自动消耗背包种子补种」）。
-        // 受总开关与本开关双重控制；队列位置（当前行动「取消」左侧）的快捷开关保留。
+        // 开关体系：设置页「农业辅助」为总开关（nek_farm_assist_enabled，同时控制自动收菜
+        // 与好友农场成熟预览）；队列位置（当前行动「取消」左侧）的「自动收菜」快捷开关
+        // （nek_harvest_enabled，沿用独立版键名）仅控制自动收获本身。
         // 标记位供独立版收菜脚本检测，避免双开重复发送收获消息
         window.__NEK_HARVEST_IN_ASSISTANT__ = true;
         const HARVEST_TAG = '【自动收菜】';
         const HARVEST_TICK_MS = 30000;           // 主循环：每 30 秒一次
         const HARVEST_SKIP_KEY = 'nek_harvest_skip';      // 跳过配置：{ farmId: [plotIndex,...] }
-        const LS_HARVEST_KEY = 'nek_harvest_enabled';     // 沿用独立版开关键，状态平滑迁移
+        const LS_HARVEST_KEY = 'nek_harvest_enabled';     // 队列快捷开关（仅自动收菜），沿用独立版键名
+        const LS_FARM_KEY = 'nek_farm_assist_enabled';    // 农业辅助总开关：自动收菜 + 好友农场成熟预览
         const isHarvestEnabled = () => {
             try { return localStorage.getItem(LS_HARVEST_KEY) !== '0'; } catch (e) { return true; }
         };
         const setHarvestEnabled = v => {
             try { localStorage.setItem(LS_HARVEST_KEY, v ? '1' : '0'); } catch (e) { /* 忽略 */ }
+        };
+        const isFarmAssistEnabled = () => {
+            try { return localStorage.getItem(LS_FARM_KEY) !== '0'; } catch (e) { return true; }
+        };
+        const setFarmAssistEnabled = v => {
+            try { localStorage.setItem(LS_FARM_KEY, v ? '1' : '0'); } catch (e) { /* 忽略 */ }
         };
         // 开关切换后统一刷新队列位置按钮的文案与样式
         const applyHarvestState = () => {
@@ -2728,7 +2737,7 @@
             const orig = UI.showResultModal.bind(UI);
             UI.showResultModal = function (data) {
                 if (data && data.title === '收获成果') {
-                    if (!isEnabled() || !isHarvestEnabled()) return orig(data);   // 功能关闭：原生弹窗
+                    if (!isEnabled() || !isFarmAssistEnabled() || !isHarvestEnabled()) return orig(data);   // 功能关闭：原生弹窗
                     // 只拦截收获成果弹窗：物品与经验进聚合器，静默期后合并为一条通知
                     try {
                         if (!harvestAgg) harvestAgg = { items: {}, exp: 0, count: 0 };
@@ -2885,8 +2894,8 @@
             const on = isHarvestEnabled();
             btn.textContent = '自动收菜：' + (on ? 'ON' : 'OFF');
             btn.classList.toggle('off', !on);
-            btn.title = on ? '点击关闭自动收菜（种植后台自动收获，补种由游戏原生「自动播种」完成）'
-                           : '点击开启自动收菜（种植后台自动收获，补种由游戏原生「自动播种」完成）';
+            btn.title = on ? '点击关闭自动收获（仅控制自动收菜；好友农场成熟预览由设置页「农业辅助」开关控制）'
+                           : '点击开启自动收获（种植后台自动收获，补种由游戏原生「自动播种」完成）';
         }
 
         function ensureToggleButton() {
@@ -2914,7 +2923,7 @@
         // ---- 自动收菜主循环 ----
 
         function harvestTick() {
-            if (!isEnabled() || !isHarvestEnabled()) return;
+            if (!isEnabled() || !isFarmAssistEnabled() || !isHarvestEnabled()) return;
             harvestDataTries = 0;   // 每轮主循环重置后台拉数据重试计数
             tickPlanting();
         }
@@ -2930,8 +2939,11 @@
             }
             harvestStarted = true;
             hlog('已并入小助手：每 ' + HARVEST_TICK_MS / 1000 + ' 秒后台检查一次（按地块收获，' +
-                '初始化直接拉取数据不切页），当前状态：' + (isHarvestEnabled() ? 'ON' : 'OFF'));
+                '初始化直接拉取数据不切页），当前状态：' + (isHarvestEnabled() ? 'ON' : 'OFF') +
+                '；农业辅助总开关：' + (isFarmAssistEnabled() ? 'ON' : 'OFF') +
+                '（含好友农场成熟预览）');
             patchResultModal();
+            patchFriendList();
             injectSkipStyle();
             ensureToggleButton();
             ensureSkipButtons();
@@ -2939,6 +2951,177 @@
             setInterval(ensureSkipButtons, 1500);    // 种植页重绘后自动补挂设置按钮
             setInterval(harvestTick, HARVEST_TICK_MS);
             setTimeout(harvestTick, 5000);
+        }
+
+        // ---------------- 好友农场成熟预览（农业辅助功能之二） ----------------
+        // 好友农场列表弹窗的服务器响应（plant_friendList）不含农场数据；进入农场用的
+        // plant_friend_data 响应才有完整 planets/farms/plots（state/mature_at/steal_count/
+        // stolen_today）。这里包装 UI.showPlantFriendList：弹窗渲染后对每个好友逐个串行
+        // 发送探测请求，临时包装 MSG.handlers.plant_friendData 截获响应——uid 匹配的响应
+        // 被吞掉（不调原函数，避免 plant_friendData 处理器把界面切到好友农场视图），uid
+        // 不匹配的（用户点了「进入农场」触发的真实请求）恢复后原样透传，不影响进入农场。
+        // 探测结果渲染为列表行内的「可偷 N · 最近 xx 后成熟」徽标；弹窗关闭即中止剩余探测。
+        const FRIEND_PROBE_GAP_MS = 300;      // 相邻两个好友探测之间的间隔
+        const FRIEND_PROBE_TIMEOUT_MS = 6000; // 单个好友探测超时（超时按失败跳过）
+
+        function friendPreviewActive() {
+            return isEnabled() && isFarmAssistEnabled();
+        }
+
+        function patchFriendList() {
+            if (typeof UI.showPlantFriendList !== 'function' || UI.__nekFriendPreviewPatched) return;
+            const orig = UI.showPlantFriendList.bind(UI);
+            UI.showPlantFriendList = function (data) {
+                orig(data);
+                try {
+                    if (friendPreviewActive() && data && (data.friends || []).length) {
+                        startFriendPreview(data.friends);
+                    }
+                } catch (e) { /* 预览失败不影响原弹窗 */ }
+            };
+            UI.__nekFriendPreviewPatched = true;
+        }
+
+        // 剩余时间简写（与游戏原生好友视图倒计时格式一致）
+        function formatRemainBrief(sec) {
+            if (sec <= 0) return '即将成熟';
+            const h = Math.floor(sec / 3600);
+            const m = Math.floor((sec % 3600) / 60);
+            if (h > 0) return h + 'h' + m + 'm';
+            if (m <= 0) return '<1分钟';
+            return m + '分钟';
+        }
+
+        // 汇总好友全部星球农田：已成熟数/可偷数/最近成熟时间戳。
+        // 成熟口径与游戏一致：state=ready，或 growing 且 mature_at 已过（好友视图的
+        // startFriendGrowthTimer 同样把过期的 growing 本地转为 ready 并允许偷取）；
+        // 可偷口径与原页「可偷 N」角标一致：今日剩余次数>0 且今日未偷过且减产未达上限
+        function summarizeFriendPlots(d) {
+            const cap = (typeof Data !== 'undefined' && Data.plantStealMaxPercent) ? Data.plantStealMaxPercent : 10;
+            const remaining = d.steal_remaining || 0;
+            const now = Math.floor(Date.now() / 1000);
+            let ready = 0, stealable = 0, nearest = 0;
+            (d.planets || []).forEach(function (p) {
+                (p.farms || []).forEach(function (f) {
+                    (f.plots || []).forEach(function (pl) {
+                        if (!pl || pl.state === 'locked') return;
+                        const matured = pl.state === 'ready' ||
+                            (pl.state === 'growing' && pl.mature_at > 0 && pl.mature_at <= now);
+                        if (matured) {
+                            ready++;
+                            if (remaining > 0 && !pl.stolen_today && (pl.steal_count || 0) < cap) stealable++;
+                        } else if (pl.state === 'growing' && pl.mature_at > 0) {
+                            nearest = nearest === 0 ? pl.mature_at : Math.min(nearest, pl.mature_at);
+                        }
+                    });
+                });
+            });
+            return { remaining: remaining, ready: ready, stealable: stealable, nearest: nearest };
+        }
+
+        // 单个好友探测：临时包装响应处理器，uid 匹配则截获，超时/不匹配时恢复并兜底
+        function probeFriendFarm(uid, onDone) {
+            const orig = MSG.handlers.plant_friendData;
+            if (typeof orig !== 'function') { onDone(null); return; }
+            let settled = false;
+            let timer = null;
+            const finish = function (d) {
+                if (settled) return;
+                settled = true;
+                if (timer) { clearTimeout(timer); timer = null; }
+                MSG.handlers.plant_friendData = orig;
+                onDone(d);
+            };
+            MSG.handlers.plant_friendData = function (data) {
+                const d = (data && data.content) || {};
+                if (d.friend && Number(d.friend.uid) === Number(uid)) {
+                    finish(d.success ? d : null);   // 探测目标的响应：截获吞掉
+                } else {
+                    // 不是探测目标：是用户点了「进入农场」触发的真实请求，恢复后透传
+                    finish(null);
+                    orig.call(MSG, data);
+                }
+            };
+            if (!MSG.send('plant_friend_data', { friend_uid: uid })) finish(null);
+            timer = setTimeout(function () { finish(null); }, FRIEND_PROBE_TIMEOUT_MS);
+        }
+
+        function injectFriendPreviewStyle() {
+            if (document.getElementById('nek-friend-preview-style')) return;
+            const s = document.createElement('style');
+            s.id = 'nek-friend-preview-style';
+            s.textContent = [
+                '.nek-friend-meta { font-size: 11px; line-height: 1.3; margin-top: 2px; color: #8fa3b0; }',
+                '.nek-friend-meta.nek-fp-hot { color: #ffd76e; font-weight: 700; }'
+            ].join('\n');
+            document.head.appendChild(s);
+        }
+
+        // 把汇总结果渲染进好友列表行（追加在在线状态文字下方）
+        function paintFriendRow(row, s) {
+            let el = row.querySelector('.nek-friend-meta');
+            if (!el) {
+                el = document.createElement('div');
+                el.className = 'nek-friend-meta';
+                (row.querySelector('.user-info') || row).appendChild(el);
+            }
+            let txt = '', hot = false;
+            if (s.stealable > 0) {
+                txt = '可偷 ' + s.stealable;
+                if (s.nearest) txt += ' · 最近 ' + formatRemainBrief(s.nearest - Math.floor(Date.now() / 1000)) + ' 后再熟';
+                hot = true;
+            } else if (s.ready > 0) {
+                txt = s.remaining <= 0 ? '成熟 ' + s.ready + ' · 今日次数已用完' : '成熟 ' + s.ready + ' · 暂不可偷';
+            } else if (s.nearest) {
+                txt = '最近 ' + formatRemainBrief(s.nearest - Math.floor(Date.now() / 1000)) + ' 后成熟';
+            } else {
+                txt = '没有种植作物';
+            }
+            el.textContent = txt;
+            el.classList.toggle('nek-fp-hot', hot);
+        }
+
+        // 全局串行探测队列：任意时刻只有一个在途探测（wrapper 单槽），快速关/开弹窗时
+        // 两个循环的探测不会并发包装同一处理器；row/list 已脱离 DOM 的任务直接跳过
+        const friendProbeQueue = [];
+        let friendProbeBusy = false;
+
+        function queueFriendProbe(task) {
+            friendProbeQueue.push(task);
+            pumpFriendProbes();
+        }
+
+        function pumpFriendProbes() {
+            if (friendProbeBusy) return;
+            const t = friendProbeQueue.shift();
+            if (!t) return;
+            if (!t.list.isConnected || !t.row.isConnected) { pumpFriendProbes(); return; }
+            friendProbeBusy = true;
+            probeFriendFarm(t.uid, function (d) {
+                friendProbeBusy = false;
+                if (d && document.body.contains(t.row)) {
+                    try { paintFriendRow(t.row, summarizeFriendPlots(d)); } catch (e) { /* 忽略 */ }
+                }
+                setTimeout(pumpFriendProbes, FRIEND_PROBE_GAP_MS);
+            });
+        }
+
+        // 逐个串行探测列表中的好友：等上一个响应回来（或超时）再发下一个，避免瞬时
+        // 连发大量 plant_friend_data；列表 DOM 被移除（弹窗关闭/点了进入农场）即中止
+        function startFriendPreview(friends) {
+            const list = document.querySelector('.plant-friend-list');
+            if (!list || list.dataset.nekProbed) return;
+            const rows = list.querySelectorAll('.plant-friend-item');
+            injectFriendPreviewStyle();
+            list.dataset.nekProbed = '1';
+            let queued = false;
+            friends.forEach(function (f, i) {
+                if (f && f.uid != null && rows[i]) {
+                    queueFriendProbe({ uid: f.uid, row: rows[i], list: list });
+                    queued = true;
+                }
+            });
+            if (queued) hlog('好友农场成熟预览：开始探测 ' + queued + ' 位好友的农场');
         }
 
         // 结构复刻原生「动画效果」区块：
@@ -3062,7 +3245,7 @@
                         '</label>' +
                     '</div>' +
                     '<div class="setting-item">' +
-                        '<div class="setting-name" title="原独立脚本「猫娘自动收菜」并入：初始化与收获全程后台进行（直接拉取种植数据，不切页不打断操作）；每30秒自动收获成熟地块；补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点后，服务端收获时自动消耗背包种子补种）；收获成果合并为一条顶部通知；种植页每个农场可设置跳过地块；当前行动「取消」左侧保留快捷开关">自动收菜</div>' +
+                        '<div class="setting-name" title="农业辅助总开关，同时控制两个功能：①自动收菜——初始化与收获全程后台进行（直接拉取种植数据，不切页不打断操作），每30秒自动收获成熟地块；补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点后，服务端收获时自动消耗背包种子补种）；收获成果合并为一条顶部通知；种植页每个农场可设置跳过地块。②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。当前行动「取消」左侧的「自动收菜」快捷开关仅控制自动收获">农业辅助</div>' +
                         '<div class="setting-input"></div>' +
                         '<label class="slider-container">' +
                             '<div class="toggle-switch">' +
@@ -3095,7 +3278,7 @@
             if (foolproof) foolproof.checked = isFoolproofEnabled();
             if (alcsort) alcsort.checked = isAlcSortEnabled();
             if (cookjump) cookjump.checked = isCookJumpEnabled();
-            if (harvest) harvest.checked = isHarvestEnabled();
+            if (harvest) harvest.checked = isFarmAssistEnabled();
             master.addEventListener('change', function () {
                 setEnabled(master.checked);
                 applyEnabledState();
@@ -3137,8 +3320,8 @@
                 applyCookJumpState();
             });
             if (harvest) harvest.addEventListener('change', function () {
-                setHarvestEnabled(harvest.checked);
-                applyHarvestState();   // 同步刷新队列位置快捷开关
+                setFarmAssistEnabled(harvest.checked);   // 农业辅助总开关：自动收菜 + 好友成熟预览
+                applyHarvestState();   // 同步刷新队列位置快捷开关（其提示文案说明两级开关关系）
             });
         }
 
@@ -3166,7 +3349,7 @@
             if (foolproof && foolproof.checked !== isFoolproofEnabled()) foolproof.checked = isFoolproofEnabled();
             if (alcsort && alcsort.checked !== isAlcSortEnabled()) alcsort.checked = isAlcSortEnabled();
             if (cookjump && cookjump.checked !== isCookJumpEnabled()) cookjump.checked = isCookJumpEnabled();
-            if (harvest && harvest.checked !== isHarvestEnabled()) harvest.checked = isHarvestEnabled();
+            if (harvest && harvest.checked !== isFarmAssistEnabled()) harvest.checked = isFarmAssistEnabled();
         }
 
         function scheduleDecorate() {
