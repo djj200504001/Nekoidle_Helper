@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.25.3
+// @version      1.25.4
 // @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、自动收菜（原独立脚本并入，全后台化）：进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知，种植页可按农场设置跳过地块。设置开关位置：游戏设置-「其他」标签页；自动收菜在当前行动「取消」左侧保留快捷开关。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
@@ -288,11 +288,20 @@
         function computeActionEff(a) {
             try {
                 if (!a || a.xp == null || !(a.time > 0)) return null;
+                // v1112a 起 calcExpWithBonus/getEfficiency 均支持第二参「行动所属研究设施」：
+                // 梳毛1/采集按星球2~5/生产11；烹饪原生固定传 12（烹饪研究所）
+                let fid = 0;
+                try {
+                    if (typeof game.getResearchFacilityIdForAction === 'function') {
+                        fid = game.getResearchFacilityIdForAction(a) || 0;
+                    }
+                } catch (e1) { /* 忽略 */ }
+                if (!fid && +a.action === 7) fid = 12;
                 const exp = (typeof game !== 'undefined' && game.calcExpWithBonus)
-                    ? game.calcExpWithBonus(a.xp) : a.xp;
+                    ? game.calcExpWithBonus(a.xp, fid) : a.xp;
                 let eff = 1;
                 try {
-                    if (typeof game !== 'undefined' && game.getEfficiency) eff = game.getEfficiency(a.type) || 1;
+                    if (typeof game !== 'undefined' && game.getEfficiency) eff = game.getEfficiency(a.type, fid) || 1;
                 } catch (e2) { /* 忽略 */ }
                 // 越级修正：耗时倍率 + 成功率期望（仅适用于支持越级的分类）
                 let timeRate = 1, successRate = 1, over = 0;
@@ -1203,6 +1212,25 @@
             const skillAction = game.getActionGroupName(action.action);
             // 越级修正：耗时按倍率显示，并复刻游戏同款黄/橙提示行（红=不可执行）
             const ol = getOverLevelState(action);
+            // 数量格式：与原生 formatQuantityNumber 同款（最多两位小数去尾零）
+            const fmtQ = n => {
+                const r = Math.round(n * 100) / 100;
+                return Number.isInteger(r) ? String(r) : r.toFixed(2).replace(/\.?0+$/, '');
+            };
+            // 研究中心加成（v1112a 原生同口径）：行动所属设施（梳毛1/采集按星球2~5/生产11），
+            // 经验、效率、产出、幸运分别生效；阶差转化为独立产物乘区（仅主奖励）
+            let researchFacilityId = 0;
+            try { researchFacilityId = game.getResearchFacilityIdForAction(action) || 0; } catch (eF) { /* 忽略 */ }
+            const resPct = kind => {
+                try { return game.getResearchEffectPct(researchFacilityId, kind) || 0; } catch (eP) { return 0; }
+            };
+            const researchProduct = resPct('product');
+            const researchLucky = resPct('lucky');
+            let overLevelMultiplier = 1;
+            try { overLevelMultiplier = game.getOverLevelProductMultiplier(action) || 1; } catch (eO) { /* 忽略 */ }
+            // 收集祝福（活动7 + 月卡5%）：仅作用于梳毛与采集行动，与原生一致
+            const collectBonus = ([1, 2].indexOf(+action.action) >= 0 && typeof UI.getRewardBonusEffect === 'function')
+                ? (UI.getRewardBonusEffect('collect') || 0) : 0;
             const overNote = (ol.diff > 0 && ol.status !== 'red')
                 ? `<div class="action-level-note ${ol.status === 'orange' ? 'recommend-orange' : 'recommend-yellow'}">低于推荐等级 ${ol.diff} 级：耗时增加 ${Math.round((ol.timeRate - 1) * 100)}%${ol.status === 'orange' ? `，成功率 ${ol.successRate}%，失败无产出${+action.action === 6 ? '，不消耗材料' : ''}` : ''}</div>`
                 : '';
@@ -1216,7 +1244,7 @@
                         </div>
                         <div class="action-item-container">
                             <div class="action-item-container-name"><span class="action-icon action-icon-time"></span>时间</div>
-                            <div class="action-item-container-value"><span>${(action.time / 1000 * ol.timeRate / game.getEfficiency(action.type)).toFixed(2)} 秒</span></div>
+                            <div class="action-item-container-value"><span>${(action.time / 1000 * ol.timeRate / game.getEfficiency(action.type, researchFacilityId)).toFixed(2)} 秒</span></div>
                         </div>
                     </div>
                     ${overNote}
@@ -1274,13 +1302,31 @@
             }
 
             // 获得 / 额外奖励：产出区间 + 熟练度门槛 + 几率（熟练度门槛登记 proficiencyCache 供游戏联动）
-            const renderReward = (item, container) => {
+            // 数量口径 v1112a 原生同款：收集祝福(仅梳毛/采集)+产出研究按百分点加算（noBonus 不吃），
+            // 主奖励再乘阶差转化独立乘区；额外奖励几率乘幸运研究（宝箱已提前算入不重复）
+            const renderReward = (item, container, isExtra) => {
                 const itemDef = game.getItem(item.itemId);
-                // 数值带 data-nek-min/max：加工倍数切换时按倍数重显示（单次执行产出 min~max ×倍数）
-                const value = item.min === item.max
-                    ? `<span class="nek-reward-val" data-nek-min="${item.min}" data-nek-max="${item.max}">${item.max}</span>`
-                    : `<span class="nek-reward-val" data-nek-min="${item.min}" data-nek-max="${item.max}">${item.min}&nbsp;~&nbsp;${item.max}</span>`;
+                const productBonus = item.noBonus ? 0 : (researchProduct > 0 ? researchProduct : 0);
+                const rewardBonus = item.noBonus ? 0 : (collectBonus + productBonus);
+                const bonusPct = rewardBonus > 0 ? (100 + rewardBonus) / 100 : 1;
+                const extraMult = isExtra ? 1 : overLevelMultiplier;
+                // 基准值（已含研究/祝福/阶差加成）写入 data-nek-min/max：加工倍数切换时按倍数重显示
+                const baseMin = Math.round(item.min * bonusPct * extraMult * 100) / 100;
+                const baseMax = Math.round(item.max * bonusPct * extraMult * 100) / 100;
+                const value = baseMin === baseMax
+                    ? `<span class="nek-reward-val" data-nek-min="${baseMin}" data-nek-max="${baseMax}">${fmtQ(baseMax)}</span>`
+                    : `<span class="nek-reward-val" data-nek-min="${baseMin}" data-nek-max="${baseMax}">${fmtQ(baseMin)}&nbsp;~&nbsp;${fmtQ(baseMax)}</span>`;
                 const curProf = game.proficiency?.action?.[action.id] || 0;
+                // 阶差转化标注：主奖励且乘区 >1 时，在数量与几率之间显示（与原生 action-overlevel-rate 一致）
+                const overRateHtml = (!isExtra && overLevelMultiplier > 1)
+                    ? `<div class="action-item-container-text action-overlevel-rate"><span class="stat-sub">(×${fmtQ(overLevelMultiplier * 100)}%)</span></div>` : '';
+                let chance = Number(item.chance) || 0;
+                if (isExtra && !item.luckyApplied && researchLucky > 0 && chance > 0 && chance < 100) {
+                    chance = Math.min(100, chance * (1 + researchLucky * 0.3));
+                }
+                const chanceHtml = chance < 100
+                    ? `<span class="chance-uncertain">${fmtQ(chance)}% 几率</span>`
+                    : '<span class="chance-certain">一定获得</span>';
                 const row = document.createElement('div');
                 row.className = 'action-item-container';
                 row.innerHTML = `
@@ -1288,8 +1334,9 @@
                     <div class="action-item-container-info">
                         <div class="action-item-container-text"><span>${itemDef.name}</span></div>
                         <div class="action-item-container-text"><span>${value}</span><span>个</span></div>
+                        ${overRateHtml}
                         ${item.proficiency ? `<div class="action-item-container-text action-proficiency-requirement${curProf < item.proficiency ? ' disabled' : ''}"><span>熟练度${item.proficiency}</span></div>` : ''}
-                        <div class="action-item-container-text">${item.chance < 100 ? `<span class="chance-uncertain">${item.chance}% 几率</span>` : '<span class="chance-certain">一定获得</span>'}</div>
+                        <div class="action-item-container-text">${chanceHtml}</div>
                     </div>
                 `;
                 if (item.proficiency) {
@@ -1309,10 +1356,10 @@
             action.rewards.forEach(item => renderReward(item, gainList));
 
             // 经验行：与原生弹窗完全同口径——game.calcExpWithBonus 统一叠加
-            // 活动加成 + 月卡 +5% + 舰队研究中心（旧实现漏了月卡，数值偏低 5%）
+            // 活动加成 + 月卡 +5% + 舰队研究中心 + 行动所属设施的经验研究（v1112a 第二参）
             let exp;
             if (typeof game.calcExpWithBonus === 'function') {
-                exp = game.calcExpWithBonus(action.xp);
+                exp = game.calcExpWithBonus(action.xp, researchFacilityId);
             } else {
                 exp = action.xp;
                 if (game.event && game.event[3] && game.event[3].end_time > (Date.now() / 1000)) {
@@ -1343,7 +1390,7 @@
             if (action.extraRewards && sectionByTitle('额外奖励')) {
                 const extraList = document.createElement('div');
                 extraList.className = 'action-item-container-list';
-                action.extraRewards.forEach(item => renderReward(item, extraList));
+                action.extraRewards.forEach(item => renderReward(item, extraList, true));
                 sectionByTitle('额外奖励').appendChild(extraList);
             }
 
@@ -1421,11 +1468,12 @@
                     }
                 });
                 detailEl.querySelectorAll('.nek-reward-val').forEach(sp => {
-                    const mn = parseInt(sp.dataset.nekMin, 10) || 0;
-                    const mx = parseInt(sp.dataset.nekMax, 10) || 0;
+                    // 基准值可能含小数（研究/祝福/阶差加成后），parseFloat + 两位小数去尾零显示
+                    const mn = parseFloat(sp.dataset.nekMin) || 0;
+                    const mx = parseFloat(sp.dataset.nekMax) || 0;
                     sp.innerHTML = mn === mx
-                        ? String(mx * craftMult)
-                        : (mn * craftMult) + '&nbsp;~&nbsp;' + (mx * craftMult);
+                        ? fmtQ(mx * craftMult)
+                        : fmtQ(mn * craftMult) + '&nbsp;~&nbsp;' + fmtQ(mx * craftMult);
                 });
                 (prodRegKeys || []).forEach(key => {
                     const map = UI.actionItemMap.get(key);
