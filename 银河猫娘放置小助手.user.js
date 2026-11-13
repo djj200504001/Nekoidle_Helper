@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.26.0
-// @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知，种植页可按农场设置跳过地块；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）。
+// @version      1.27.0
+// @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口与炼金界面（原子/神秘/量子炼金执行区）经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色；炼金期望按成功率折算）并快捷填入升级所需执行次数；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知，种植页可按农场设置跳过地块；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
 // @match        https://nekoidle.net/*
@@ -2214,6 +2214,212 @@
             });
         }
 
+        // ---------------- 炼金界面：经验效率 + 升级次数计算 + 快捷填入 ----------------
+        // 炼金页（action-8）三张有经验的卡片（原子/神秘/量子）右侧执行区与行动弹窗同构：
+        // .alchemy-action-repeat 内 input.repeat-input + .btn.quick-set（1/10/100/1000/∞）。
+        // 与行动弹窗的差异：
+        // ①单次经验显示在右侧「经验」行，已含类型系数/稀有度/炼金经验研究/研究减半与
+        //   越级衰减（越级时游戏在值后附 (越级-X%) 红字标注，衰减已烘焙进显示值）；
+        // ②单次耗时显示在左侧「炼金信息·时间」行，已含炼金效率研究与「阶差转化」降耗
+        //   （炼金的阶差研究是缩短耗时而非惩罚，原子卡切换标签时游戏会重写该行）；
+        // ③越级时成功率 <100%（量子用配方自身 rate），经验行在「成功时获得」之下，
+        //   期望经验按成功率折算；④经验归属炼金技能（expType=8）。
+        // 全部数据从面板 DOM 读取（与显示严格同源），容器由游戏随物品/标签切换整体重建，
+        // MutationObserver → scheduleDecorate 会重新装饰，此处只做存在性复用与数值同步。
+        function decorateAlchemy() {
+            // 总开关或「推算升级次数」任一关闭：清理炼金卡片内已插入的块与按钮
+            if (!isEnabled() || !isCalcEnabled()) {
+                document.querySelectorAll('.nek-alclvl-btn').forEach(b => b.remove());
+                document.querySelectorAll('.alchemy-container .nek-eff-block').forEach(b => b.remove());
+                return;
+            }
+            document.querySelectorAll('.alchemy-card').forEach(function (card) {
+                try { decorateAlchemyCard(card); } catch (e) { /* 单卡失败不影响其它卡 */ }
+            });
+        }
+
+        function decorateAlchemyCard(card) {
+            const rep = card.querySelector('.alchemy-action-repeat');
+            const input = rep && rep.querySelector('input.repeat-input');
+            if (!rep || !input) return;   // 未选物品 / 禁忌炼金术（无经验与执行次数）
+            const container = rep.closest('.alchemy-container');
+            if (!container) return;
+
+            // 单次经验：执行区内 name=经验 的行（值已含全部加成与越级衰减）
+            let perExp = 0, decayPct = 0;
+            container.querySelectorAll('.alchemy-detail-item').forEach(function (row) {
+                const nameEl = row.querySelector('.alchemy-detail-container-name');
+                if (!nameEl || nameEl.textContent.trim() !== '经验') return;
+                const valEl = row.querySelector('.alchemy-detail-container-value');
+                if (!valEl) return;
+                perExp = parseInt((valEl.textContent || '').replace(/[,，]/g, ''), 10) || 0;
+                const pen = valEl.querySelector('.alchemy-exp-penalty');
+                const pm = pen && (pen.textContent || '').match(/越级-(\d+)%/);
+                decayPct = pm ? parseInt(pm[1], 10) : 0;
+            });
+            if (!(perExp > 0)) return;
+
+            // 左侧「炼金信息」：时间（已含效率与降耗）/ 成功率（量子为配方 rate）
+            let perSec = null, rate = 1;
+            card.querySelectorAll('.alchemy-info-item').forEach(function (row) {
+                const nameEl = row.querySelector('.alchemy-info-item-name');
+                const valEl = row.querySelector('.alchemy-info-item-value');
+                if (!nameEl || !valEl) return;
+                const nm = nameEl.textContent.trim();
+                if (nm === '时间') {
+                    const tm = (valEl.textContent || '').match(/([\d.]+)\s*秒/);
+                    if (tm) perSec = parseFloat(tm[1]);
+                } else if (nm === '成功率') {
+                    const rm = (valEl.textContent || '').match(/([\d.]+)\s*%/);
+                    if (rm) rate = Math.max(0, Math.min(1, parseFloat(rm[1]) / 100));
+                }
+            });
+
+            const info8 = levelInfo(8);
+            if (!info8) return;
+            if (!(info8.nextLevelRemainExp > 0)) {
+                // 满级：清掉残留的按钮与计算块
+                const staleBtn = rep.querySelector('.nek-alclvl-btn');
+                if (staleBtn) staleBtn.remove();
+                const staleEff = container.querySelector('.nek-eff-block');
+                if (staleEff) staleEff.remove();
+                return;
+            }
+
+            // 期望经验 = 显示经验 × 成功率；效率 = 期望经验 / 单次耗时
+            const perEff = perExp * rate;
+            const baseEffMin = perSec ? Math.round(perExp / perSec * 60) : null;   // 成功口径（不含成功率）
+            const effPerMin = perSec ? Math.round(perEff / perSec * 60) : null;    // 期望口径
+            const times = Math.ceil(info8.nextLevelRemainExp / perEff);
+            const timeStr = perSec ? fmtDuration(times * perSec) : null;
+
+            // 越级档位：经验行衰减标注反推级差（衰减 = 1 - 1/(1+5%×级差)），着色与行动弹窗一致
+            const coeff = decayPct > 0 ? 1 - decayPct / 100 : 1;
+            const diff = coeff < 1 ? Math.round((1 / coeff - 1) / 0.05) : 0;
+            const olStatus = diff >= 6 ? 'orange' : diff >= 1 ? 'yellow' : 'normal';
+            const effColorCls = olStatus === 'orange' ? 'recommend-orange' : olStatus === 'yellow' ? 'recommend-yellow' : '';
+            const overActive = olStatus !== 'normal' || rate < 1;
+
+            // 「升下一级」快捷按钮：∞ 档之前，点击填入所需次数（复用 .nek-lvl-btn 样式
+            // 与 decorateModal 的全局清理，nek-alclvl-btn 仅作炼金侧定位标记）
+            const sets = Array.prototype.slice.call(rep.querySelectorAll('.btn.quick-set'));
+            const bInf = sets.find(b => b.textContent.trim() === '∞');
+            if (!bInf) return;
+            const overTag = overActive
+                ? '（含越级衰减 ' + decayPct + '%' + (rate < 1 ? ' 与成功率 ' + Math.round(rate * 100) + '%' : '') + '）'
+                : '';
+            const lvlTitle = timeStr
+                ? '【小助手】执行 ' + times + ' 次预计需要 ' + timeStr + overTag + '，点击填入执行次数。'
+                : '【小助手】炼金距升级还需 ' + fmt(info8.nextLevelRemainExp) +
+                  ' 点经验，共需 ' + times + ' 次' + overTag + '。点击填入执行次数。';
+            let lvlBtn = rep.querySelector('.nek-alclvl-btn');
+            if (!lvlBtn) {
+                lvlBtn = document.createElement('div');
+                lvlBtn.className = 'btn quick-set nek-lvl-btn nek-alclvl-btn';
+                lvlBtn.addEventListener('click', function () {
+                    input.value = lvlBtn.dataset.nekTimes;   // 与原生 quick-set 行为一致：直接赋值
+                });
+                bInf.before(lvlBtn);
+            }
+            if (lvlBtn.dataset.nekTimes !== String(times)) lvlBtn.textContent = String(times);
+            lvlBtn.title = lvlTitle;
+            lvlBtn.dataset.nekTimes = String(times);
+
+            // 「执行」标题前插入：经验效率 + 目标等级计算（复用行动弹窗的块结构与样式）
+            const effKey = perExp + ':' + (perSec || '') + ':' + rate + ':' + (effPerMin != null ? effPerMin : '');
+            let eff = container.querySelector('.nek-eff-block');
+            if (!eff) {
+                eff = document.createElement('div');
+                eff.className = 'nek-eff-block';
+                eff.innerHTML =
+                    '<div class="nek-eff-row">经验效率：<span class="nek-eff-val' + (effColorCls ? ' ' + effColorCls : '') + '"></span></div>' +
+                    '<div class="nek-eff-row nek-target-row">' +
+                        '<input class="nek-target-input nek-target-from" type="number" min="1" placeholder="现有等级">' +
+                        '<span class="nek-target-dash">—</span>' +
+                        '<input class="nek-target-input" type="number" min="1" placeholder="目标等级">' +
+                        '<div class="btn quick-set nek-target-btn">计算</div>' +
+                    '</div>' +
+                    '<div class="nek-target-result"></div>';
+                const tFrom = eff.querySelector('.nek-target-from');
+                const tInput = eff.querySelector('.nek-target-input:not(.nek-target-from)');
+                const tBtn = eff.querySelector('.nek-target-btn');
+                const tRes = eff.querySelector('.nek-target-result');
+                tBtn.addEventListener('click', function () {
+                    const L2 = parseInt(tInput.value, 10);
+                    if (!L2 || L2 < 1) { tRes.textContent = '请输入目标等级'; return; }
+                    try {
+                        const cur = levelInfo(8);
+                        if (!cur) { tRes.textContent = '数据获取失败'; return; }
+                        if (typeof Data === 'undefined' || !Array.isArray(Data.expTable)) {
+                            tRes.textContent = '经验表不可用'; return;
+                        }
+                        const maxLv = (typeof game !== 'undefined' && game.character &&
+                            game.character.max_level) || Data.expTable.length;
+                        const target = Math.min(L2, maxLv);
+                        // 起始点：第一个选框填了 → 该等级的 0% 经验；留空 → 现有等级的现有经验
+                        const fromVal = parseInt(tFrom.value, 10);
+                        let startXp, fromTxt;
+                        if (fromVal >= 1) {
+                            const L1 = Math.min(fromVal, maxLv);
+                            if (target <= L1) {
+                                tRes.textContent = '目标等级需大于起始等级 Lv.' + L1;
+                                return;
+                            }
+                            startXp = Data.expTable[L1 - 1];
+                            fromTxt = '从 Lv.' + L1 + '（0% 经验）';
+                        } else {
+                            if (L2 <= cur.level) { tRes.textContent = '当前已是 Lv.' + cur.level; return; }
+                            startXp = cur.xp;
+                            fromTxt = '从现有等级经验';
+                        }
+                        const need = Data.expTable[target - 1] - startXp;
+                        if (need <= 0) { tRes.textContent = '当前已是 Lv.' + target; return; }
+                        // 点击时读取块上的实时口径（标签切换会改变耗时与经验）
+                        const n = Math.ceil(need / (parseFloat(eff.dataset.nekPerEff) || perEff));
+                        const sec = parseFloat(eff.dataset.nekPerSec) || perSec;
+                        tRes.textContent = fromTxt + '到 Lv.' + target +
+                            ' 需执行 ' + fmt(n) + ' 次' +
+                            (sec ? '，预计需要 ' + fmtDuration(n * sec) +
+                                (eff.dataset.nekOver === '1' ? '（含越级衰减与成功率）' : '') : '');
+                    } catch (e) { tRes.textContent = '计算失败'; }
+                });
+                tInput.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter') tBtn.click();
+                });
+                tFrom.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter') tBtn.click();
+                });
+                // 插在「执行」标题前（经验行与执行区之间）
+                const repItem = rep.closest('.alchemy-detail-item') || rep.parentElement;
+                const anchor = repItem.previousElementSibling;
+                if (anchor && anchor.classList.contains('modal-container-title')) {
+                    anchor.parentNode.insertBefore(eff, anchor);
+                } else {
+                    repItem.parentNode.insertBefore(eff, repItem);
+                }
+            }
+            // 同步效率显示与点击计算所需的实时口径
+            eff.dataset.nekPerEff = perEff;
+            eff.dataset.nekPerSec = perSec || '';
+            eff.dataset.nekOver = overActive ? '1' : '0';
+            const effVal = eff.querySelector('.nek-eff-val');
+            let effDisp;
+            if (effPerMin == null) {
+                effDisp = '耗时未知';
+            } else if (overActive && baseEffMin > 0) {
+                const ratio = Math.round(effPerMin / baseEffMin * 100);
+                effDisp = '约 ' + fmt(baseEffMin) + ' × ' + ratio + '% = ' + fmt(effPerMin) + ' 点/分钟';
+            } else {
+                effDisp = '约 ' + fmt(effPerMin) + ' 点/分钟';
+            }
+            if (effVal.dataset.nekKey !== effKey || effVal.textContent !== effDisp) {
+                effVal.dataset.nekKey = effKey;
+                effVal.textContent = effDisp;
+            }
+            effVal.classList.remove('recommend-yellow', 'recommend-orange');
+            if (effColorCls) effVal.classList.add(effColorCls);
+        }
+
         // ---------------- 物品说明市场价格显示 ----------------
         // 说明面板（悬浮提示 / 「查看信息」弹窗）由 UI.buildItemInfo 生成，
         // 包装它在「Ctrl+左键点击 - 发至聊天」(.item-info-tip) 上方插入价格行；
@@ -3364,6 +3570,7 @@
                 ensureFoolproof();            // 防呆设置（原子炼金分解用鱼禁用点金按钮）
                 ensureAlcSort();              // 点金辅助（原子炼金选择器排序条）
                 decorateModal();
+                decorateAlchemy();            // 炼金界面：经验效率 + 升级次数计算 + 快捷填入
                 ensureSettingItem();
                 decorateMarketMarkers();
             }, 120);   // 防抖：弹窗/设置页/说明面板 DOM 稳定后再处理
