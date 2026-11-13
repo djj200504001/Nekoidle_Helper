@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.27.1
-// @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口与炼金界面（原子/神秘/量子炼金执行区）经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色；炼金期望按成功率折算）并快捷填入升级所需执行次数，炼金执行区另有「背包可执行次数」按钮（按当前点金/分解/研究/提纯/还原/转换/量子配方逐项折算材料持有量）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知，种植页可按农场设置跳过地块；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）。
+// @version      1.28.0
+// @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口与炼金界面（原子/神秘/量子炼金执行区）经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色；炼金期望按成功率折算）并快捷填入升级所需执行次数，炼金执行区另有「背包可执行次数」按钮（按当前点金/分解/研究/提纯/还原/转换/量子配方逐项折算材料持有量）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知，种植页可按农场设置跳过地块；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）；九、检查更新——加载游戏时静默检测 GitHub 最新版本（每 6 小时最多一次），发现新版本时顶部通知引导在 Tampermonkey 中更新（同一版本只提醒一次）。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
 // @match        https://nekoidle.net/*
@@ -3551,6 +3551,16 @@
                             '</div>' +
                         '</label>' +
                     '</div>' +
+                    '<div class="setting-item">' +
+                        '<div class="setting-name" title="加载游戏时自动检测 GitHub 上的小助手最新版本（每 6 小时最多检测一次，静默进行），发现新版本时通过顶部通知提醒，请按提示在 Tampermonkey 面板中检查更新并安装。同一版本只提醒一次">检查更新</div>' +
+                        '<div class="setting-input"></div>' +
+                        '<label class="slider-container">' +
+                            '<div class="toggle-switch">' +
+                                '<input type="checkbox" class="nek-assist-upd-toggle">' +
+                                '<span class="toggle-slider"></span>' +
+                            '</div>' +
+                        '</label>' +
+                    '</div>' +
                 '</div>';
             content.appendChild(section);
 
@@ -3565,7 +3575,7 @@
             const alcsort = section.querySelector('.nek-assist-alcsort-toggle');
             const cookjump = section.querySelector('.nek-assist-cookjump-toggle');
             const harvest = section.querySelector('.nek-assist-harvest-toggle');
-            master.checked = isEnabled();
+            const upd = section.querySelector('.nek-assist-upd-toggle');
             calc.checked = isCalcEnabled();
             market.checked = isMarketEnabled();
             if (cook) cook.checked = isCookEnabled();
@@ -3576,6 +3586,8 @@
             if (alcsort) alcsort.checked = isAlcSortEnabled();
             if (cookjump) cookjump.checked = isCookJumpEnabled();
             if (harvest) harvest.checked = isFarmAssistEnabled();
+            if (upd) upd.checked = isUpdateCheckEnabled();
+            master.checked = isEnabled();
             master.addEventListener('change', function () {
                 setEnabled(master.checked);
                 applyEnabledState();
@@ -3620,6 +3632,9 @@
                 setFarmAssistEnabled(harvest.checked);   // 农业辅助总开关：自动收菜 + 好友成熟预览
                 applyHarvestState();   // 同步刷新队列位置快捷开关（其提示文案说明两级开关关系）
             });
+            if (upd) upd.addEventListener('change', function () {
+                setUpdateCheckEnabled(upd.checked);
+            });
         }
 
         // 页面重渲染导致区块被重建时，把开关勾选态对齐到存储值
@@ -3647,6 +3662,76 @@
             if (alcsort && alcsort.checked !== isAlcSortEnabled()) alcsort.checked = isAlcSortEnabled();
             if (cookjump && cookjump.checked !== isCookJumpEnabled()) cookjump.checked = isCookJumpEnabled();
             if (harvest && harvest.checked !== isFarmAssistEnabled()) harvest.checked = isFarmAssistEnabled();
+            const upd = section.querySelector('.nek-assist-upd-toggle');
+            if (upd && upd.checked !== isUpdateCheckEnabled()) upd.checked = isUpdateCheckEnabled();
+        }
+
+        // ---------------- 自动检查更新（GitHub raw 头部 @version 对比） ----------------
+        // 注意：发布新版本时需同步修改 CURRENT_VERSION（与头部 @version 保持一致）。
+        // 页面上下文无 GM_info（@grant none 且经 <script> 注入），只能内置当前版本号。
+        const CURRENT_VERSION = '1.27.1';
+        const LS_UPD_KEY = 'nek_update_check_enabled';        // 检查更新开关，默认开
+        const LS_UPD_LAST = 'nek_update_check_last';          // 上次检测时间戳（节流）
+        const LS_UPD_NOTIFIED = 'nek_update_notified_ver';    // 已提醒过的远端版本（每版本只提醒一次）
+        const UPD_CHECK_INTERVAL = 6 * 3600 * 1000;           // 节流：6 小时检测一次
+        const UPD_RAW_URL = 'https://raw.githubusercontent.com/djj200504001/Nekoidle_Helper/main/' +
+            encodeURIComponent('银河猫娘放置小助手.user.js');
+        const isUpdateCheckEnabled = () => {
+            try { return localStorage.getItem(LS_UPD_KEY) !== '0'; } catch (e) { return true; }
+        };
+        const setUpdateCheckEnabled = v => {
+            try { localStorage.setItem(LS_UPD_KEY, v ? '1' : '0'); } catch (e) { /* 忽略 */ }
+        };
+        function cmpVersion(a, b) {
+            const pa = String(a || '').split('.').map(n => parseInt(n, 10) || 0);
+            const pb = String(b || '').split('.').map(n => parseInt(n, 10) || 0);
+            const len = Math.max(pa.length, pb.length);
+            for (let i = 0; i < len; i++) {
+                const d = (pa[i] || 0) - (pb[i] || 0);
+                if (d) return d;
+            }
+            return 0;
+        }
+        function checkUpdateOnce() {
+            if (!isEnabled() || !isUpdateCheckEnabled()) return;   // 初始化后关闭开关也能实时拦截
+            // 节流：距上次检测不足 6 小时直接跳过（静默，不打扰）
+            try {
+                const last = parseInt(localStorage.getItem(LS_UPD_LAST) || '0', 10);
+                if (Date.now() - last < UPD_CHECK_INTERVAL) return;
+            } catch (e) { /* localStorage 不可用则每次都查 */ }
+            fetch(UPD_RAW_URL, { cache: 'no-store' }).then(r => r.ok ? r.text() : Promise.reject(r.status))
+                .then(text => {
+                    try { localStorage.setItem(LS_UPD_LAST, String(Date.now())); } catch (e) { /* 忽略 */ }
+                    const m = text.match(/@version\s+(\S+)/);
+                    if (!m) return;
+                    const remote = m[1];
+                    if (cmpVersion(remote, CURRENT_VERSION) <= 0) return;   // 已是最新
+                    // 同一版本只提醒一次（重开页面不重复弹）
+                    let notified = '';
+                    try { notified = localStorage.getItem(LS_UPD_NOTIFIED) || ''; } catch (e) { /* 忽略 */ }
+                    if (notified === remote) return;
+                    try { localStorage.setItem(LS_UPD_NOTIFIED, remote); } catch (e) { /* 忽略 */ }
+                    if (window.UI && UI.notifier && UI.notifier.show) {
+                        UI.notifier.show(
+                            '小助手发现新版本 v' + remote + '（当前 v' + CURRENT_VERSION + '）：请打开 Tampermonkey 面板 → 该脚本 → 检查更新安装',
+                            'tip', 12000);
+                    }
+                })
+                .catch(() => { /* 网络失败静默跳过，下次再查 */ });
+        }
+        function initUpdateCheck() {
+            if (!isEnabled() || !isUpdateCheckEnabled()) return;
+            // 等 UI.notifier 就绪（游戏脚本加载完成）后再检测，最多等 3 分钟
+            let tries = 0;
+            const wait = setInterval(function () {
+                tries++;
+                if (window.UI && UI.notifier && UI.notifier.show) {
+                    clearInterval(wait);
+                    setTimeout(checkUpdateOnce, 3000);   // 就绪后再缓冲 3 秒，避开登录/加载高峰
+                } else if (tries >= 90) {
+                    clearInterval(wait);
+                }
+            }, 2000);
         }
 
         function scheduleDecorate() {
@@ -3680,6 +3765,7 @@
         applyAlcSortState();   // 启动时按开关状态应用点金辅助
         applyCookJumpState();   // 启动时清理残留的跳转按钮（正常为空操作）
         initHarvest();   // 启动自动收菜（等待游戏就绪后挂载主循环与队列位置开关）
+        initUpdateCheck();   // 启动检查更新（等待游戏 UI 就绪后静默检测 GitHub 最新版本）
     };
 
     // 注入页面上下文执行
