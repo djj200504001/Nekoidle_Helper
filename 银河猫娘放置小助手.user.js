@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.28.1
-// @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口与炼金界面（原子/神秘/量子炼金执行区）经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色；炼金期望按成功率折算）并快捷填入升级所需执行次数，炼金执行区另有「背包可执行次数」按钮（按当前点金/分解/研究/提纯/还原/转换/量子配方逐项折算材料持有量）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知，种植页可按农场设置跳过地块；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）；九、检查更新——加载游戏时静默检测 GitHub 最新版本（每 6 小时最多一次），发现新版本时顶部通知引导在 Tampermonkey 中更新（同一版本只提醒一次）。
+// @version      1.29.0
+// @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口与炼金界面（原子/神秘/量子炼金执行区）经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色；炼金期望按成功率折算）并快捷填入升级所需执行次数，炼金执行区另有「背包可执行次数」按钮（按当前点金/分解/研究/提纯/还原/转换/量子配方逐项折算材料持有量）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知，种植页可按农场设置跳过地块；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）；九、检查更新——加载游戏时静默检测 GitHub 最新版本（每 6 小时最多一次），发现新版本时顶部通知引导在 Tampermonkey 中更新（同一版本只提醒一次）；十、v1116 生活装备适配——自绘生产/采集详情材料需求按巨匠省料率折算（两位小数、加工倍数与执行校验同口径），额外奖励几率乘装备幸运（研究幸运/10+装备幸运/100），行动窗口「背包可执行次数」按钮按省料后需求折算，经验效率经 game.getEfficiency 自动含面罩最终效率乘区。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
 // @match        https://nekoidle.net/*
@@ -1231,6 +1231,18 @@
             // 收集祝福（活动7 + 月卡5%）：仅作用于梳毛与采集行动，与原生一致
             const collectBonus = ([1, 2].indexOf(+action.action) >= 0 && typeof UI.getRewardBonusEffect === 'function')
                 ? (UI.getRewardBonusEffect('collect') || 0) : 0;
+            // v1116 生活装备（机器人·巨匠）：仅生产行动(6)省料——材料需求 ×(1-省料率)，可为 0；
+            // 腰带·幸运：额外奖励几率与原生同乘区（研究幸运/10 + 装备幸运/100）
+            let masterRate = 0;
+            if (+action.action === 6) {
+                try {
+                    masterRate = Math.max(0, Number(game.getLifeMasterRate(game.getLifeBonusActionType(action.action)) || 0));
+                } catch (eMR) { masterRate = 0; }
+            }
+            let lifeLucky = 0;
+            try {
+                lifeLucky = Math.max(0, Number(game.lifeBonus?.[game.getLifeBonusActionType(action.action)]?.luck || 0));
+            } catch (eLL) { lifeLucky = 0; }
             const overNote = (ol.diff > 0 && ol.status !== 'red')
                 ? `<div class="action-level-note ${ol.status === 'orange' ? 'recommend-orange' : 'recommend-yellow'}">低于推荐等级 ${ol.diff} 级：耗时增加 ${Math.round((ol.timeRate - 1) * 100)}%${ol.status === 'orange' ? `，成功率 ${ol.successRate}%，失败无产出${+action.action === 6 ? '，不消耗材料' : ''}` : ''}</div>`
                 : '';
@@ -1270,29 +1282,33 @@
                 action.requirements.forEach(item => {
                     const itemDef = game.getItem(item.itemId);
                     const quantity = game.getItemQuantity(item.itemId);
+                    // v1116 巨匠省料：生产行动需求 ×(1-省料率)，可出现小数（原生同口径两位小数展示），
+                    // 执行校验/持有置灰按 Math.ceil(need-1e-9)（与游戏 canPerformAction 一致）
+                    const needBase = item.quantity * (1 - masterRate);
+                    const startNeed = Math.ceil(needBase - 1e-9);
                     const req = document.createElement('div');
                     req.className = 'action-item-container';
                     req.innerHTML = `
                         <div class="action-item-container-icon"></div>
                         <div class="action-item-container-info">
                             <div class="action-item-container-text"><span>${itemDef.name}</span></div>
-                            <div class="action-item-container-text"><span>需要</span><span class="nek-need-val" data-nek-base="${item.quantity}">${item.quantity}</span></div>
-                            <div class="action-item-container-text quantity-display${quantity < item.quantity ? ' disabled' : ''}">
+                            <div class="action-item-container-text"><span>需要</span><span class="nek-need-val" data-nek-base="${needBase}">${fmtQ(needBase)}</span></div>
+                            <div class="action-item-container-text quantity-display${quantity < startNeed ? ' disabled' : ''}">
                                 <span>持有</span><span class="quantity-value">${Utils.formatNumberWithCommas(quantity)}</span>
                             </div>
                         </div>
                     `;
                     const icon = req.querySelector('.action-item-container-icon');
                     const loot = document.createElement('div');
-                    UI.showItem(loot, itemDef, { quantity: item.quantity });
+                    UI.showItem(loot, itemDef, { quantity: Math.round(needBase * 100) / 100 });
                     icon.appendChild(loot);
                     loot.addEventListener('click', () => UI.showItemMenu(loot, { itemDef: itemDef }));
-                    UI.bindItemTooltip(loot, itemDef, { item: { quantity: item.quantity, id: itemDef.id, enhancement: 0 } });
+                    UI.bindItemTooltip(loot, itemDef, { item: { quantity: Math.round(needBase * 100) / 100, id: itemDef.id, enhancement: 0 } });
                     list.appendChild(req);
                     const key = `${item.itemId}-0`;
                     UI.actionItemMap.set(key, {
                         element: req,
-                        needQuantity: item.quantity,
+                        needQuantity: startNeed,
                         quantityElement: req.querySelector('.quantity-display'),
                         quantityValue: req.querySelector('.quantity-value')
                     });
@@ -1321,8 +1337,9 @@
                 const overRateHtml = (!isExtra && overLevelMultiplier > 1)
                     ? `<div class="action-item-container-text action-overlevel-rate"><span class="stat-sub">(×${fmtQ(overLevelMultiplier * 100)}%)</span></div>` : '';
                 let chance = Number(item.chance) || 0;
-                if (isExtra && !item.luckyApplied && researchLucky > 0 && chance > 0 && chance < 100) {
-                    chance = Math.min(100, chance * (1 + researchLucky * 0.3));
+                // v1116：额外奖励几率乘「研究幸运/10 + 生活装备幸运/100」（原生同乘区；宝箱已提前算入不重复）
+                if (isExtra && !item.luckyApplied && chance > 0 && chance < 100 && (researchLucky > 0 || lifeLucky > 0)) {
+                    chance = Math.min(100, chance * (1 + Math.max(0, researchLucky) / 10 + lifeLucky / 100));
                 }
                 const chanceHtml = chance < 100
                     ? `<span class="chance-uncertain">${fmtQ(chance)}% 几率</span>`
@@ -1454,17 +1471,18 @@
                     }
                 }
             }
-            // 倍数切换：材料「需要」×m（持有不足联动置灰）、产物区间 ×m、
+            // 倍数切换：材料「需要」×m（省料基准含小数，parseFloat；持有不足联动置灰）、产物区间 ×m、
             // actionItemMap 的 needQuantity 同步（游戏实时刷新持有量时按新需求判断）
             function updateCraftMultDisplay() {
                 detailEl.querySelectorAll('.nek-need-val').forEach(sp => {
-                    const base = parseInt(sp.dataset.nekBase, 10) || 1;
-                    sp.textContent = String(base * craftMult);
+                    const base = parseFloat(sp.dataset.nekBase) || 0;
+                    const need = base * craftMult;
+                    sp.textContent = fmtQ(need);
                     const row = sp.closest('.action-item-container');
                     const qd = row ? row.querySelector('.quantity-display') : null;
                     if (qd) {
                         const qv = parseInt((qd.querySelector('.quantity-value') || {}).textContent, 10);
-                        if (isFinite(qv)) qd.classList.toggle('disabled', qv < base * craftMult);
+                        if (isFinite(qv)) qd.classList.toggle('disabled', qv < Math.ceil(need - 1e-9));
                     }
                 });
                 detailEl.querySelectorAll('.nek-reward-val').forEach(sp => {
@@ -1479,7 +1497,8 @@
                     const map = UI.actionItemMap.get(key);
                     if (map && map.element && map.element.querySelector('.nek-need-val')) {
                         const sp = map.element.querySelector('.nek-need-val');
-                        map.needQuantity = (parseInt(sp.dataset.nekBase, 10) || 1) * craftMult;
+                        const need = (parseFloat(sp.dataset.nekBase) || 0) * craftMult;
+                        map.needQuantity = Math.ceil(need - 1e-9);
                     }
                 });
             }
@@ -1514,7 +1533,9 @@
                 }
                 if (action.requirements) {
                     for (const req of action.requirements) {
-                        if (game.getItemQuantity(req.itemId) < req.quantity * craftMult) {
+                        // v1116：生产行动按巨匠省料后的需求校验（与游戏 canPerformAction 同口径）
+                        const need = req.quantity * (1 - masterRate) * craftMult;
+                        if (game.getItemQuantity(req.itemId) < Math.ceil(need - 1e-9)) {
                             const itemDef = game.getItem(req.itemId);
                             UI.notifier.show(`${itemDef.name} 不足，无法开始该行动`, 'error');
                             return;
@@ -2054,11 +2075,18 @@
                         if (r && r.ingredients && r.ingredients.length) invSrc = r.ingredients;
                     } catch (e4) { /* 忽略 */ }
                 }
+                // v1116：生产行动(6)按巨匠省料后的需求折算（与游戏 getActionCanPerformCount 同口径）
+                let invMasterRate = 0;
+                if (action && +action.action === 6) {
+                    try {
+                        invMasterRate = Math.max(0, Number(game.getLifeMasterRate(game.getLifeBonusActionType(action.action)) || 0));
+                    } catch (eMR2) { invMasterRate = 0; }
+                }
                 if (invSrc) {
                     invTimes = Infinity;
                     invSrc.forEach(function (req) {
                         const have = game.getItemQuantity(req.itemId) || 0;
-                        invTimes = Math.min(invTimes, Math.floor(have / (req.quantity || 1)));
+                        invTimes = Math.min(invTimes, Math.floor(have / ((req.quantity || 1) * (1 - invMasterRate))));
                     });
                 }
                 // 生产加工倍数：每次执行消耗 N 份材料（产出同乘 N，单次耗时不变），
@@ -2075,6 +2103,7 @@
                         const invTimeStr = perSec ? fmtDuration(invTimes * perSec) : null;
                         const invTitle = '【小助手】当前背包材料最多可执行 ' + fmt(invTimes) + ' 次' +
                             (invTimeStr ? '，预计需要 ' + invTimeStr : '') +
+                            (invMasterRate > 0 ? '（巨匠省料 ' + fmtQ(invMasterRate * 100) + '%：按每份 ' + fmtQ(1 - invMasterRate) + ' 个材料折算）' : '') +
                             (craftMult > 1 ? '（加工倍数 x' + craftMult + '：每次消耗 ' + craftMult + ' 份材料、获得 ' + craftMult + ' 份产物，单次耗时不变）' : '') +
                             (action && +action.action === 6 && olDiff > 0
                                 ? '（越级失败不消耗材料，实际可执行次数可能更多）' : '') +
@@ -3669,7 +3698,7 @@
         // ---------------- 自动检查更新（GitHub raw 头部 @version 对比） ----------------
         // 注意：发布新版本时需同步修改 CURRENT_VERSION（与头部 @version 保持一致）。
         // 页面上下文无 GM_info（@grant none 且经 <script> 注入），只能内置当前版本号。
-        const CURRENT_VERSION = '1.28.1';
+        const CURRENT_VERSION = '1.29.0';
         const LS_UPD_KEY = 'nek_update_check_enabled';        // 检查更新开关，默认开
         const LS_UPD_LAST = 'nek_update_check_last';          // 上次检测时间戳（节流）
         const LS_UPD_NOTIFIED = 'nek_update_notified_ver';    // 已提醒过的远端版本（每版本只提醒一次）
