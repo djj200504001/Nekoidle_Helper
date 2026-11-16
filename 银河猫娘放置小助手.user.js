@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.29.0
-// @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口与炼金界面（原子/神秘/量子炼金执行区）经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色；炼金期望按成功率折算）并快捷填入升级所需执行次数，炼金执行区另有「背包可执行次数」按钮（按当前点金/分解/研究/提纯/还原/转换/量子配方逐项折算材料持有量）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知，种植页可按农场设置跳过地块；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）；九、检查更新——加载游戏时静默检测 GitHub 最新版本（每 6 小时最多一次），发现新版本时顶部通知引导在 Tampermonkey 中更新（同一版本只提醒一次）；十、v1116 生活装备适配——自绘生产/采集详情材料需求按巨匠省料率折算（两位小数、加工倍数与执行校验同口径），额外奖励几率乘装备幸运（研究幸运/10+装备幸运/100），行动窗口「背包可执行次数」按钮按省料后需求折算，经验效率经 game.getEfficiency 自动含面罩最终效率乘区。
+// @version      1.30.0
+// @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口与炼金界面（原子/神秘/量子炼金执行区）经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色；炼金期望按成功率折算）并快捷填入升级所需执行次数，炼金执行区另有「背包可执行次数」按钮（按当前点金/分解/研究/提纯/还原/转换/量子配方逐项折算材料持有量）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知，种植页可按农场设置跳过地块；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）；九、检查更新——加载游戏时静默检测 GitHub 最新版本（每 6 小时最多一次），发现新版本时顶部通知引导在 Tampermonkey 中更新（同一版本只提醒一次）；十、v1116 生活装备适配——自绘生产/采集详情材料需求按巨匠省料率折算（两位小数、加工倍数与执行校验同口径），额外奖励几率乘装备幸运（研究幸运/10+装备幸运/100），行动窗口「背包可执行次数」按钮按省料后需求折算，经验效率经 game.getEfficiency 自动含面罩最终效率乘区；自绘生产/采集详情「额外奖励」补显示 v1116 宝箱掉落（梳毛/采集/生产宝箱，几率含幸运加成、数量不随加工倍数放大，复用原生 getActionChestPreview）；修复检查更新因 window.UI 引用错误（UI 为顶层词法绑定不在 window 上）导致检测从未执行的问题。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
 // @match        https://nekoidle.net/*
@@ -1243,6 +1243,15 @@
             try {
                 lifeLucky = Math.max(0, Number(game.lifeBonus?.[game.getLifeBonusActionType(action.action)]?.luck || 0));
             } catch (eLL) { lifeLucky = 0; }
+            // v1116 宝箱预览：复用原生 UI.getActionChestPreview（梳毛9812/采集9813+9814/生产9815），
+            // 几率 = 执行时长/除数(25920/17280) × 幸运倍率，函数内部已读生活装备幸运；
+            // 返回项 luckyApplied=true（几率已含幸运）、noBonus=true（数量不受加成与倍数影响）
+            let chestRewards = [];
+            try {
+                if (typeof UI.getActionChestPreview === 'function') {
+                    chestRewards = UI.getActionChestPreview(action, researchLucky) || [];
+                }
+            } catch (eC) { chestRewards = []; }
             const overNote = (ol.diff > 0 && ol.status !== 'red')
                 ? `<div class="action-level-note ${ol.status === 'orange' ? 'recommend-orange' : 'recommend-yellow'}">低于推荐等级 ${ol.diff} 级：耗时增加 ${Math.round((ol.timeRate - 1) * 100)}%${ol.status === 'orange' ? `，成功率 ${ol.successRate}%，失败无产出${+action.action === 6 ? '，不消耗材料' : ''}` : ''}</div>`
                 : '';
@@ -1264,7 +1273,7 @@
                 ${action.flavour ? `<div class="cooking-detail-flavour">${action.flavour}</div>` : ''}
                 ${action.requirements ? '<div class="cooking-detail-section"><div class="modal-container-title">消耗</div></div>' : ''}
                 <div class="cooking-detail-section"><div class="modal-container-title">获得</div></div>
-                ${action.extraRewards ? '<div class="cooking-detail-section"><div class="modal-container-title">额外奖励</div></div>' : ''}
+                ${(action.extraRewards || chestRewards.length) ? '<div class="cooking-detail-section"><div class="modal-container-title">额外奖励</div></div>' : ''}
                 <div class="cooking-detail-section nek-craft-mult" style="display:none"></div>
                 <div class="cooking-detail-footer">
                     <div class="modal-container-title">执行</div>
@@ -1330,8 +1339,8 @@
                 const baseMin = Math.round(item.min * bonusPct * extraMult * 100) / 100;
                 const baseMax = Math.round(item.max * bonusPct * extraMult * 100) / 100;
                 const value = baseMin === baseMax
-                    ? `<span class="nek-reward-val" data-nek-min="${baseMin}" data-nek-max="${baseMax}">${fmtQ(baseMax)}</span>`
-                    : `<span class="nek-reward-val" data-nek-min="${baseMin}" data-nek-max="${baseMax}">${fmtQ(baseMin)}&nbsp;~&nbsp;${fmtQ(baseMax)}</span>`;
+                    ? `<span class="nek-reward-val${item.noBonus ? ' nek-reward-fixed' : ''}" data-nek-min="${baseMin}" data-nek-max="${baseMax}">${fmtQ(baseMax)}</span>`
+                    : `<span class="nek-reward-val${item.noBonus ? ' nek-reward-fixed' : ''}" data-nek-min="${baseMin}" data-nek-max="${baseMax}">${fmtQ(baseMin)}&nbsp;~&nbsp;${fmtQ(baseMax)}</span>`;
                 const curProf = game.proficiency?.action?.[action.id] || 0;
                 // 阶差转化标注：主奖励且乘区 >1 时，在数量与几率之间显示（与原生 action-overlevel-rate 一致）
                 const overRateHtml = (!isExtra && overLevelMultiplier > 1)
@@ -1404,10 +1413,12 @@
             gainList.appendChild(xpRow);
             sectionByTitle('获得').appendChild(gainList);
 
-            if (action.extraRewards && sectionByTitle('额外奖励')) {
+            if ((action.extraRewards || chestRewards.length) && sectionByTitle('额外奖励')) {
                 const extraList = document.createElement('div');
                 extraList.className = 'action-item-container-list';
-                action.extraRewards.forEach(item => renderReward(item, extraList, true));
+                (action.extraRewards || []).forEach(item => renderReward(item, extraList, true));
+                // v1116 宝箱：几率已含幸运加成（luckyApplied），数量固定 1 不随加工倍数放大（noBonus）
+                chestRewards.forEach(item => renderReward(item, extraList, true));
                 sectionByTitle('额外奖励').appendChild(extraList);
             }
 
@@ -1486,6 +1497,7 @@
                     }
                 });
                 detailEl.querySelectorAll('.nek-reward-val').forEach(sp => {
+                    if (sp.classList.contains('nek-reward-fixed')) return;   // 宝箱等 noBonus 物品：数量固定不放大（与原生一致）
                     // 基准值可能含小数（研究/祝福/阶差加成后），parseFloat + 两位小数去尾零显示
                     const mn = parseFloat(sp.dataset.nekMin) || 0;
                     const mx = parseFloat(sp.dataset.nekMax) || 0;
@@ -3698,7 +3710,7 @@
         // ---------------- 自动检查更新（GitHub raw 头部 @version 对比） ----------------
         // 注意：发布新版本时需同步修改 CURRENT_VERSION（与头部 @version 保持一致）。
         // 页面上下文无 GM_info（@grant none 且经 <script> 注入），只能内置当前版本号。
-        const CURRENT_VERSION = '1.29.0';
+        const CURRENT_VERSION = '1.30.0';
         const LS_UPD_KEY = 'nek_update_check_enabled';        // 检查更新开关，默认开
         const LS_UPD_LAST = 'nek_update_check_last';          // 上次检测时间戳（节流）
         const LS_UPD_NOTIFIED = 'nek_update_notified_ver';    // 已提醒过的远端版本（每版本只提醒一次）
@@ -3740,7 +3752,7 @@
                     try { notified = localStorage.getItem(LS_UPD_NOTIFIED) || ''; } catch (e) { /* 忽略 */ }
                     if (notified === remote) return;
                     try { localStorage.setItem(LS_UPD_NOTIFIED, remote); } catch (e) { /* 忽略 */ }
-                    if (window.UI && UI.notifier && UI.notifier.show) {
+                    if (typeof UI !== 'undefined' && UI.notifier && UI.notifier.show) {
                         UI.notifier.show(
                             '小助手发现新版本 v' + remote + '（当前 v' + CURRENT_VERSION + '）：请打开 Tampermonkey 面板 → 该脚本 → 检查更新安装',
                             'tip', 12000);
@@ -3754,7 +3766,7 @@
             let tries = 0;
             const wait = setInterval(function () {
                 tries++;
-                if (window.UI && UI.notifier && UI.notifier.show) {
+                if (typeof UI !== 'undefined' && UI.notifier && UI.notifier.show) {
                     clearInterval(wait);
                     setTimeout(checkUpdateOnce, 3000);   // 就绪后再缓冲 3 秒，避开登录/加载高峰
                 } else if (tries >= 90) {
