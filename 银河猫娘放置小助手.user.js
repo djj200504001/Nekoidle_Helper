@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.30.0
-// @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口与炼金界面（原子/神秘/量子炼金执行区）经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色；炼金期望按成功率折算）并快捷填入升级所需执行次数，炼金执行区另有「背包可执行次数」按钮（按当前点金/分解/研究/提纯/还原/转换/量子配方逐项折算材料持有量）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知，种植页可按农场设置跳过地块；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）；九、检查更新——加载游戏时静默检测 GitHub 最新版本（每 6 小时最多一次），发现新版本时顶部通知引导在 Tampermonkey 中更新（同一版本只提醒一次）；十、v1116 生活装备适配——自绘生产/采集详情材料需求按巨匠省料率折算（两位小数、加工倍数与执行校验同口径），额外奖励几率乘装备幸运（研究幸运/10+装备幸运/100），行动窗口「背包可执行次数」按钮按省料后需求折算，经验效率经 game.getEfficiency 自动含面罩最终效率乘区；自绘生产/采集详情「额外奖励」补显示 v1116 宝箱掉落（梳毛/采集/生产宝箱，几率含幸运加成、数量不随加工倍数放大，复用原生 getActionChestPreview）；修复检查更新因 window.UI 引用错误（UI 为顶层词法绑定不在 window 上）导致检测从未执行的问题。
+// @version      1.31.0
+// @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口与炼金界面（原子/神秘/量子炼金执行区）经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色；炼金期望按成功率折算）并快捷填入升级所需执行次数，炼金执行区另有「背包可执行次数」按钮（按当前点金/分解/研究/提纯/还原/转换/量子配方逐项折算材料持有量）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知，种植页可按农场设置跳过地块；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）；九、检查更新——每次加载游戏时检测 GitHub 最新版本（发现新版本且距上次提醒超过 60 分钟时，顶部通知引导在 Tampermonkey 中更新）；设置区标题旁显示当前版本号；十、v1116 生活装备适配——自绘生产/采集详情材料需求按巨匠省料率折算（两位小数、加工倍数与执行校验同口径），额外奖励几率乘装备幸运（研究幸运/10+装备幸运/100），行动窗口「背包可执行次数」按钮按省料后需求折算，经验效率经 game.getEfficiency 自动含面罩最终效率乘区；自绘生产/采集详情「额外奖励」补显示 v1116 宝箱掉落（梳毛/采集/生产宝箱，几率含幸运加成、数量不随加工倍数放大，复用原生 getActionChestPreview）；修复检查更新因 window.UI 引用错误（UI 为顶层词法绑定不在 window 上）导致检测从未执行的问题。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
 // @match        https://nekoidle.net/*
@@ -1252,9 +1252,18 @@
                     chestRewards = UI.getActionChestPreview(action, researchLucky) || [];
                 }
             } catch (eC) { chestRewards = []; }
-            const overNote = (ol.diff > 0 && ol.status !== 'red')
-                ? `<div class="action-level-note ${ol.status === 'orange' ? 'recommend-orange' : 'recommend-yellow'}">低于推荐等级 ${ol.diff} 级：耗时增加 ${Math.round((ol.timeRate - 1) * 100)}%${ol.status === 'orange' ? `，成功率 ${ol.successRate}%，失败无产出${+action.action === 6 ? '，不消耗材料' : ''}` : ''}</div>`
-                : '';
+            // 越级提示：黄/橙/红三档与原生 showActionModal 文案一致（红档=无法执行）；
+            // 非适用行动（无越级机制的技能）红档显示「等级不足」
+            const timePct = Math.round((ol.timeRate - 1) * 100);
+            const overNote = ol.status === 'yellow'
+                ? `<div class="action-level-note recommend-yellow">低于推荐等级 ${ol.diff} 级：耗时增加 ${timePct}%</div>`
+                : ol.status === 'orange'
+                    ? `<div class="action-level-note recommend-orange">低于推荐等级 ${ol.diff} 级：耗时增加 ${timePct}%，成功率 ${ol.successRate}%，失败无产出${+action.action === 6 ? '，不消耗材料' : ''}</div>`
+                    : ol.status === 'red'
+                        ? (ol.applicable
+                            ? `<div class="action-level-note recommend-red">低于推荐等级 ${ol.diff} 级：无法执行</div>`
+                            : `<div class="action-level-note recommend-red">等级不足：需要 Lv.${action.level}，当前 Lv.${(game.getLevelInfo(action.action) || {}).level || 1}</div>`)
+                        : '';
             detailEl.innerHTML = `
                 <div class="cooking-detail-header">
                     <div class="cooking-detail-name nek-prod-title">${skillName} : ${action.name}</div>
@@ -1538,22 +1547,6 @@
             UI.registerActionButton(startBtn);
             startBtn.addEventListener('click', () => {
                 if (UI.isActionButtonLocked()) return;
-                // 越级改版：差 1~14 级官方允许越级执行（黄/橙提示已在详情头部展示），仅差 ≥15 级（红档）拦截
-                if (ol.status === 'red') {
-                    UI.notifier.show(`等级差距过大，无法执行，需要 Lv.${action.level}，当前 Lv.${expinfo.level}`, 'error');
-                    return;
-                }
-                if (action.requirements) {
-                    for (const req of action.requirements) {
-                        // v1116：生产行动按巨匠省料后的需求校验（与游戏 canPerformAction 同口径）
-                        const need = req.quantity * (1 - masterRate) * craftMult;
-                        if (game.getItemQuantity(req.itemId) < Math.ceil(need - 1e-9)) {
-                            const itemDef = game.getItem(req.itemId);
-                            UI.notifier.show(`${itemDef.name} 不足，无法开始该行动`, 'error');
-                            return;
-                        }
-                    }
-                }
                 startProdAction('start');
             });
             const queueWrap = document.createElement('div');
@@ -1573,6 +1566,24 @@
             afterBtn.addEventListener('click', () => startProdAction('after'));
             function startProdAction(mold) {
                 if (UI.isActionButtonLocked()) return;
+                // 红（差 ≥15 级 / 非适用行动等级不足）：三个执行按钮统一拦截（与原生同口径）
+                if (ol.status === 'red') {
+                    UI.notifier.show(ol.applicable
+                        ? `低于推荐等级 ${ol.diff} 级，无法执行，需要 Lv.${action.level}，当前 Lv.${expinfo.level}`
+                        : `等级不足，无法执行，需要 Lv.${action.level}，当前 Lv.${expinfo.level}`, 'error');
+                    return;
+                }
+                if (action.requirements) {
+                    for (const req of action.requirements) {
+                        // v1116：生产行动按巨匠省料后的需求校验（与游戏 canPerformAction 同口径）
+                        const need = req.quantity * (1 - masterRate) * craftMult;
+                        if (game.getItemQuantity(req.itemId) < Math.ceil(need - 1e-9)) {
+                            const itemDef = game.getItem(req.itemId);
+                            UI.notifier.show(`${itemDef.name} 不足，无法开始该行动`, 'error');
+                            return;
+                        }
+                    }
+                }
                 const count = input.value === '∞' ? -1 : parseInt(input.value) || 1;
                 UI.lockActionButtons();
                 // 生产动作把加工倍数随 item 传出（game.startAction 会提升为顶层 multiplier 字段）；
@@ -3480,7 +3491,7 @@
             const section = document.createElement('div');
             section.className = 'neon-section nek-assist-section';
             section.innerHTML =
-                '<div class="section-title">小助手</div>' +
+                '<div class="section-title">小助手 <span class="nek-ver-tag" style="font-size:11px;font-weight:400;opacity:.55;margin-left:6px;vertical-align:middle" title="银河猫娘放置小助手当前版本">v' + CURRENT_VERSION + '</span></div>' +
                 '<div class="setting-list">' +
                     '<div class="setting-item">' +
                         '<div class="setting-name" title="启用小助手">启用小助手</div>' +
@@ -3710,11 +3721,10 @@
         // ---------------- 自动检查更新（GitHub raw 头部 @version 对比） ----------------
         // 注意：发布新版本时需同步修改 CURRENT_VERSION（与头部 @version 保持一致）。
         // 页面上下文无 GM_info（@grant none 且经 <script> 注入），只能内置当前版本号。
-        const CURRENT_VERSION = '1.30.0';
+        const CURRENT_VERSION = '1.31.0';
         const LS_UPD_KEY = 'nek_update_check_enabled';        // 检查更新开关，默认开
-        const LS_UPD_LAST = 'nek_update_check_last';          // 上次检测时间戳（节流）
-        const LS_UPD_NOTIFIED = 'nek_update_notified_ver';    // 已提醒过的远端版本（每版本只提醒一次）
-        const UPD_CHECK_INTERVAL = 6 * 3600 * 1000;           // 节流：6 小时检测一次
+        const LS_UPD_REMIND = 'nek_update_remind_last';       // 上次提醒时间戳（提醒节流）
+        const UPD_REMIND_INTERVAL = 60 * 60 * 1000;           // 提醒节流：距上次提醒超过 60 分钟才再次提醒
         const UPD_RAW_URL = 'https://raw.githubusercontent.com/djj200504001/Nekoidle_Helper/main/' +
             encodeURIComponent('银河猫娘放置小助手.user.js');
         const isUpdateCheckEnabled = () => {
@@ -3735,23 +3745,18 @@
         }
         function checkUpdateOnce() {
             if (!isEnabled() || !isUpdateCheckEnabled()) return;   // 初始化后关闭开关也能实时拦截
-            // 节流：距上次检测不足 6 小时直接跳过（静默，不打扰）
-            try {
-                const last = parseInt(localStorage.getItem(LS_UPD_LAST) || '0', 10);
-                if (Date.now() - last < UPD_CHECK_INTERVAL) return;
-            } catch (e) { /* localStorage 不可用则每次都查 */ }
             fetch(UPD_RAW_URL, { cache: 'no-store' }).then(r => r.ok ? r.text() : Promise.reject(r.status))
                 .then(text => {
-                    try { localStorage.setItem(LS_UPD_LAST, String(Date.now())); } catch (e) { /* 忽略 */ }
                     const m = text.match(/@version\s+(\S+)/);
                     if (!m) return;
                     const remote = m[1];
                     if (cmpVersion(remote, CURRENT_VERSION) <= 0) return;   // 已是最新
-                    // 同一版本只提醒一次（重开页面不重复弹）
-                    let notified = '';
-                    try { notified = localStorage.getItem(LS_UPD_NOTIFIED) || ''; } catch (e) { /* 忽略 */ }
-                    if (notified === remote) return;
-                    try { localStorage.setItem(LS_UPD_NOTIFIED, remote); } catch (e) { /* 忽略 */ }
+                    // 提醒节流：距上次提醒超过 60 分钟才再次提醒（同一新版本每次刷新都会重新提醒）
+                    try {
+                        const last = parseInt(localStorage.getItem(LS_UPD_REMIND) || '0', 10);
+                        if (Date.now() - last < UPD_REMIND_INTERVAL) return;
+                        localStorage.setItem(LS_UPD_REMIND, String(Date.now()));
+                    } catch (e) { /* localStorage 不可用则每次都提醒 */ }
                     if (typeof UI !== 'undefined' && UI.notifier && UI.notifier.show) {
                         UI.notifier.show(
                             '小助手发现新版本 v' + remote + '（当前 v' + CURRENT_VERSION + '）：请打开 Tampermonkey 面板 → 该脚本 → 检查更新安装',
