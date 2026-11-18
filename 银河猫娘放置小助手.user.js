@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.32.1
+// @version      1.33.0
 // @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口与炼金界面（原子/神秘/量子炼金执行区）经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色；炼金期望按成功率折算）并快捷填入升级所需执行次数，炼金执行区另有「背包可执行次数」按钮（按当前点金/分解/研究/提纯/还原/转换/量子配方逐项折算材料持有量）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知，种植页可按农场设置跳过地块；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）；九、检查更新——每次加载游戏时检测 GitHub 最新版本（发现新版本且距上次提醒超过 60 分钟时，顶部通知引导在 Tampermonkey 中更新）；设置区标题旁显示当前版本号；十、v1116 生活装备适配——自绘生产/采集详情材料需求按巨匠省料率折算（两位小数、加工倍数与执行校验同口径），额外奖励几率乘装备幸运（研究幸运/10+装备幸运/100），行动窗口「背包可执行次数」按钮按省料后需求折算，经验效率经 game.getEfficiency 自动含面罩最终效率乘区；自绘生产/采集详情「额外奖励」补显示 v1116 宝箱掉落（梳毛/采集/生产宝箱，几率含幸运加成、数量不随加工倍数放大，复用原生 getActionChestPreview）；修复检查更新因 window.UI 引用错误（UI 为顶层词法绑定不在 window 上）导致检测从未执行的问题。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
@@ -3346,12 +3346,27 @@
         // 好友农场列表弹窗的服务器响应（plant_friendList）不含农场数据；进入农场用的
         // plant_friend_data 响应才有完整 planets/farms/plots（state/mature_at/steal_count/
         // stolen_today）。这里包装 UI.showPlantFriendList：弹窗渲染后对每个好友逐个串行
-        // 发送探测请求，临时包装 MSG.handlers.plant_friendData 截获响应——uid 匹配的响应
-        // 被吞掉（不调原函数，避免 plant_friendData 处理器把界面切到好友农场视图），uid
-        // 不匹配的（用户点了「进入农场」触发的真实请求）恢复后原样透传，不影响进入农场。
-        // 探测结果渲染为列表行内的「可偷 N · 最近 xx 后成熟」徽标；弹窗关闭即中止剩余探测。
+        // 发送探测请求，经由常驻中央拦截器截获探测响应（uid 白名单精确区分），渲染为
+        // 列表行内的「可偷 N · 最近 xx 后成熟」徽标。
+        //
+        // 旧方案（v1.26~v1.32）在探测期间临时替换 MSG.handlers.plant_friendData，存在
+        // 竞态 bug：用户点「进入农场」的响应先于探测响应到达时先透传（正常渲染目标
+        // 农场），随后迟到的探测响应落回原处理器——把界面切到探测目标的农场，即
+        // 「点 A 却进入另一个好友的农场」。新方案常驻包装 plant_friendData 与 send：
+        //  - send 侧：非探测发出的 plant_friend_data 一律视为用户导航（记录 pendingUserUid
+        //    并中止当前探测，其迟到响应加入吞掉名单）
+        //  - 响应侧：pendingUserUid 匹配 → 透传渲染农场；探测目标匹配 → 截获；吞掉名单
+        //    匹配 → 静默丢弃；其余 → 原样透传
+        //
+        // 探测结果按 uid 缓存 2 分钟：缓存命中直接绘制徽标（零请求、秒开），仅对
+        // 无缓存/已过期的好友发起探测；用户进入某好友农场时其缓存视为最新并回填。
         const FRIEND_PROBE_GAP_MS = 300;      // 相邻两个好友探测之间的间隔
         const FRIEND_PROBE_TIMEOUT_MS = 6000; // 单个好友探测超时（超时按失败跳过）
+        const FRIEND_CACHE_TTL_MS = 120000;   // 预览结果缓存时长（2 分钟）
+
+        // uid → { at, s }：最近一次探测汇总（s 为 summarizeFriendPlots 结果，nearest 为
+        // 绝对时间戳，倒计时在绘制时计算，缓存期内依旧准确）
+        const friendPreviewCache = new Map();
 
         function friendPreviewActive() {
             return isEnabled() && isFarmAssistEnabled();
@@ -3408,31 +3423,112 @@
             return { remaining: remaining, ready: ready, stealable: stealable, nearest: nearest };
         }
 
-        // 单个好友探测：临时包装响应处理器，uid 匹配则截获，超时/不匹配时恢复并兜底
+        // 中央拦截器状态：探测请求绕过包装直接走 origSend，因此经包装 send 发出的
+        // plant_friend_data 必然是用户主动导航（点「进入农场」）
+        const friendProbeState = {
+            installed: false,
+            origHandler: null,
+            origSend: null,
+            probingUid: null,      // 当前在途探测目标（全局串行队列保证同一时刻至多一个）
+            probingResolve: null,  // 探测完成回调
+            pendingUserUid: null,  // 用户点「进入农场」刚发出的请求目标
+            swallowUids: new Set() // 已中止/超时探测的 uid：其迟到响应一律吞掉
+        };
+
+        function ensureFriendInterceptor() {
+            const st = friendProbeState;
+            if (st.installed || typeof MSG === 'undefined') return;
+            if (typeof MSG.handlers.plant_friendData !== 'function' || typeof MSG.send !== 'function') return;
+            st.origHandler = MSG.handlers.plant_friendData;
+            st.origSend = MSG.send;
+            st.installed = true;
+
+            MSG.send = function (type, data) {
+                if (type === 'plant_friend_data' && friendPreviewActive()) {
+                    const uid = (data && data.friend_uid) != null ? Number(data.friend_uid) : null;
+                    if (uid != null) {
+                        // 探测请求绕过本包装直接走 origSend，因此到达这里的必然是用户
+                        // 点「进入农场」：记录目标并中止当前探测（其迟到响应进吞掉名单），
+                        // 防止旧方案的「响应先后顺序竞态导致进错农场」
+                        st.pendingUserUid = uid;
+                        abortCurrentProbe();
+                    }
+                }
+                return st.origSend.call(MSG, type, data);
+            };
+
+            MSG.handlers.plant_friendData = function (data) {
+                const d = (data && data.content) || {};
+                const uid = d.friend ? Number(d.friend.uid) : null;
+                if (uid != null && friendPreviewActive()) {
+                    if (st.pendingUserUid != null && uid === st.pendingUserUid) {
+                        // 用户导航响应：透传渲染农场，并顺手回填该好友的预览缓存
+                        st.pendingUserUid = null;
+                        st.swallowUids.delete(uid);
+                        cacheFriendSummary(uid, d.success ? d : null);
+                        st.origHandler.call(MSG, data);
+                        return;
+                    }
+                    if (st.probingUid != null && uid === Number(st.probingUid)) {
+                        resolveProbe(d.success ? d : null);   // 探测响应：截获吞掉
+                        return;
+                    }
+                    if (st.swallowUids.has(uid)) {
+                        st.swallowUids.delete(uid);           // 已中止探测的迟到响应：静默丢弃
+                        return;
+                    }
+                }
+                st.origHandler.call(MSG, data);
+            };
+        }
+
+        function resolveProbe(d) {
+            const st = friendProbeState;
+            const fn = st.probingResolve;
+            st.probingUid = null;
+            st.probingResolve = null;
+            if (fn) fn(d);
+        }
+
+        function abortCurrentProbe() {
+            const st = friendProbeState;
+            if (st.probingUid == null) return;
+            st.swallowUids.add(Number(st.probingUid));
+            resolveProbe(null);
+        }
+
+        function cacheFriendSummary(uid, d) {
+            if (!d) return;
+            try {
+                friendPreviewCache.set(Number(uid), { at: Date.now(), s: summarizeFriendPlots(d) });
+            } catch (e) { /* 忽略 */ }
+        }
+
+        // 单个好友探测：响应由中央拦截器按 uid 白名单截获；用户中途点「进入农场」或
+        // 超时都会被 abort（uid 进吞掉名单，迟到响应不再透传切视图）
         function probeFriendFarm(uid, onDone) {
-            const orig = MSG.handlers.plant_friendData;
-            if (typeof orig !== 'function') { onDone(null); return; }
+            const st = friendProbeState;
+            ensureFriendInterceptor();
+            if (!st.installed) { onDone(null); return; }
             let settled = false;
             let timer = null;
             const finish = function (d) {
                 if (settled) return;
                 settled = true;
                 if (timer) { clearTimeout(timer); timer = null; }
-                MSG.handlers.plant_friendData = orig;
+                if (Number(st.probingUid) === Number(uid)) {
+                    st.probingUid = null;
+                    st.probingResolve = null;
+                }
                 onDone(d);
             };
-            MSG.handlers.plant_friendData = function (data) {
-                const d = (data && data.content) || {};
-                if (d.friend && Number(d.friend.uid) === Number(uid)) {
-                    finish(d.success ? d : null);   // 探测目标的响应：截获吞掉
-                } else {
-                    // 不是探测目标：是用户点了「进入农场」触发的真实请求，恢复后透传
-                    finish(null);
-                    orig.call(MSG, data);
-                }
-            };
-            if (!MSG.send('plant_friend_data', { friend_uid: uid })) finish(null);
-            timer = setTimeout(function () { finish(null); }, FRIEND_PROBE_TIMEOUT_MS);
+            st.probingUid = uid;
+            st.probingResolve = finish;
+            if (!st.origSend.call(MSG, 'plant_friend_data', { friend_uid: uid })) finish(null);
+            timer = setTimeout(function () {
+                st.swallowUids.add(Number(uid));   // 响应可能仍在路上，加入吞掉名单
+                finish(null);
+            }, FRIEND_PROBE_TIMEOUT_MS);
         }
 
         function injectFriendPreviewStyle() {
@@ -3488,29 +3584,41 @@
             friendProbeBusy = true;
             probeFriendFarm(t.uid, function (d) {
                 friendProbeBusy = false;
-                if (d && document.body.contains(t.row)) {
-                    try { paintFriendRow(t.row, summarizeFriendPlots(d)); } catch (e) { /* 忽略 */ }
+                if (d) {
+                    cacheFriendSummary(t.uid, d);   // 行脱离 DOM 也照常缓存，下次弹窗秒显
+                    if (document.body.contains(t.row)) {
+                        try { paintFriendRow(t.row, friendPreviewCache.get(Number(t.uid)).s); } catch (e) { /* 忽略 */ }
+                    }
                 }
                 setTimeout(pumpFriendProbes, FRIEND_PROBE_GAP_MS);
             });
         }
 
         // 逐个串行探测列表中的好友：等上一个响应回来（或超时）再发下一个，避免瞬时
-        // 连发大量 plant_friend_data；列表 DOM 被移除（弹窗关闭/点了进入农场）即中止
+        // 连发大量 plant_friend_data。缓存命中（2 分钟内）的好友直接绘制徽标、不发请求；
+        // 列表 DOM 被移除（弹窗关闭/点了进入农场）即中止剩余探测
         function startFriendPreview(friends) {
             const list = document.querySelector('.plant-friend-list');
             if (!list || list.dataset.nekProbed) return;
             const rows = list.querySelectorAll('.plant-friend-item');
             injectFriendPreviewStyle();
             list.dataset.nekProbed = '1';
-            let queued = false;
+            const now = Date.now();
+            let queued = 0, cached = 0;
             friends.forEach(function (f, i) {
-                if (f && f.uid != null && rows[i]) {
-                    queueFriendProbe({ uid: f.uid, row: rows[i], list: list });
-                    queued = true;
+                if (!f || f.uid == null || !rows[i]) return;
+                const uid = Number(f.uid);
+                const c = friendPreviewCache.get(uid);
+                if (c && now - c.at <= FRIEND_CACHE_TTL_MS) {
+                    try { paintFriendRow(rows[i], c.s); cached++; } catch (e) { /* 忽略 */ }
+                    return;
                 }
+                queueFriendProbe({ uid: uid, row: rows[i], list: list });
+                queued++;
             });
-            if (queued) hlog('好友农场成熟预览：开始探测 ' + queued + ' 位好友的农场');
+            if (queued || cached) {
+                hlog('好友农场成熟预览：缓存命中 ' + cached + ' 位，探测 ' + queued + ' 位');
+            }
         }
 
         // 结构复刻原生「动画效果」区块：
@@ -3761,7 +3869,7 @@
         // ---------------- 自动检查更新（GitHub raw 头部 @version 对比） ----------------
         // 注意：发布新版本时需同步修改 CURRENT_VERSION（与头部 @version 保持一致）。
         // 页面上下文无 GM_info（@grant none 且经 <script> 注入），只能内置当前版本号。
-        const CURRENT_VERSION = '1.32.1';
+        const CURRENT_VERSION = '1.33.0';
         const LS_UPD_KEY = 'nek_update_check_enabled';        // 检查更新开关，默认开
         const LS_UPD_REMIND = 'nek_update_remind_last';       // 上次提醒时间戳（提醒节流）
         const UPD_REMIND_INTERVAL = 60 * 60 * 1000;           // 提醒节流：距上次提醒超过 60 分钟才再次提醒
