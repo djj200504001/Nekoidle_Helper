@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.33.0
+// @version      1.33.1
 // @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口与炼金界面（原子/神秘/量子炼金执行区）经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色；炼金期望按成功率折算）并快捷填入升级所需执行次数，炼金执行区另有「背包可执行次数」按钮（按当前点金/分解/研究/提纯/还原/转换/量子配方逐项折算材料持有量）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知，种植页可按农场设置跳过地块；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）；九、检查更新——每次加载游戏时检测 GitHub 最新版本（发现新版本且距上次提醒超过 60 分钟时，顶部通知引导在 Tampermonkey 中更新）；设置区标题旁显示当前版本号；十、v1116 生活装备适配——自绘生产/采集详情材料需求按巨匠省料率折算（两位小数、加工倍数与执行校验同口径），额外奖励几率乘装备幸运（研究幸运/10+装备幸运/100），行动窗口「背包可执行次数」按钮按省料后需求折算，经验效率经 game.getEfficiency 自动含面罩最终效率乘区；自绘生产/采集详情「额外奖励」补显示 v1116 宝箱掉落（梳毛/采集/生产宝箱，几率含幸运加成、数量不随加工倍数放大，复用原生 getActionChestPreview）；修复检查更新因 window.UI 引用错误（UI 为顶层词法绑定不在 window 上）导致检测从未执行的问题。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
@@ -252,6 +252,18 @@
             '.nek-market[data-state="fail"] { color: #ff8a8a; }',
             // 手机窄屏（<480px）：价格行允许换行，避免溢出说明面板
             '@media (max-width: 480px) { .nek-market { white-space: normal; } }',
+            // 手机窄屏（≤768px，与游戏移动端断点一致）：安卓网页端适配。
+            // 游戏为响应式单构建（同一 DOM，media query 切换布局），脚本插入的元素同样生效，
+            // 但原生 .modal-action-repeat 为 flex 无 wrap：行宽 = 次数输入框 + 1/10/100 + 脚本的
+            // 升级次数/可执行次数按钮 + ∞ ≈ 420px，小屏详情区仅 ~340px，尾部（可执行次数、∞）
+            // 被裁剪出可视区——表现为「只见升级按钮不见可执行按钮」。允许换行并收窄控件：
+            '@media (max-width: 768px) {',
+            '  .modal-action-repeat { flex-wrap: wrap; row-gap: 4px; }',
+            '  .modal-action-repeat .repeat-input { width: 34px; padding: 2px 4px; }',
+            '  .modal-action-repeat .btn.quick-set { min-width: 34px; padding: 0 5px; }',
+            '  .nek-target-row { flex-wrap: wrap; }',
+            '  .nek-target-input { width: 52px; padding: 2px 5px; }',
+            '}',
             // 「跳转烹饪」按钮自绘图标（28×28 像素画：平底锅煎蛋）。
             // 复用 .menu-icon 的尺寸/缩放/像素化渲染，仅覆盖雪碧图为 data URI
             '.nek-icon-cook { background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAYAAAByDd+UAAAA9klEQVR42mNgGAVDDfDwCPyHYbpY5uEVBcc0sxTmI5hFK1bto52F6L4qKesg34eENCBbBrKIJMuQIxuGQQZgE6eKZTBNxGCyLUP2CbpGbBhdHbpFBC0jZJGcnBpRFpMUhMhJGYaxAZDl6A5ADmKiLUS36N2HL3D865oPXouJshCb70AGIFsGsujPm2lgDGKjW4zsU4KWolsIczGpFhLtS5iFyL6DWQizFGYJCN9booHXQpilZPkQHWCLQ7J9iM+X+AA235GccGCG4LMYXQ3Z2QI9oxPCZOVDapY0JFVBlJSlFDUjyKktqNr4IaY+pFlbZbQdSggAAEtvOeHNBzFVAAAAAElFTkSuQmCC");',
@@ -3869,7 +3881,7 @@
         // ---------------- 自动检查更新（GitHub raw 头部 @version 对比） ----------------
         // 注意：发布新版本时需同步修改 CURRENT_VERSION（与头部 @version 保持一致）。
         // 页面上下文无 GM_info（@grant none 且经 <script> 注入），只能内置当前版本号。
-        const CURRENT_VERSION = '1.33.0';
+        const CURRENT_VERSION = '1.33.1';
         const LS_UPD_KEY = 'nek_update_check_enabled';        // 检查更新开关，默认开
         const LS_UPD_REMIND = 'nek_update_remind_last';       // 上次提醒时间戳（提醒节流）
         const UPD_REMIND_INTERVAL = 60 * 60 * 1000;           // 提醒节流：距上次提醒超过 60 分钟才再次提醒
