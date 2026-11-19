@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.33.2
+// @version      1.33.3
 // @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口与炼金界面（原子/神秘/量子炼金执行区）经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色；炼金期望按成功率折算）并快捷填入升级所需执行次数，炼金执行区另有「背包可执行次数」按钮（按当前点金/分解/研究/提纯/还原/转换/量子配方逐项折算材料持有量）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知，种植页可按农场设置跳过地块；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）；九、检查更新——每次加载游戏时检测 GitHub 最新版本（发现新版本且距上次提醒超过 60 分钟时，顶部通知引导在 Tampermonkey 中更新）；设置区标题旁显示当前版本号；十、v1116 生活装备适配——自绘生产/采集详情材料需求按巨匠省料率折算（两位小数、加工倍数与执行校验同口径），额外奖励几率乘装备幸运（研究幸运/10+装备幸运/100），行动窗口「背包可执行次数」按钮按省料后需求折算，经验效率经 game.getEfficiency 自动含面罩最终效率乘区；自绘生产/采集详情「额外奖励」补显示 v1116 宝箱掉落（梳毛/采集/生产宝箱，几率含幸运加成、数量不随加工倍数放大，复用原生 getActionChestPreview）；修复检查更新因 window.UI 引用错误（UI 为顶层词法绑定不在 window 上）导致检测从未执行的问题。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
@@ -3027,6 +3027,15 @@
                                 const pd = plotsArr && (plotsArr[i] || plotsArr[String(i)]);
                                 farm.plots[i] = pd || { state: 'empty' };
                             }
+                        },
+                        // v1118 播种开关/地块锁响应走 updatePlot：骨架补齐最小实现
+                        updatePlot: function (farmId, plotIndex, plotData) {
+                            const farms = [];
+                            (this.planets || []).forEach(p => (p.farms || []).forEach(f => farms.push(f)));
+                            const farm = farms.find(f => f.id === farmId);
+                            if (!farm) return;
+                            if (!farm.plots) farm.plots = [];
+                            farm.plots[plotIndex] = plotData || { state: 'empty' };
                         }
                     };
                 }
@@ -3069,6 +3078,9 @@
                             if (pd && pd.state !== 'ready') clearPending(pendingHarvest, farm.id, i);
                             return;
                         }
+                        // v1118 原生地块锁（plot_lock）：服务端收获/自动播种都会跳过锁定地块，
+                        // 客户端不再白发请求（原生锁与脚本跳过配置二选一即可）
+                        if (pd.plot_lock) return;
                         if (skipped.indexOf(i) >= 0) return;
                         if (pendingFresh(pendingHarvest, farm.id, i)) return;   // 在途，等响应
                         markPending(pendingHarvest, farm.id, i);
@@ -3170,19 +3182,36 @@
         const HARVEST_STATE_TXT = { locked: '未解锁', empty: '空地', growing: '生长中', ready: '可收获' };
 
         // 周期注入：每个农场按钮组「全部播种」左侧加「设置」按钮，并刷新跳过数量角标
+        // v1118 种植页改版：_plotMap 已删除，页面改为星球手风琴结构——farmId 改按
+        // 游戏自身的下标映射解析（星球分组序号 → planets[i]，农场序号 → farms[j]，
+        // 与原生 syncMaturePlots 12294 行同规则），好友农场视图（view !== 'self'）不注入
         function ensureSkipButtons() {
             try {
                 if (!document.querySelector('.sidebar-item.action-3.active')) return;
+                if (!UI.plantState || UI.plantState.view !== 'self') return;
+                const groups = document.querySelectorAll('.plant-page .plant-accordion-group');
                 document.querySelectorAll('.plant-farm .farm-btn-group').forEach(function (g) {
                     let btn = g.querySelector('.nek-skip-btn');
                     if (!btn) {
-                        // 借游戏挂载的 _plotMap（plotEl → {farmId, plotIndex}）解析所属农场 id
+                        // 解析所属农场 id：优先旧版 _plotMap，缺失时按手风琴结构下标映射
                         let farmId = null;
                         const farmEl = g.closest('.plant-farm');
-                        const plotEl = farmEl && farmEl.querySelector('.plant-plot');
-                        if (plotEl && UI.plantState && UI.plantState._plotMap) {
-                            const info = UI.plantState._plotMap.get(plotEl);
+                        if (farmEl && UI.plantState._plotMap) {
+                            const plotEl = farmEl.querySelector('.plant-plot');
+                            const info = plotEl && UI.plantState._plotMap.get(plotEl);
                             if (info) farmId = info.farmId;
+                        }
+                        if (farmId == null && farmEl) {
+                            const contentEl = farmEl.closest('.plant-accordion-content');
+                            const groupEl = contentEl && contentEl.closest('.plant-accordion-group');
+                            if (contentEl && groupEl) {
+                                const farmIdx = Array.prototype.indexOf.call(
+                                    contentEl.querySelectorAll('.plant-farm'), farmEl);
+                                const planetIdx = Array.prototype.indexOf.call(groups, groupEl);
+                                const planet = (UI.plantState.planets || [])[planetIdx];
+                                const farm = planet && (planet.farms || [])[farmIdx];
+                                if (farm && farm.id != null) farmId = farm.id;
+                            }
                         }
                         if (farmId == null) return;
                         btn = document.createElement('div');
@@ -3222,12 +3251,14 @@
                 const pd = (farm.plots || [])[i] || (farm.plots || {})[String(i)];
                 if (!pd || pd.state === 'locked') continue;
                 const crop = pd.crop_id > 0 && game.getItem(pd.crop_id);
+                const nativeLock = pd.plot_lock ? ' · <span style="color:#ffd76e">原生锁</span>' : '';
                 html += '<label class="nek-sp-row"><input type="checkbox" data-plot="' + i + '"' +
                     (skipped.indexOf(i) >= 0 ? ' checked' : '') + '><span>地块 ' + (i + 1) +
-                    '</span><span class="nek-sp-state">' + (HARVEST_STATE_TXT[pd.state] || pd.state) +
+                    '</span><span class="nek-sp-state">' + (HARVEST_STATE_TXT[pd.state] || pd.state) + nativeLock +
                     (crop ? ' · ' + crop.name : '') + '</span></label>';
             }
-            html += '<div class="nek-sp-tip">勾选后自动收获将跳过该地块（手动批量按钮不受影响）</div>';
+            html += '<div class="nek-sp-tip">勾选后自动收获将跳过该地块（手动批量按钮不受影响）；' +
+                '游戏原生的「地块锁」（地块右上角🔒）同样会被自动收获跳过，二选一即可</div>';
             panel.innerHTML = html;
             document.body.appendChild(panel);
             const r = anchor.getBoundingClientRect();
@@ -3886,7 +3917,7 @@
         // ---------------- 自动检查更新（GitHub raw 头部 @version 对比） ----------------
         // 注意：发布新版本时需同步修改 CURRENT_VERSION（与头部 @version 保持一致）。
         // 页面上下文无 GM_info（@grant none 且经 <script> 注入），只能内置当前版本号。
-        const CURRENT_VERSION = '1.33.2';
+        const CURRENT_VERSION = '1.33.3';
         const LS_UPD_KEY = 'nek_update_check_enabled';        // 检查更新开关，默认开
         const LS_UPD_REMIND = 'nek_update_remind_last';       // 上次提醒时间戳（提醒节流）
         const UPD_REMIND_INTERVAL = 60 * 60 * 1000;           // 提醒节流：距上次提醒超过 60 分钟才再次提醒
