@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.33.1
+// @version      1.33.2
 // @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口与炼金界面（原子/神秘/量子炼金执行区）经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色；炼金期望按成功率折算）并快捷填入升级所需执行次数，炼金执行区另有「背包可执行次数」按钮（按当前点金/分解/研究/提纯/还原/转换/量子配方逐项折算材料持有量）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知，种植页可按农场设置跳过地块；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）；九、检查更新——每次加载游戏时检测 GitHub 最新版本（发现新版本且距上次提醒超过 60 分钟时，顶部通知引导在 Tampermonkey 中更新）；设置区标题旁显示当前版本号；十、v1116 生活装备适配——自绘生产/采集详情材料需求按巨匠省料率折算（两位小数、加工倍数与执行校验同口径），额外奖励几率乘装备幸运（研究幸运/10+装备幸运/100），行动窗口「背包可执行次数」按钮按省料后需求折算，经验效率经 game.getEfficiency 自动含面罩最终效率乘区；自绘生产/采集详情「额外奖励」补显示 v1116 宝箱掉落（梳毛/采集/生产宝箱，几率含幸运加成、数量不随加工倍数放大，复用原生 getActionChestPreview）；修复检查更新因 window.UI 引用错误（UI 为顶层词法绑定不在 window 上）导致检测从未执行的问题。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
@@ -275,6 +275,15 @@
 
         // ---------------- 工具 ----------------
         const fmt = n => Number(n).toLocaleString('zh-CN');
+
+        // 数量格式：与原生 formatQuantityNumber 同款（最多两位小数去尾零）
+        // v1.33.2 提升为模块级：此前定义在生产详情函数内，炼金卡片装饰（v1.32 起巨匠
+        // 双倍几率提示）与行动弹窗巨匠省料提示越界引用，巨匠率 > 0 时抛 ReferenceError
+        // 被单卡 catch 静默吞掉——升级按钮已插入、可执行按钮与经验效率块丢失
+        function fmtQ(n) {
+            const r = Math.round(n * 100) / 100;
+            return Number.isInteger(r) ? String(r) : r.toFixed(2).replace(/\.?0+$/, '');
+        }
 
         // 秒数 → 「X 天 X 小时 / X 小时 X 分 / X 分 X 秒 / X 秒」
         function fmtDuration(sec) {
@@ -1224,11 +1233,7 @@
             const skillAction = game.getActionGroupName(action.action);
             // 越级修正：耗时按倍率显示，并复刻游戏同款黄/橙提示行（红=不可执行）
             const ol = getOverLevelState(action);
-            // 数量格式：与原生 formatQuantityNumber 同款（最多两位小数去尾零）
-            const fmtQ = n => {
-                const r = Math.round(n * 100) / 100;
-                return Number.isInteger(r) ? String(r) : r.toFixed(2).replace(/\.?0+$/, '');
-            };
+            // 数量格式 fmtQ 已提升为模块级（工具区）
             // 研究中心加成（v1112a 原生同口径）：行动所属设施（梳毛1/采集按星球2~5/生产11），
             // 经验、效率、产出、幸运分别生效；阶差转化为独立产物乘区（仅主奖励）
             let researchFacilityId = 0;
@@ -2331,7 +2336,7 @@
                 return;
             }
             document.querySelectorAll('.alchemy-card').forEach(function (card, i) {
-                try { decorateAlchemyCard(card, i); } catch (e) { /* 单卡失败不影响其它卡 */ }
+                try { decorateAlchemyCard(card, i); } catch (e) { console.warn('[小助手] 炼金卡片装饰失败(卡' + i + ')：', e); }
             });
         }
 
@@ -3881,7 +3886,7 @@
         // ---------------- 自动检查更新（GitHub raw 头部 @version 对比） ----------------
         // 注意：发布新版本时需同步修改 CURRENT_VERSION（与头部 @version 保持一致）。
         // 页面上下文无 GM_info（@grant none 且经 <script> 注入），只能内置当前版本号。
-        const CURRENT_VERSION = '1.33.1';
+        const CURRENT_VERSION = '1.33.2';
         const LS_UPD_KEY = 'nek_update_check_enabled';        // 检查更新开关，默认开
         const LS_UPD_REMIND = 'nek_update_remind_last';       // 上次提醒时间戳（提醒节流）
         const UPD_REMIND_INTERVAL = 60 * 60 * 1000;           // 提醒节流：距上次提醒超过 60 分钟才再次提醒
