@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.34.1
-// @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口与炼金界面（原子/神秘/量子炼金执行区）经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色；炼金期望按成功率折算）并快捷填入升级所需执行次数，炼金执行区另有「背包可执行次数」按钮（按当前点金/分解/研究/提纯/还原/转换/量子配方逐项折算材料持有量）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知；跳过地块改用游戏原生「地块锁」（🔒），锁定地块的自动收获与手动单块收获均在客户端拦截（服务端批量收获跳过锁定地块，但单块收获不校验，故加客户端兜底），自动收菜开关按钮以背景进度条显示本轮 30 秒检测进度（收获绿从左向右覆盖黄底，每轮复位，v1.34.1 取代逐秒倒计时文字）；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）；九、检查更新——每次加载游戏时检测 GitHub 最新版本（发现新版本且距上次提醒超过 60 分钟时，顶部通知引导在 Tampermonkey 中更新）；设置区标题旁显示当前版本号；十、v1116 生活装备适配——自绘生产/采集详情材料需求按巨匠省料率折算（两位小数、加工倍数与执行校验同口径），额外奖励几率乘装备幸运（研究幸运/10+装备幸运/100），行动窗口「背包可执行次数」按钮按省料后需求折算，经验效率经 game.getEfficiency 自动含面罩最终效率乘区；自绘生产/采集详情「额外奖励」补显示 v1116 宝箱掉落（梳毛/采集/生产宝箱，几率含幸运加成、数量不随加工倍数放大，复用原生 getActionChestPreview）；修复检查更新因 window.UI 引用错误（UI 为顶层词法绑定不在 window 上）导致检测从未执行的问题。
+// @version      1.34.2
+// @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口与炼金界面（原子/神秘/量子炼金执行区）经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色；炼金期望按成功率折算）并快捷填入升级所需执行次数，炼金执行区另有「背包可执行次数」按钮（按当前点金/分解/研究/提纯/还原/转换/量子配方逐项折算材料持有量）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知；跳过地块改用游戏原生「地块锁」（🔒），锁定地块的自动收获与手动单块收获均在客户端拦截（服务端批量收获跳过锁定地块，但单块收获不校验，故加客户端兜底），自动收菜开关按钮以背景进度条显示检测进度（60 秒往返循环：前 30 秒收获绿覆盖黄底、后 30 秒黄底覆盖绿色，rAF 每帧重算丝滑无跳秒，进度锚定实际检测时钟、按钮中途出现也显示真实进度，不另起独立计时）；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）；九、检查更新——每次加载游戏时检测 GitHub 最新版本（发现新版本且距上次提醒超过 60 分钟时，顶部通知引导在 Tampermonkey 中更新）；设置区标题旁显示当前版本号；十、v1116 生活装备适配——自绘生产/采集详情材料需求按巨匠省料率折算（两位小数、加工倍数与执行校验同口径），额外奖励几率乘装备幸运（研究幸运/10+装备幸运/100），行动窗口「背包可执行次数」按钮按省料后需求折算，经验效率经 game.getEfficiency 自动含面罩最终效率乘区；自绘生产/采集详情「额外奖励」补显示 v1116 宝箱掉落（梳毛/采集/生产宝箱，几率含幸运加成、数量不随加工倍数放大，复用原生 getActionChestPreview）；修复检查更新因 window.UI 引用错误（UI 为顶层词法绑定不在 window 上）导致检测从未执行的问题。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
 // @match        https://nekoidle.net/*
@@ -2945,8 +2945,18 @@
         window.__NEK_HARVEST_IN_ASSISTANT__ = true;
         const HARVEST_TAG = '【自动收菜】';
         const HARVEST_TICK_MS = 30000;           // 主循环：每 30 秒一次
-        let lastHarvestTickAt = 0;               // 本轮检测触发的时间戳（按钮进度条用：随 30 秒周期从左向右渐显覆盖色，下一轮复位）
+        // 进度条时钟锚点：60 秒动画循环 = 两个检测周期（前 30 秒绿色覆盖黄底，
+        // 后 30 秒黄色覆盖绿色）。锚点在 harvestTick 里按「距上个锚点 ≥ 1.5 个周期
+        // 才重置」推进（每两个检测点重置一次），与 setInterval 实际触发时刻严格同步，
+        // 按钮中途创建时进度条直接显示当前真实进度（不另起独立计时）
+        let harvestCycleStartAt = 0;
         const HARVEST_BAR_COVER = '#97c459';     // 进度条覆盖色（收获绿，v1.34.1 用户选定方案C）
+        function markHarvestTick() {
+            const now = Date.now();
+            if (!harvestCycleStartAt || now - harvestCycleStartAt >= HARVEST_TICK_MS * 1.5) {
+                harvestCycleStartAt = now;
+            }
+        }
         const LS_HARVEST_KEY = 'nek_harvest_enabled';     // 队列快捷开关（仅自动收菜），沿用独立版键名
         const LS_FARM_KEY = 'nek_farm_assist_enabled';    // 农业辅助总开关：自动收菜 + 好友农场成熟预览
         const isHarvestEnabled = () => {
@@ -3260,19 +3270,26 @@
 
         function paintToggleButton(btn) {
             const on = isHarvestEnabled();
-            btn.textContent = '自动收菜：' + (on ? 'ON' : 'OFF');
-            // 开启时以背景渐变作进度条：收获绿从左向右覆盖黄底（每 30 秒一轮，
-            // 轮次触发时 lastHarvestTickAt 重置 → 覆盖归零回到原色）。计算量 O(1)：
-            // 一次除法 + 一次字符串拼接 + 一次 style 赋值（每 500ms 一次）。
-            if (on && lastHarvestTickAt > 0) {
-                const pct = Math.min(100, Math.max(0,
-                    (Date.now() - lastHarvestTickAt) / HARVEST_TICK_MS * 100));
-                btn.style.background = pct > 0
-                    ? 'linear-gradient(90deg, ' + HARVEST_BAR_COVER + ' 0 ' + pct + '%, var(--c-warning, #ffd93b) ' + pct + '% 100%)'
-                    : '';
-            } else {
-                btn.style.background = '';
+            let bg = '';
+            if (on && harvestCycleStartAt > 0) {
+                // 60 秒往返循环，进度由实际检测时钟（harvestCycleStartAt）推算：
+                // rAF 每帧重算，中途出现的按钮立即显示正确的当前进度
+                const elapsed = Date.now() - harvestCycleStartAt;
+                if (elapsed < HARVEST_TICK_MS) {
+                    // 阶段一（0~30s）：收获绿从左向右覆盖黄底
+                    const pct = Math.max(0, elapsed / HARVEST_TICK_MS * 100);
+                    bg = 'linear-gradient(90deg, ' + HARVEST_BAR_COVER + ' 0 ' + pct + '%, var(--c-warning, #ffd93b) ' + pct + '% 100%)';
+                } else if (elapsed < HARVEST_TICK_MS * 2) {
+                    // 阶段二（30~60s）：黄底从左向右覆盖绿色，绿满不跳变
+                    const pct = Math.max(0, (elapsed - HARVEST_TICK_MS) / HARVEST_TICK_MS * 100);
+                    bg = 'linear-gradient(90deg, var(--c-warning, #ffd93b) 0 ' + pct + '%, ' + HARVEST_BAR_COVER + ' ' + pct + '% 100%)';
+                }
+                // elapsed ≥ 60s：等下一次 harvestTick 重置锚点（理论上一帧内即修复）
             }
+            // DOM 写缓存：值没变不碰 DOM（textContent/背景多数帧不变时零写入）
+            if (btn._nekBg !== bg) { btn._nekBg = bg; btn.style.background = bg; }
+            const text = '自动收菜：' + (on ? 'ON' : 'OFF');
+            if (btn.textContent !== text) btn.textContent = text;
             btn.classList.toggle('off', !on);
             btn.title = on ? '点击关闭自动收获（仅控制自动收菜；好友农场成熟预览由设置页「农业辅助」开关控制）'
                            : '点击开启自动收获（种植后台自动收获，补种由游戏原生「自动播种」完成）';
@@ -3303,6 +3320,7 @@
         // ---- 自动收菜主循环 ----
 
         function harvestTick() {
+            markHarvestTick();   // 进度条时钟锚点：无论开关状态都推进（与检测时刻严格同步）
             if (!isEnabled() || !isFarmAssistEnabled() || !isHarvestEnabled()) return;
             harvestDataTries = 0;   // 每轮主循环重置后台拉数据重试计数
             tickPlanting();
@@ -3331,23 +3349,14 @@
             setInterval(protectLockedHarvestBtns, 1500); // 种植页重绘后重新置灰锁定地块的收获按钮
             setInterval(harvestTick, HARVEST_TICK_MS);
             setTimeout(harvestTick, 5000);
-            // 每 30 秒一轮：轮次触发时记录本轮时间戳，供开关按钮进度条复位
-            setInterval(function () {
-                lastHarvestTickAt = Date.now();
-                harvestTick();
-            }, HARVEST_TICK_MS);
-            setTimeout(function () {
-                lastHarvestTickAt = Date.now();
-                harvestTick();
-            }, 5000);
-            // 每 500ms 刷新开关按钮进度条（收获绿覆盖渐进，计算量可忽略）
-            setInterval(function () {
-                if (isHarvestEnabled()) {
-                    document.querySelectorAll('.nek-harvest-toggle').forEach(function (b) {
-                        paintToggleButton(b);
-                    });
-                }
-            }, 500);
+            // rAF 驱动进度条：每帧重算 60 秒往返渐变（60fps 丝滑，与游戏队列进度条同观感）。
+            // 进度锚定实际检测时钟，后台标签页 rAF 暂停、恢复时按 Date.now() 立即校正。
+            // 计算量：每帧每按钮一次除法 + 字符串拼接，DOM 写有缓存（值不变不写入）
+            (function rafHarvestPaint() {
+                const btns = document.querySelectorAll('.nek-harvest-toggle');
+                if (btns.length) btns.forEach(paintToggleButton);
+                requestAnimationFrame(rafHarvestPaint);
+            })();
         }
 
         // ---------------- 好友农场成熟预览（农业辅助功能之二） ----------------
@@ -3877,7 +3886,7 @@
         // ---------------- 自动检查更新（GitHub raw 头部 @version 对比） ----------------
         // 注意：发布新版本时需同步修改 CURRENT_VERSION（与头部 @version 保持一致）。
         // 页面上下文无 GM_info（@grant none 且经 <script> 注入），只能内置当前版本号。
-        const CURRENT_VERSION = '1.34.1';
+        const CURRENT_VERSION = '1.34.2';
         const LS_UPD_KEY = 'nek_update_check_enabled';        // 检查更新开关，默认开
         const LS_UPD_REMIND = 'nek_update_remind_last';       // 上次提醒时间戳（提醒节流）
         const UPD_REMIND_INTERVAL = 60 * 60 * 1000;           // 提醒节流：距上次提醒超过 60 分钟才再次提醒
