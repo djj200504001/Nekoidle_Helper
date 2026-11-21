@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.36.0
-// @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口与炼金界面（原子/神秘/量子炼金执行区）经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色；炼金期望按成功率折算）并快捷填入升级所需执行次数，炼金执行区另有「背包可执行次数」按钮（按当前点金/分解/研究/提纯/还原/转换/量子配方逐项折算材料持有量）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知；跳过地块改用游戏原生「地块锁」（🔒），锁定地块的自动收获与手动单块收获均在客户端拦截（服务端批量收获跳过锁定地块，但单块收获不校验，故加客户端兜底），自动收菜开关按钮以背景进度条显示检测进度（60 秒往返循环：前 30 秒收获绿覆盖黄底、后 30 秒黄底覆盖绿色，rAF 每帧重算丝滑无跳秒，进度锚定实际检测时钟、按钮中途出现也显示真实进度，不另起独立计时）；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）；九、检查更新——每次加载游戏时检测 GitHub 最新版本（发现新版本且距上次提醒超过 60 分钟时，顶部通知引导在 Tampermonkey 中更新）；设置区标题旁显示当前版本号；十、v1116 生活装备适配——自绘生产/采集详情材料需求按巨匠省料率折算（两位小数、加工倍数与执行校验同口径），额外奖励几率乘装备幸运（研究幸运/10+装备幸运/100），行动窗口「背包可执行次数」按钮按省料后需求折算，经验效率经 game.getEfficiency 自动含面罩最终效率乘区；自绘生产/采集详情「额外奖励」补显示 v1116 宝箱掉落（梳毛/采集/生产宝箱，几率含幸运加成、数量不随加工倍数放大，复用原生 getActionChestPreview）；修复检查更新因 window.UI 引用错误（UI 为顶层词法绑定不在 window 上）导致检测从未执行的问题；十一、定时钓鱼——已订阅天气预报的钓场，钓鱼页「天气预报」时段条目可点击预约：预约时读取当前所选鱼饵（未选鱼饵二次确认后以无鱼饵预约），到点每 5 秒检查并自动以 ∞ 次立即开钓（mold start 替换当前行动，开钓快照原队列，服务端 update_queue 后 diff 补回）；预约时队列已满直接拒绝（不删除已有队列），开钓时队列仍满则等待并低频提醒；相邻时段预约自动衔接换钓（可跨钓场，不停钓），链条最后一个时段结束自动停钓并恢复原队列；自动开钓后用户手动取消/更换钓鱼不作处理（本时段预约自然失效，未来时段保留），时段结束时队头不是预约钓场的钓鱼同样不作处理；状态条逐条显示预约倒计时与独立取消入口；支持旧版单预约自动迁移；设置-「其他」标签页「定时钓鱼」开关，受总开关联动控制；十二、v1.36.0 修复——①满级用户生产/采集/烹饪详情两个按钮（升下一级次数/背包可执行次数）与经验效率模块整体消失：满级分支不再提前 return，「背包可执行次数」与「经验效率」照常显示（目标等级计算行满级时隐藏），可执行按钮在无升级按钮时改以 ∞ 档为锚点；②生产详情选多倍率后持有数值恒红：持有数文字带千分位逗号，parseInt 在逗号处截断（12,000→12）导致恒判不足，修复为先去逗号再解析。
+// @version      1.37.0
+// @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口与炼金界面（原子/神秘/量子炼金执行区）经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色；炼金期望按成功率折算）并快捷填入升级所需执行次数，炼金执行区另有「背包可执行次数」按钮（按当前点金/分解/研究/提纯/还原/转换/量子配方逐项折算材料持有量）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知；跳过地块改用游戏原生「地块锁」（🔒），锁定地块的自动收获与手动单块收获均在客户端拦截（服务端批量收获跳过锁定地块，但单块收获不校验，故加客户端兜底），自动收菜开关按钮以背景进度条显示检测进度（60 秒往返循环：前 30 秒收获绿覆盖黄底、后 30 秒黄底覆盖绿色，rAF 每帧重算丝滑无跳秒，进度锚定实际检测时钟、按钮中途出现也显示真实进度，不另起独立计时）；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）；九、检查更新——每次加载游戏时检测 GitHub 最新版本（发现新版本且距上次提醒超过 60 分钟时，顶部通知引导在 Tampermonkey 中更新）；设置区标题旁显示当前版本号；十、v1116 生活装备适配——自绘生产/采集详情材料需求按巨匠省料率折算（两位小数、加工倍数与执行校验同口径），额外奖励几率乘装备幸运（研究幸运/10+装备幸运/100），行动窗口「背包可执行次数」按钮按省料后需求折算，经验效率经 game.getEfficiency 自动含面罩最终效率乘区；自绘生产/采集详情「额外奖励」补显示 v1116 宝箱掉落（梳毛/采集/生产宝箱，几率含幸运加成、数量不随加工倍数放大，复用原生 getActionChestPreview）；修复检查更新因 window.UI 引用错误（UI 为顶层词法绑定不在 window 上）导致检测从未执行的问题；十一、定时钓鱼——已订阅天气预报的钓场，钓鱼页「天气预报」时段条目可点击预约：预约时读取当前所选鱼饵（未选鱼饵二次确认后以无鱼饵预约），到点每 5 秒检查并自动以 ∞ 次立即开钓（mold start 替换当前行动，开钓快照原队列，服务端 update_queue 后 diff 补回）；预约时队列已满直接拒绝（不删除已有队列），开钓时队列仍满则等待并低频提醒；相邻时段预约自动衔接换钓（可跨钓场，不停钓），链条最后一个时段结束自动停钓并恢复原队列；自动开钓后用户手动取消/更换钓鱼不作处理（本时段预约自然失效，未来时段保留），时段结束时队头不是预约钓场的钓鱼同样不作处理；状态条逐条显示预约倒计时与独立取消入口；支持旧版单预约自动迁移；设置-「其他」标签页「定时钓鱼」开关，受总开关联动控制；十二、v1.36.0 修复——①满级用户生产/采集/烹饪详情两个按钮（升下一级次数/背包可执行次数）与经验效率模块整体消失：满级分支不再提前 return，「背包可执行次数」与「经验效率」照常显示（目标等级计算行满级时隐藏），可执行按钮在无升级按钮时改以 ∞ 档为锚点；②生产详情选多倍率后持有数值恒红：持有数文字带千分位逗号，parseInt 在逗号处截断（12,000→12）导致恒判不足，修复为先去逗号再解析；十三、v1.37.0 定时钓鱼状态按钮——当前行动「取消」左侧新增钓鱼状态按钮（与「自动收菜」开关并列）：未预约显示「未预约钓鱼」（灰米色，同自动收菜 OFF 配色），已预约显示「天气·钓场名·鱼饵」，背景以开钓时刻前 4 小时为起点由米色向湖水青渐变覆盖、开钓时刻覆盖完成（进度锚定时段真实时间戳，按钮中途出现即显示正确进度），时段钓鱼结束自动变回原色，无下一次预约自动回到未预约状态；点击按钮可取消显示中的预约（钓鱼中取消会停钓并按快照恢复原队列）；预约状态展示从天气预报状态条迁移至该按钮，预报条目「已预约/钓鱼中」角标与点击预约保留。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
 // @match        https://nekoidle.net/*
@@ -3920,7 +3920,7 @@
         // ---------------- 自动检查更新（GitHub raw 头部 @version 对比） ----------------
         // 注意：发布新版本时需同步修改 CURRENT_VERSION（与头部 @version 保持一致）。
         // 页面上下文无 GM_info（@grant none 且经 <script> 注入），只能内置当前版本号。
-        const CURRENT_VERSION = '1.36.0';
+        const CURRENT_VERSION = '1.37.0';
         const LS_UPD_KEY = 'nek_update_check_enabled';        // 检查更新开关，默认开
         const LS_UPD_REMIND = 'nek_update_remind_last';       // 上次提醒时间戳（提醒节流）
         const UPD_REMIND_INTERVAL = 60 * 60 * 1000;           // 提醒节流：距上次提醒超过 60 分钟才再次提醒
@@ -4127,6 +4127,114 @@
                 saveFishState(st);
                 UI.notifier.show('定时钓鱼：已取消预约 ' + (b.timeText || '') + ' ' + (b.weather || ''), 'tip', 3000);
             }
+            ensureFishToggleButton();   // 队列按钮即时刷新
+        }
+
+        // ---- 队列位置钓鱼状态按钮（当前行动「取消」左侧，与「自动收菜」开关并列） ----
+        // 未预约：灰米色（同自动收菜 OFF 配色），文字「未预约钓鱼」；
+        // 已预约：文字「天气·钓场名·鱼饵」，背景自开钓前 4 小时起由米色渐变覆盖为湖水青，
+        // 开钓时刻覆盖完成；时段钓鱼结束变回原色，无下一次预约自动回到未预约状态。
+        // 进度锚定时段真实时间戳（period*4h），按钮中途出现也直接显示正确进度，无独立计时。
+        const FISH_BAR_COVER = '#37e2d4';   // 进度条覆盖色（湖水青，与预报高亮同色系）
+        const FISH_BAR_BASE = '#f3f3ca';    // 底色（同自动收菜 OFF 米色）
+
+        function fishPondName(pondId) {
+            try {
+                const pond = Data.fishingPonds && Data.fishingPonds[pondId];
+                return pond && pond.name ? pond.name : ('钓场' + pondId);
+            } catch (e) { return '钓场' + pondId; }
+        }
+
+        // 当前应展示的预约：钓鱼中/开钓在途的时段优先，否则取最近的当前/未来预约
+        function fishDisplayBooking(st, curPeriod) {
+            if (st.chain) {
+                const cur = st.bookings.find(function (x) { return x.period === st.chain.currentPeriod; });
+                if (cur) return cur;
+            }
+            let best = null;
+            st.bookings.forEach(function (b) {
+                if (b.period >= curPeriod && (!best || b.period < best.period)) best = b;
+            });
+            return best;
+        }
+
+        function paintFishToggleButton(btn) {
+            const st = loadFishState();
+            const curPeriod = currentFishPeriod();
+            const b = fishDisplayBooking(st, curPeriod);
+            let bg = '', text, cls;
+            if (!b) {
+                text = '未预约钓鱼';
+                cls = 'off';
+            } else {
+                const start = b.period * FISH_PERIOD_SEC;
+                const now = Date.now() / 1000;
+                text = (b.weather || '?') + '·' + fishPondName(b.pondId) + '·' + (b.baitName || '无');
+                // 覆盖进度：开钓前 4 小时（一个时段长度）开始，开钓时刻达 100%
+                const pct = Math.min(100, Math.max(0, (now - (start - FISH_PERIOD_SEC)) / FISH_PERIOD_SEC * 100));
+                if (pct > 0) {
+                    bg = 'linear-gradient(90deg, ' + FISH_BAR_COVER + ' 0 ' + pct + '%, ' + FISH_BAR_BASE + ' ' + pct + '% 100%)';
+                }
+                const active = !!(st.chain && st.chain.currentPeriod === b.period && isFishingAt(b.pondId));
+                let tip;
+                if (active) {
+                    tip = (b.timeText || '') + ' ' + (b.weather || '') + ' ' + fishPondName(b.pondId) +
+                        ' · 钓鱼中，' + fmtFishDur(start + FISH_PERIOD_SEC - now) + '后时段结束自动停钓并恢复队列 · 点击取消预约';
+                } else if (now < start) {
+                    tip = (b.timeText || '') + ' ' + (b.weather || '') + ' ' + fishPondName(b.pondId) +
+                        ' · ' + fmtFishDur(start - now) + '后开钓（鱼饵：' + (b.baitName || '无') + '） · 点击取消预约';
+                } else {
+                    tip = (b.timeText || '') + ' ' + (b.weather || '') + ' ' + fishPondName(b.pondId) +
+                        ' · 时段进行中 · 点击取消预约';
+                }
+                const extra = st.bookings.filter(function (x) { return x !== b && x.period >= curPeriod; }).length;
+                if (extra > 0) tip += ' · 另有 ' + extra + ' 条后续预约';
+                btn.title = tip;
+                cls = 'booked';
+            }
+            // DOM 写缓存：多数秒内值不变，零写入
+            if (btn._nekFishBg !== bg) { btn._nekFishBg = bg; btn.style.background = bg; }
+            if (btn.textContent !== text) btn.textContent = text;
+            btn.classList.toggle('off', cls === 'off');
+            btn.classList.toggle('booked', cls === 'booked');
+        }
+
+        function ensureFishToggleButton() {
+            try {
+                if (!isEnabled() || !isFishTimerEnabled()) {
+                    const stale = document.querySelector('.nek-fish-toggle');
+                    if (stale) stale.remove();
+                    return;
+                }
+                const container = document.querySelector('.active-container');
+                if (!container) return;
+                const cancel = container.querySelector('.action-cancel-btn');
+                if (!cancel || !cancel.parentNode) return;
+                let btn = cancel.parentNode.querySelector('.nek-fish-toggle');
+                if (!btn) {
+                    btn = document.createElement('div');
+                    btn.className = 'nek-harvest-toggle nek-fish-toggle';
+                    const harvestBtn = cancel.parentNode.querySelector('.nek-harvest-toggle');
+                    cancel.parentNode.insertBefore(btn, harvestBtn || cancel);   // 排在「自动收菜」左侧
+                    btn.addEventListener('click', function () {
+                        const st = loadFishState();
+                        const b = fishDisplayBooking(st, currentFishPeriod());
+                        if (!b) {
+                            UI.notifier.show('定时钓鱼：尚未预约，请在钓鱼页点击「天气预报」时段条目进行预约', 'tip', 4000);
+                            return;
+                        }
+                        const active = !!(st.chain && st.chain.currentPeriod === b.period && isFishingAt(b.pondId));
+                        const msg = '定时钓鱼：取消 ' + (b.timeText || '') + ' ' + (b.weather || '') + ' ' +
+                            fishPondName(b.pondId) + ' 的预约' +
+                            (active ? '？正在钓鱼，取消后将停钓并恢复原队列' : '？');
+                        if (window.confirm(msg)) {
+                            removeFishBooking(b.pondId, b.period);
+                            ensureFishToggleButton();
+                        }
+                    });
+                }
+                paintFishToggleButton(btn);
+            } catch (e) { /* 忽略 */ }
         }
 
         // 预约/取消预约（点击预报时段条目触发）
@@ -4173,6 +4281,7 @@
                 '（鱼饵：' + (baitName || '无') + '）' +
                 (inPeriod ? '，时段进行中，即将自动开钓' : '，到点自动 ∞ 次开钓；相邻时段预约自动衔接'), 'tip', 4000);
             if (inPeriod) setTimeout(fishTimerTick, 1000);
+            ensureFishToggleButton();   // 队列按钮即时刷新
         }
 
         // 停止链条钓鱼并按快照补回原队列；队头不是预约钓场的钓鱼时（用户手动更换/取消）不作处理，仅清理状态
@@ -4383,47 +4492,29 @@
                         }
                     });
                 }
-                // 状态条：逐条列出预约与倒计时，每条带独立取消入口
+                // 预约状态展示已迁移至行动条「钓鱼」按钮（v1.37.0）：
+                // 有预约时预报区不再渲染状态条；无预约时仅保留引导提示
                 let bar = container.querySelector('.nek-fish-timer-status');
+                if (st.bookings.length) {
+                    if (bar) bar.remove();
+                    return;
+                }
                 if (!bar) {
                     bar = document.createElement('div');
                     bar.className = 'nek-fish-timer-status';
                     container.appendChild(bar);
                 }
-                if (!st.bookings.length) {
-                    bar.innerHTML = '<span class="nek-ft-hint">⏱ 点击上方预报时段可预约定时钓鱼：读取当前所选鱼饵，到点 ∞ 次自动开钓（保留原队列）；相邻时段预约自动衔接，最后一个时段结束自动恢复队列</span>';
-                    return;
-                }
-                const now = Math.floor(Date.now() / 1000);
-                const html = st.bookings.map(function (b) {
-                    const start = b.period * FISH_PERIOD_SEC;
-                    const end = start + FISH_PERIOD_SEC;
-                    const pondLabel = String(b.pondId) === pondId ? '' : '（钓场 ' + b.pondId + '）';
-                    const active = !!(st.chain && st.chain.currentPeriod === b.period && isFishingAt(b.pondId));
-                    let txt;
-                    if (active) {
-                        txt = '🎣 ' + b.timeText + ' ' + b.weather + pondLabel + ' · 钓鱼中，' + fmtFishDur(end - now) + '后自动停止并恢复队列';
-                    } else if (now < start) {
-                        txt = '⏱ ' + b.timeText + ' ' + b.weather + pondLabel + ' · ' + fmtFishDur(start - now) + '后开钓（鱼饵：' + (b.baitName || '无') + '）';
-                    } else {
-                        txt = '⏱ ' + b.timeText + ' ' + b.weather + pondLabel + ' · 时段进行中（若钓鱼被手动更换将不作处理）';
-                    }
-                    return '<span class="nek-ft-item">' + txt +
-                        '<span class="nek-ft-cancel" data-pond="' + b.pondId + '" data-period="' + b.period + '">✕</span></span>';
-                }).join('');
-                bar.innerHTML = html;
-                bar.querySelectorAll('.nek-ft-cancel').forEach(function (el) {
-                    el.addEventListener('click', function (e) {
-                        e.stopPropagation();
-                        removeFishBooking(el.dataset.pond, parseInt(el.dataset.period, 10));
-                    });
-                });
+                bar.innerHTML = '<span class="nek-ft-hint">⏱ 点击上方预报时段可预约定时钓鱼：读取当前所选鱼饵，到点 ∞ 次自动开钓（保留原队列）；相邻时段预约自动衔接，最后一个时段结束自动恢复队列；预约状态与取消见行动条「钓鱼」按钮</span>';
             } catch (e) { /* 忽略 */ }
         }
 
         function injectFishTimerStyle() {
             if (document.getElementById('nek-fishtimer-style')) return;
             const cssFt = [
+                // 队列位置钓鱼状态按钮：底色固定米色（进度渐变的覆盖基准），off 同自动收菜 OFF 配色
+                '.nek-harvest-toggle.nek-fish-toggle { background: ' + FISH_BAR_BASE + '; }',
+                '.nek-harvest-toggle.nek-fish-toggle.off { background: ' + FISH_BAR_BASE + '; color: #939393; }',
+                '.nek-harvest-toggle.nek-fish-toggle.booked { color: #14504a; }',
                 '.nek-fish-forecast-item { cursor: pointer; position: relative; }',
                 '.nek-fish-forecast-item:hover { box-shadow: 0 0 0 1px rgba(55, 226, 212, .55) inset; }',
                 '.nek-fish-forecast-item.nek-fish-scheduled { box-shadow: 0 0 0 1px #37e2d4 inset; background: rgba(55, 226, 212, .14); }',
@@ -4453,7 +4544,9 @@
             fishTimerStarted = true;
             installFishQueueWatcher();
             injectFishTimerStyle();
-            setInterval(ensureFishTimerUI, 1500);    // 钓鱼页重绘后自动补挂点击与状态条
+            ensureFishToggleButton();
+            setInterval(ensureFishToggleButton, 1000);   // 钓鱼状态按钮：每秒刷新文字/进度并自动补挂
+            setInterval(ensureFishTimerUI, 1500);    // 钓鱼页重绘后自动补挂点击与提示条
             setInterval(fishTimerTick, FISH_TICK_MS);
             setTimeout(fishTimerTick, 8000);
             flog('已加载：预约天气预报时段自动 ∞ 次开钓（读取所选鱼饵，未选需确认；队列满拒绝预约；' +
