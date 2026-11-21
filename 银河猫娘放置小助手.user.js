@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.35.0
-// @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口与炼金界面（原子/神秘/量子炼金执行区）经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色；炼金期望按成功率折算）并快捷填入升级所需执行次数，炼金执行区另有「背包可执行次数」按钮（按当前点金/分解/研究/提纯/还原/转换/量子配方逐项折算材料持有量）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知；跳过地块改用游戏原生「地块锁」（🔒），锁定地块的自动收获与手动单块收获均在客户端拦截（服务端批量收获跳过锁定地块，但单块收获不校验，故加客户端兜底），自动收菜开关按钮以背景进度条显示检测进度（60 秒往返循环：前 30 秒收获绿覆盖黄底、后 30 秒黄底覆盖绿色，rAF 每帧重算丝滑无跳秒，进度锚定实际检测时钟、按钮中途出现也显示真实进度，不另起独立计时）；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）；九、检查更新——每次加载游戏时检测 GitHub 最新版本（发现新版本且距上次提醒超过 60 分钟时，顶部通知引导在 Tampermonkey 中更新）；设置区标题旁显示当前版本号；十、v1116 生活装备适配——自绘生产/采集详情材料需求按巨匠省料率折算（两位小数、加工倍数与执行校验同口径），额外奖励几率乘装备幸运（研究幸运/10+装备幸运/100），行动窗口「背包可执行次数」按钮按省料后需求折算，经验效率经 game.getEfficiency 自动含面罩最终效率乘区；自绘生产/采集详情「额外奖励」补显示 v1116 宝箱掉落（梳毛/采集/生产宝箱，几率含幸运加成、数量不随加工倍数放大，复用原生 getActionChestPreview）；修复检查更新因 window.UI 引用错误（UI 为顶层词法绑定不在 window 上）导致检测从未执行的问题；十一、定时钓鱼——已订阅天气预报的钓场，钓鱼页「天气预报」时段条目可点击预约：时段开始后每 5 秒检查一次并自动以 ∞ 次无鱼饵立即开钓（mold start 替换当前行动，服务端 update_queue 后按开钓快照 diff 补回缺失的原队列行动，兼容服务端保留/清空队尾两种行为），时段结束自动取消钓鱼、原队列自动接续；时段内手动停止钓鱼视为主动终止预约；状态条实时显示倒计时与取消入口；设置-「其他」标签页「定时钓鱼」开关，受总开关联动控制。
+// @version      1.36.0
+// @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口与炼金界面（原子/神秘/量子炼金执行区）经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色；炼金期望按成功率折算）并快捷填入升级所需执行次数，炼金执行区另有「背包可执行次数」按钮（按当前点金/分解/研究/提纯/还原/转换/量子配方逐项折算材料持有量）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知；跳过地块改用游戏原生「地块锁」（🔒），锁定地块的自动收获与手动单块收获均在客户端拦截（服务端批量收获跳过锁定地块，但单块收获不校验，故加客户端兜底），自动收菜开关按钮以背景进度条显示检测进度（60 秒往返循环：前 30 秒收获绿覆盖黄底、后 30 秒黄底覆盖绿色，rAF 每帧重算丝滑无跳秒，进度锚定实际检测时钟、按钮中途出现也显示真实进度，不另起独立计时）；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）；九、检查更新——每次加载游戏时检测 GitHub 最新版本（发现新版本且距上次提醒超过 60 分钟时，顶部通知引导在 Tampermonkey 中更新）；设置区标题旁显示当前版本号；十、v1116 生活装备适配——自绘生产/采集详情材料需求按巨匠省料率折算（两位小数、加工倍数与执行校验同口径），额外奖励几率乘装备幸运（研究幸运/10+装备幸运/100），行动窗口「背包可执行次数」按钮按省料后需求折算，经验效率经 game.getEfficiency 自动含面罩最终效率乘区；自绘生产/采集详情「额外奖励」补显示 v1116 宝箱掉落（梳毛/采集/生产宝箱，几率含幸运加成、数量不随加工倍数放大，复用原生 getActionChestPreview）；修复检查更新因 window.UI 引用错误（UI 为顶层词法绑定不在 window 上）导致检测从未执行的问题；十一、定时钓鱼——已订阅天气预报的钓场，钓鱼页「天气预报」时段条目可点击预约：预约时读取当前所选鱼饵（未选鱼饵二次确认后以无鱼饵预约），到点每 5 秒检查并自动以 ∞ 次立即开钓（mold start 替换当前行动，开钓快照原队列，服务端 update_queue 后 diff 补回）；预约时队列已满直接拒绝（不删除已有队列），开钓时队列仍满则等待并低频提醒；相邻时段预约自动衔接换钓（可跨钓场，不停钓），链条最后一个时段结束自动停钓并恢复原队列；自动开钓后用户手动取消/更换钓鱼不作处理（本时段预约自然失效，未来时段保留），时段结束时队头不是预约钓场的钓鱼同样不作处理；状态条逐条显示预约倒计时与独立取消入口；支持旧版单预约自动迁移；设置-「其他」标签页「定时钓鱼」开关，受总开关联动控制；十二、v1.36.0 修复——①满级用户生产/采集/烹饪详情两个按钮（升下一级次数/背包可执行次数）与经验效率模块整体消失：满级分支不再提前 return，「背包可执行次数」与「经验效率」照常显示（目标等级计算行满级时隐藏），可执行按钮在无升级按钮时改以 ∞ 档为锚点；②生产详情选多倍率后持有数值恒红：持有数文字带千分位逗号，parseInt 在逗号处截断（12,000→12）导致恒判不足，修复为先去逗号再解析。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
 // @match        https://nekoidle.net/*
@@ -1518,8 +1518,12 @@
                     const row = sp.closest('.action-item-container');
                     const qd = row ? row.querySelector('.quantity-display') : null;
                     if (qd) {
-                        const qv = parseInt((qd.querySelector('.quantity-value') || {}).textContent, 10);
-                        if (isFinite(qv)) qd.classList.toggle('disabled', qv < Math.ceil(need - 1e-9));
+                        // 持有数文字带千分位逗号（Utils.formatNumberWithCommas），parseInt 在逗号处
+                        // 截断（如 12,000 → 12），导致持有恒判不足、选倍率后一直显示红色；
+                        // 先去掉非数字字符再解析（游戏实时刷新也会重写该文字，读最新值）
+                        const qvRaw = ((qd.querySelector('.quantity-value') || {}).textContent || '').replace(/[^\d]/g, '');
+                        const qv = parseInt(qvRaw, 10);
+                        if (isFinite(qv) && qvRaw !== '') qd.classList.toggle('disabled', qv < Math.ceil(need - 1e-9));
                     }
                 });
                 detailEl.querySelectorAll('.nek-reward-val').forEach(sp => {
@@ -2063,17 +2067,23 @@
 
                 const info = levelInfo(type);
                 if (!info) return;
-                if (!(info.nextLevelRemainExp > 0)) {
-                    // 满级：清掉残留的按钮与计算块（烹饪页内联面板复用 DOM）
+                // 满级（nextLevelRemainExp<=0）：升级次数按钮与目标等级计算无意义，清掉残留；
+                // 但「经验效率」与「背包可执行次数」仍然有效——v1.36.0 起不再整体 return
+                // （旧版在此直接 return，导致满级用户两个按钮和等级计算模块全部消失）
+                const isMaxLevel = !(info.nextLevelRemainExp > 0);
+                if (isMaxLevel) {
                     const staleBtn = rep.querySelector('.nek-lvl-btn');
                     if (staleBtn) staleBtn.remove();
-                    const staleInv0 = rep.querySelector('.nek-inv-btn');
-                    if (staleInv0) staleInv0.remove();
                     const prevEff = rep.previousElementSibling;
-                    if (prevEff && prevEff.classList.contains('nek-eff-block')) prevEff.remove();
-                    return;
+                    if (prevEff && prevEff.classList.contains('nek-eff-block')) {
+                        const staleRow = prevEff.querySelector('.nek-target-row');
+                        if (staleRow) staleRow.remove();
+                        const staleRes = prevEff.querySelector('.nek-target-result');
+                        if (staleRes) staleRes.remove();
+                    }
                 }
 
+                if (!isMaxLevel) {
                 const times = Math.ceil(info.nextLevelRemainExp / perEff);
                 const timeStr = perSec ? fmtDuration(times * perSec) : null;
                 // 越级执行时在时长后注明惩罚（耗时倍率与成功率折减已计入计算）
@@ -2103,6 +2113,7 @@
                     });
                     bInf.before(btn);   // 紧跟在档位区末尾（∞ 之前）
                 }
+                }   // end if (!isMaxLevel)：满级跳过升级次数按钮
 
                 // 「背包可执行次数」按钮：升下一级次数按钮后方——按材料需求逐项
                 // floor(持有/需要) 取最小值；烹饪用当前激活食谱的材料（伪动作不带 requirements）
@@ -2169,7 +2180,7 @@
                 }
                 if (invTimes != null && isFinite(invTimes)) {
                     const lvlBtnEl = rep.querySelector('.nek-lvl-btn');
-                    if (lvlBtnEl) {
+                    if (lvlBtnEl || bInf) {   // 满级无升级按钮时以 ∞ 档为锚点（v1.36.0）
                         // 悬停提示：具体可执行次数 + 预计需要时间（invTimes × 单次耗时，越级惩罚已计入 perSec）
                         const invTimeStr = perSec ? fmtDuration(invTimes * perSec) : null;
                         const invTitle = '【小助手】当前背包材料最多可执行 ' + fmt(invTimes) + ' 次' +
@@ -2188,7 +2199,8 @@
                             invBtn.addEventListener('click', function () {
                                 input.value = invBtn.dataset.nekTimes;   // 直接填入可执行次数
                             });
-                            lvlBtnEl.after(invBtn);   // 升级次数按钮后方（∞ 之前）
+                            if (lvlBtnEl) lvlBtnEl.after(invBtn);   // 升级次数按钮后方（∞ 之前）
+                            else bInf.before(invBtn);               // 满级无升级按钮：插到 ∞ 之前
                         }
                         // 比较「次数+时间」复合键：材料或单次耗时变化都同步
                         if (invBtn.dataset.nekKey !== invKey) {
@@ -2224,21 +2236,24 @@
                     eff = document.createElement('div');
                     eff.className = 'nek-eff-block';
                     // 效率值在创建时就写入真实值（旧版留「—」占位但同步分支永不触发，导致恒显示横杠）
+                    // 满级：经验效率仍有参考价值，但「现有等级—目标等级」计算无意义 → 不生成目标等级行
                     eff.innerHTML =
                         '<div class="nek-eff-row">经验效率：<span class="nek-eff-val' + (effColorCls ? ' ' + effColorCls : '') + '">' + effDisp + '</span></div>' +
+                        (isMaxLevel ? '' :
                         '<div class="nek-eff-row nek-target-row">' +
                             '<input class="nek-target-input nek-target-from" type="number" min="1" placeholder="现有等级">' +
                             '<span class="nek-target-dash">—</span>' +
                             '<input class="nek-target-input" type="number" min="1" placeholder="目标等级">' +
                             '<div class="btn quick-set nek-target-btn">计算</div>' +
                         '</div>' +
-                        '<div class="nek-target-result"></div>';
+                        '<div class="nek-target-result"></div>');
                     const effVal = eff.querySelector('.nek-eff-val');
                     effVal.dataset.nekKey = effKey;
                     const tFrom = eff.querySelector('.nek-target-from');
                     const tInput = eff.querySelector('.nek-target-input:not(.nek-target-from)');
                     const tBtn = eff.querySelector('.nek-target-btn');
                     const tRes = eff.querySelector('.nek-target-result');
+                    if (tBtn) {
                     tBtn.addEventListener('click', function () {
                         const L2 = parseInt(tInput.value, 10);
                         if (!L2 || L2 < 1) { tRes.textContent = '请输入目标等级'; return; }
@@ -2297,6 +2312,7 @@
                     tFrom.addEventListener('keydown', function (e) {
                         if (e.key === 'Enter') tBtn.click();
                     });
+                    }   // end if (tBtn)：满级无目标等级行时跳过绑定
                     rep.parentNode.insertBefore(eff, rep);
                 }
                 // 食谱/加成/缓存/越级档位变化时同步效率值与颜色
@@ -3769,7 +3785,7 @@
                         '</label>' +
                     '</div>' +
                     '<div class="setting-item">' +
-                        '<div class="setting-name" title="已订阅天气预报的钓场，钓鱼页「天气预报」时段条目可点击预约：时段开始后自动以 ∞ 次无鱼饵立即开钓（mold start 替换当前行动），开钓时快照原队列并自动补回到钓鱼之后；时段结束自动停止钓鱼，原队列自动接续。时段内手动停止钓鱼会一并结束预约。预约为一次性，点击已预约时段或状态条「取消预约」可撤销">定时钓鱼</div>' +
+                        '<div class="setting-name" title="已订阅天气预报的钓场，钓鱼页「天气预报」时段条目可点击预约：预约时读取当前所选鱼饵（未选鱼饵需二次确认），到点自动以 ∞ 次开钓（mold start 替换当前行动），开钓时快照原队列；队列已满时拒绝预约（不会删除已有队列，请自行留出空位）。相邻时段预约自动衔接换钓，链条最后一个时段结束自动停止钓鱼并补回原队列。自动开钓后手动取消/更换钓鱼不作处理（本时段预约自然失效，未来时段保留）。点击已预约时段或状态条 ✕ 可取消">定时钓鱼</div>' +
                         '<div class="setting-input"></div>' +
                         '<label class="slider-container">' +
                             '<div class="toggle-switch">' +
@@ -3904,7 +3920,7 @@
         // ---------------- 自动检查更新（GitHub raw 头部 @version 对比） ----------------
         // 注意：发布新版本时需同步修改 CURRENT_VERSION（与头部 @version 保持一致）。
         // 页面上下文无 GM_info（@grant none 且经 <script> 注入），只能内置当前版本号。
-        const CURRENT_VERSION = '1.35.0';
+        const CURRENT_VERSION = '1.36.0';
         const LS_UPD_KEY = 'nek_update_check_enabled';        // 检查更新开关，默认开
         const LS_UPD_REMIND = 'nek_update_remind_last';       // 上次提醒时间戳（提醒节流）
         const UPD_REMIND_INTERVAL = 60 * 60 * 1000;           // 提醒节流：距上次提醒超过 60 分钟才再次提醒
@@ -4003,22 +4019,27 @@
         applyCookJumpState();   // 启动时清理残留的跳转按钮（正常为空操作）
 
         // ---------------- 定时钓鱼（天气预报时段自动钓鱼） ----------------
-        // 已订阅天气预报（game.character.fishingForecastUnlocked 含钓场 id）的钓场，
-        // 钓鱼页下方「天气预报」的时段条目可点击预约：时段开始后立即以 ∞ 次无鱼饵开钓
-        // （mold 'start' 替换队头），开钓时快照原队列并在服务端 update_queue 后 diff 补回
-        // （无论服务端 'start' 是否保留队尾都能恢复原队列）；时段结束后自动取消钓鱼
-        // （queue cancel），原队列自动接续。预约为一次性（天气时段为全局 4 小时窗口，
-        // 预报仅覆盖未来 3 个时段），点击已预约时段可取消。
-        // 时段内若钓鱼被手动停止（队列中已无钓鱼行动）视为用户主动终止，预约一并结束。
+        // v1.36.0 规则（按用户反馈完善）：
+        // ① 预约时读取钓鱼页下方已选鱼饵（UI.fishingData.baitElement）作为开钓参数，
+        //    未选择鱼饵时弹二次确认，确认后以无鱼饵开钓；到点均以 ∞ 次自动开钓。
+        // ② 预约时若队列已满（game.queue.length >= game.character.queue）直接拒绝并提示
+        //    留出队列空间——绝不删除已有队列；到点开钓时若仍满则持续等待并低频提醒。
+        // ③ 自动开钓后用户主动取消/更换钓鱼行动 → 不作处理（不重启、不打断、不补队列），
+        //    本时段预约自然失效；时段结束时队头不是预约钓场的钓鱼 → 不作处理，仅清理状态。
+        // ④ 支持多个时段连续预约（可跨钓场）：相邻时段自动衔接换钓（mold 'start' 替换队头，
+        //    不经过「停止→恢复」中间态），链条最后一个时段结束才停止钓鱼，并按首次开钓
+        //    快照 diff 补回原队列。手动干预只会结束当前时段，未来时段预约仍然保留。
 
         const LS_FISHTIMER_KEY = 'nek_assistant_fishtimer_enabled';  // 设置页开关，默认开
-        const LS_FISH_SCHEDULE_KEY = 'nek_fish_schedule';            // 预约：{pondId, period, weather, timeText, started, startedAt, snapshot}
+        const LS_FISH_STATE_KEY = 'nek_fish_schedules_v2';           // {bookings:[...], chain} 预约列表 + 链条运行时状态
+        const LS_FISH_LEGACY_KEY = 'nek_fish_schedule';              // v1.35 单预约旧键（读取后迁移删除）
         const FISHTIMER_TAG = '【定时钓鱼】';
         const FISH_TICK_MS = 5000;                                   // 调度检查周期：5 秒（时段开始后最多 5 秒内开钓）
         const FISH_PERIOD_SEC = 14400;                               // 天气时段长度：4 小时（与游戏哈希窗口一致）
 
-        let fishRestorePending = false;   // 已发出开钓请求、等待 update_queue 后补回快照
+        let fishRestoreSnapshot = null;   // 链条结束时待补回的原队列快照（首个 update_queue 到达时消费）
         let fishTimerStarted = false;
+        let fishLastFullWarnAt = 0;       // 「队列已满」提醒节流（60 秒最多一次）
 
         const isFishTimerEnabled = () => {
             try { return localStorage.getItem(LS_FISHTIMER_KEY) !== '0'; } catch (e) { return true; }
@@ -4031,13 +4052,39 @@
             args.unshift(FISHTIMER_TAG);
             console.log.apply(console, args);
         }
-        function loadFishSchedule() {
-            try { return JSON.parse(localStorage.getItem(LS_FISH_SCHEDULE_KEY) || 'null'); } catch (e) { return null; }
-        }
-        function saveFishSchedule(sch) {
+        function loadFishState() {
             try {
-                if (sch) localStorage.setItem(LS_FISH_SCHEDULE_KEY, JSON.stringify(sch));
-                else localStorage.removeItem(LS_FISH_SCHEDULE_KEY);
+                const raw = localStorage.getItem(LS_FISH_STATE_KEY);
+                if (raw) {
+                    const st = JSON.parse(raw);
+                    return {
+                        bookings: Array.isArray(st.bookings) ? st.bookings : [],
+                        chain: st.chain || null
+                    };
+                }
+                // v1.35 旧单预约迁移为 v2 列表（旧预约无鱼饵信息，按无鱼饵处理）
+                const legacy = localStorage.getItem(LS_FISH_LEGACY_KEY);
+                if (legacy) {
+                    localStorage.removeItem(LS_FISH_LEGACY_KEY);
+                    const old = JSON.parse(legacy);
+                    if (old && old.pondId !== undefined && old.period !== undefined) {
+                        return {
+                            bookings: [{ pondId: String(old.pondId), period: old.period, weather: old.weather || '',
+                                timeText: old.timeText || '', baitId: 0, baitName: '', createdAt: old.createdAt || Date.now() }],
+                            chain: null
+                        };
+                    }
+                }
+            } catch (e) { /* 忽略 */ }
+            return { bookings: [], chain: null };
+        }
+        function saveFishState(st) {
+            try {
+                if (st && ((st.bookings && st.bookings.length) || st.chain)) {
+                    localStorage.setItem(LS_FISH_STATE_KEY, JSON.stringify(st));
+                } else {
+                    localStorage.removeItem(LS_FISH_STATE_KEY);
+                }
             } catch (e) { /* 忽略 */ }
         }
         function fmtFishDur(sec) {
@@ -4055,8 +4102,31 @@
             const head = (game.queue || [])[0];
             return !!(head && head.type === 'fishing' && String(head.id) === String(pondId));
         }
-        function hasFishingInQueue() {
-            return (game.queue || []).some(function (a) { return a && a.type === 'fishing'; });
+        // 队列是否已满（原生 startAction 同口径：length >= 容量即拒绝，包括 mold 'start'）
+        function fishQueueFull() {
+            return (game.queue || []).length >= (game.character ? game.character.queue : 0);
+        }
+        function warnFishQueueFull() {
+            if (Date.now() - fishLastFullWarnAt < 60000) return;
+            fishLastFullWarnAt = Date.now();
+            UI.notifier.show('定时钓鱼：队列已满，暂无法自动开钓，请留出队列空位（小助手不会删除已有队列）', 'error', 5000);
+        }
+
+        // 删除单条预约；若该时段正在钓鱼中，一并停钓并补回原队列
+        function removeFishBooking(pondId, period) {
+            const st = loadFishState();
+            const idx = st.bookings.findIndex(function (b) {
+                return String(b.pondId) === String(pondId) && b.period === period;
+            });
+            if (idx < 0) return;
+            const b = st.bookings[idx];
+            st.bookings.splice(idx, 1);
+            if (st.chain && st.chain.currentPeriod === period) {
+                stopChainAndRestore(st, '已取消正在进行的预约', b.pondId);
+            } else {
+                saveFishState(st);
+                UI.notifier.show('定时钓鱼：已取消预约 ' + (b.timeText || '') + ' ' + (b.weather || ''), 'tip', 3000);
+            }
         }
 
         // 预约/取消预约（点击预报时段条目触发）
@@ -4065,10 +4135,27 @@
                 UI.notifier.show('定时钓鱼功能未开启（设置-其他-定时钓鱼）', 'error', 3000);
                 return;
             }
-            const sch = loadFishSchedule();
-            if (sch && String(sch.pondId) === String(pondId) && sch.period === period) {
-                cancelFishSchedule('已取消预约');
+            pondId = String(pondId);
+            const st = loadFishState();
+            if (st.bookings.some(function (b) { return String(b.pondId) === pondId && b.period === period; })) {
+                removeFishBooking(pondId, period);
                 return;
+            }
+            // 队列已满：拒绝预约（绝不删除已有队列，要求用户自行留出空位）
+            if (fishQueueFull()) {
+                UI.notifier.show('定时钓鱼：队列已满，请先留出队列空位再预约（自动开钓需要空位，不会删除已有队列）', 'error', 5000);
+                return;
+            }
+            // 读取钓鱼页下方已选鱼饵（baitElement 由原生鱼饵选择器维护，未选时为 null）
+            const baitEl = UI.fishingData && UI.fishingData.baitElement;
+            const baitId = baitEl ? baitEl.itemId : 0;
+            let baitName = '';
+            if (baitId && game.getItem) {
+                const def = game.getItem(baitId);
+                baitName = def && def.name ? def.name : ('#' + baitId);
+            }
+            if (!baitId) {
+                if (!window.confirm('定时钓鱼：当前未选择鱼饵，确定以「无鱼饵 · ∞ 次」预约该时段吗？')) return;
             }
             const timeEl = itemEl.querySelector('.forecast-time');
             const wEl = itemEl.querySelector('.forecast-weather');
@@ -4077,58 +4164,64 @@
             const now = Math.floor(Date.now() / 1000);
             const start = period * FISH_PERIOD_SEC;
             const inPeriod = now >= start && now < start + FISH_PERIOD_SEC;
-            saveFishSchedule({ pondId: String(pondId), period: period, weather: weather, timeText: timeText, createdAt: Date.now() });
-            flog('已预约：钓场 ' + pondId + ' 时段 ' + timeText + ' ' + weather + (inPeriod ? '（时段进行中）' : ''));
+            st.bookings.push({ pondId: pondId, period: period, weather: weather, timeText: timeText,
+                baitId: baitId, baitName: baitName, createdAt: Date.now() });
+            st.bookings.sort(function (a, b) { return a.period - b.period; });
+            saveFishState(st);
+            flog('已预约：钓场 ' + pondId + ' 时段 ' + timeText + ' ' + weather + ' · 鱼饵 ' + (baitName || '无'));
             UI.notifier.show('定时钓鱼：已预约 ' + timeText + ' ' + weather +
-                (inPeriod ? '（时段进行中，即将开钓）' : '，时段开始后自动开钓，结束后自动恢复原队列'), 'tip', 4000);
+                '（鱼饵：' + (baitName || '无') + '）' +
+                (inPeriod ? '，时段进行中，即将自动开钓' : '，到点自动 ∞ 次开钓；相邻时段预约自动衔接'), 'tip', 4000);
             if (inPeriod) setTimeout(fishTimerTick, 1000);
         }
 
-        // 清除预约（可选停止进行中的钓鱼）
-        function cancelFishSchedule(msg, stopFishing) {
-            const sch = loadFishSchedule();
-            saveFishSchedule(null);
-            fishRestorePending = false;
-            if (stopFishing && sch && sch.started) {
-                const head = (game.queue || [])[0];
-                if (head && head.type === 'fishing') {
-                    MSG.send('queue', { type: 'cancel' });
-                    flog('预约取消，正在钓鱼已一并停止');
-                }
-            }
-            if (msg) {
-                flog(msg);
-                UI.notifier.show('定时钓鱼：' + msg, 'tip', 3000);
+        // 停止链条钓鱼并按快照补回原队列；队头不是预约钓场的钓鱼时（用户手动更换/取消）不作处理，仅清理状态
+        function stopChainAndRestore(st, msg, scheduledPondId) {
+            const chain = st.chain;
+            st.chain = null;
+            saveFishState(st);
+            const head = (game.queue || [])[0];
+            const onScheduledFishing = head && head.type === 'fishing' &&
+                (!scheduledPondId || String(head.id) === String(scheduledPondId));
+            if (onScheduledFishing && chain && chain.snapshot) {
+                fishRestoreSnapshot = chain.snapshot;
+                MSG.send('queue', { type: 'cancel' });
+                flog(msg || '时段结束，停止钓鱼，原队列自动接续');
+                UI.notifier.show('定时钓鱼：' + (msg || '天气时段结束，已停止钓鱼，原队列自动接续'), 'tip', 4000);
+            } else {
+                flog((msg || '链条结束') + '；队头不是预约钓场的钓鱼，不作处理');
             }
         }
 
-        // 开钓：快照当前队列 → mold 'start' 立即开钓（∞ 次无鱼饵）→ 等 update_queue 补回
-        function startScheduledFishing(sch) {
-            sch.snapshot = JSON.parse(JSON.stringify(game.queue || []));
-            sch.started = true;
-            sch.startedAt = Date.now();
-            saveFishSchedule(sch);
-            fishRestorePending = true;
-            game.startAction('fishing', sch.pondId, -1, { primaryItem: 0 }, 'start');
-            flog('定时钓鱼开始：钓场 ' + sch.pondId + ' ' + (sch.timeText || '') + ' ' + (sch.weather || '') +
-                '，快照 ' + sch.snapshot.length + ' 条队列待补回');
-            UI.notifier.show('定时钓鱼：时段已到，已自动开始钓鱼（钓场 ' + sch.pondId + '），原队列将在补回后于钓鱼结束后自动接续', 'tip', 4000);
+        // 开钓（新链条首个时段或衔接换钓）：mold 'start' 替换队头，∞ 次，鱼饵按预约
+        function startChainBooking(st, booking) {
+            if (!st.chain) {
+                st.chain = { snapshot: JSON.parse(JSON.stringify(game.queue || [])),
+                    currentPeriod: booking.period, pendingPond: booking.pondId, pendingAt: Date.now(), tries: 0 };
+            } else {
+                st.chain.currentPeriod = booking.period;
+                st.chain.pendingPond = booking.pondId;
+                st.chain.pendingAt = Date.now();
+                st.chain.tries = 0;   // 新一轮开钓重置重试计数
+            }
+            saveFishState(st);
+            game.startAction('fishing', booking.pondId, -1, { primaryItem: booking.baitId || 0 }, 'start');
+            flog('定时钓鱼开钓：钓场 ' + booking.pondId + ' ' + (booking.timeText || '') + ' ' + (booking.weather || '') +
+                ' · 鱼饵 ' + (booking.baitName || '无') + (st.chain.snapshot ? '，快照 ' + st.chain.snapshot.length + ' 条队列待补回' : ''));
+            UI.notifier.show('定时钓鱼：已自动开始钓鱼（钓场 ' + booking.pondId + ' · 鱼饵 ' + (booking.baitName || '无') + '）', 'tip', 4000);
         }
 
-        // 开钓后按快照 diff 补回缺失行动（兼容服务端 'start' 保留/清空队尾两种行为）
-        function restoreQueueSnapshot() {
-            const sch = loadFishSchedule();
-            if (!sch || !Array.isArray(sch.snapshot)) return;
+        // 链条结束后按快照 diff 补回缺失行动（兼容服务端 'start' 保留/清空队尾两种行为）
+        function restoreQueueSnapshot(snapshot) {
+            if (!Array.isArray(snapshot)) return;
             const cur = game.queue || [];
-            // 统计当前队列中各 type:id 剩余可匹配数
             const remain = {};
             cur.forEach(function (a) {
                 const k = (a && a.type) + ':' + (a && a.id);
                 remain[k] = (remain[k] || 0) + 1;
             });
-            // 快照中无法被当前队列匹配到的即缺失项（保持原顺序）
             const missing = [];
-            (sch.snapshot).forEach(function (a) {
+            snapshot.forEach(function (a) {
                 const k = (a && a.type) + ':' + (a && a.id);
                 if (remain[k] > 0) remain[k]--;
                 else missing.push(a);
@@ -4142,67 +4235,110 @@
                 flog('补回队列：', a.type, a.id, 'x' + (count === -1 ? '∞' : count));
                 game.startAction(a.type, a.id, count, a.item || {}, 'after');
             });
-            UI.notifier.show('定时钓鱼：已补回 ' + missing.length + ' 条原队列行动（排在钓鱼之后）', 'tip', 3000);
+            UI.notifier.show('定时钓鱼：已补回 ' + missing.length + ' 条原队列行动（排在队尾）', 'tip', 3000);
         }
 
-        // 包装 update_queue：开钓请求后的首个全量队列到达时执行补回
+        // 包装 update_queue：链条结束停钓后的首个全量队列到达时执行补回
         function installFishQueueWatcher() {
             if (MSG.__nekFishQueueWatcher) return;
             MSG.__nekFishQueueWatcher = true;
             const orig = MSG.handlers.update_queue;
             MSG.handlers.update_queue = function (content) {
                 orig(content);
-                if (!fishRestorePending) return;
-                fishRestorePending = false;
-                try { restoreQueueSnapshot(); } catch (e) { flog('队列补回异常：', e && e.message); }
+                if (!fishRestoreSnapshot) return;
+                const snap = fishRestoreSnapshot;
+                fishRestoreSnapshot = null;
+                try { restoreQueueSnapshot(snap); } catch (e) { flog('队列补回异常：', e && e.message); }
             };
         }
 
         // 调度主循环：5 秒一次
         function fishTimerTick() {
             try {
-                if (typeof game === 'undefined' || typeof MSG === 'undefined') return;
+                if (typeof game === 'undefined' || typeof MSG === 'undefined' || !game.character) return;
                 if (!isEnabled() || !isFishTimerEnabled()) return;
-                const sch = loadFishSchedule();
-                if (!sch) return;
-                const now = Math.floor(Date.now() / 1000);
-                const start = sch.period * FISH_PERIOD_SEC;
-                const end = start + FISH_PERIOD_SEC;
-                // 开钓请求疑似被服务端拒绝（15 秒后仍未上队列头）：复位重试
-                if (sch.started && fishRestorePending && sch.startedAt && Date.now() - sch.startedAt > 15000) {
-                    flog('开钓请求 15 秒未生效，复位重试');
-                    fishRestorePending = false;
-                    sch.started = false;
-                    delete sch.startedAt;
-                    saveFishSchedule(sch);
-                }
-                if (now < start) return;                       // 未到时段
-                if (now < end) {                               // 时段进行中
-                    if (fishRestorePending) return;            // 开钓请求在途
-                    if (isFishingAt(sch.pondId)) return;       // 正在钓目标钓场
-                    if (sch.started) {
-                        // 曾开钓但队列里已无任何钓鱼：用户手动停止 → 结束预约
-                        if (!hasFishingInQueue()) {
-                            cancelFishSchedule('检测到钓鱼已停止，预约结束（时段内可重新点击预报续约）');
+                const st = loadFishState();
+                if (!st.bookings.length && !st.chain) return;
+                const curPeriod = currentFishPeriod();
+                // 清理过期预约：保留当前与未来时段；链条进行中额外保留其当前时段（供收尾判断钓场）
+                const before = st.bookings.length;
+                st.bookings = st.bookings.filter(function (b) {
+                    return b.period >= curPeriod || (st.chain && b.period === st.chain.currentPeriod);
+                });
+                if (st.bookings.length !== before) saveFishState(st);
+                const cur = st.bookings.find(function (b) { return b.period === curPeriod; }) || null;
+                if (st.chain) {
+                    // 开钓请求在途：等队头到位，或 15 秒后重试（队列满则等待并低频提醒）
+                    if (st.chain.pendingPond) {
+                        const head = (game.queue || [])[0];
+                        if (head && head.type === 'fishing' && String(head.id) === String(st.chain.pendingPond)) {
+                            st.chain.pendingPond = null;
+                            saveFishState(st);
+                            return;
+                        }
+                        if (Date.now() - st.chain.pendingAt > 15000) {
+                            if (fishQueueFull()) { warnFishQueueFull(); st.chain.pendingAt = Date.now(); saveFishState(st); return; }
+                            st.chain.tries = (st.chain.tries || 0) + 1;
+                            if (st.chain.tries > 3) {
+                                // 连续多次未生效：放弃本时段（不与用户后续操作争抢），未来时段预约保留
+                                st.chain = null;
+                                st.bookings = st.bookings.filter(function (b) { return b.period > curPeriod; });
+                                saveFishState(st);
+                                flog('开钓连续多次未生效，放弃本时段预约（未来时段预约保留）');
+                                UI.notifier.show('定时钓鱼：自动开钓多次未生效，已放弃本时段预约（未来时段预约保留）', 'error', 5000);
+                                return;
+                            }
+                            flog('开钓请求 15 秒未生效，重试第 ' + st.chain.tries + ' 次');
+                            st.chain.pendingAt = Date.now();
+                            saveFishState(st);
+                            const b = st.bookings.find(function (x) { return x.period === st.chain.currentPeriod; });
+                            if (b) game.startAction('fishing', b.pondId, -1, { primaryItem: b.baitId || 0 }, 'start');
                         }
                         return;
                     }
-                    startScheduledFishing(sch);
+                    if (!cur) {
+                        // 时段结束且无衔接预约：队头仍是预约钓场的钓鱼 → 停钓补回；否则不作处理仅清理
+                        const prevBooking = st.bookings.find(function (b) { return b.period === st.chain.currentPeriod; });
+                        stopChainAndRestore(st,
+                            prevBooking ? '天气时段结束，已停止钓鱼，原队列自动接续' : '预约已结束',
+                            prevBooking ? prevBooking.pondId : null);
+                        return;
+                    }
+                    if (st.chain.currentPeriod === curPeriod) return;   // 本时段已在调度中（含用户手动停钓后的不作为状态）
+                    // 相邻时段衔接：队头仍是上一预约钓场的钓鱼才继续换钓；否则视为用户主动干预
+                    const head = (game.queue || [])[0];
+                    const prevBooking = st.bookings.find(function (b) { return b.period === st.chain.currentPeriod; });
+                    const onScheduled = head && head.type === 'fishing' && prevBooking &&
+                        String(head.id) === String(prevBooking.pondId);
+                    if (!onScheduled) {
+                        // 用户手动更换/取消钓鱼 → 不作处理：结束链条与本时段预约，未来时段预约保留
+                        st.chain = null;
+                        st.bookings = st.bookings.filter(function (b) { return b.period > curPeriod; });
+                        saveFishState(st);
+                        flog('检测到钓鱼被手动更换/取消，本时段预约结束（未来时段预约保留）');
+                        return;
+                    }
+                    if (cur.pondId === prevBooking.pondId && (cur.baitId || 0) === (prevBooking.baitId || 0)) {
+                        // 同钓场同鱼饵：∞ 次钓鱼天然持续，无需重启，仅推进链条时段
+                        st.chain.currentPeriod = curPeriod;
+                        saveFishState(st);
+                        flog('无缝衔接下一时段（同钓场同鱼饵，继续钓鱼）');
+                    } else {
+                        if (fishQueueFull()) { warnFishQueueFull(); return; }
+                        startChainBooking(st, cur);   // 衔接换钓：mold 'start' 直接替换队头，不停钓
+                    }
                     return;
                 }
-                // 时段已结束
-                if ((game.queue || [])[0] && (game.queue || [])[0].type === 'fishing') {
-                    flog('时段结束，停止钓鱼，原队列自动接续');
-                    MSG.send('queue', { type: 'cancel' });
-                    UI.notifier.show('定时钓鱼：天气时段结束，已停止钓鱼，原队列自动接续', 'tip', 4000);
-                }
-                saveFishSchedule(null);
+                if (!cur) return;
+                // 新链条：到点开钓（队列满则等待并低频提醒）
+                if (fishQueueFull()) { warnFishQueueFull(); return; }
+                startChainBooking(st, cur);
             } catch (e) {
                 flog('调度异常：', e && e.message);
             }
         }
 
-        // 钓鱼页装饰：预报时段可点击预约 + 预约高亮角标 + 状态条
+        // 钓鱼页装饰：预报时段可点击预约 + 预约高亮角标 + 状态条（逐条预约与倒计时）
         function ensureFishTimerUI() {
             try {
                 const container = document.querySelector('.fishing-weather-forecast');
@@ -4218,7 +4354,7 @@
                 const unlocked = (game.character.fishingForecastUnlocked || []).map(String);
                 const list = container.querySelector('.fishing-weather-forecast-list');
                 const period = currentFishPeriod();
-                const sch = loadFishSchedule();
+                const st = loadFishState();
                 if (list && unlocked.includes(pondId)) {
                     Array.prototype.forEach.call(list.children, function (item, idx) {
                         const p = period + idx + 1;
@@ -4230,49 +4366,57 @@
                                 toggleFishSchedule(fd.selectedPondId, p, item);
                             });
                         }
-                        const match = sch && String(sch.pondId) === pondId && sch.period === p;
-                        item.classList.toggle('nek-fish-scheduled', !!(match && !sch.started));
-                        item.classList.toggle('nek-fish-active', !!(match && sch.started));
+                        const b = st.bookings.find(function (x) { return String(x.pondId) === pondId && x.period === p; });
+                        const active = !!(b && st.chain && st.chain.currentPeriod === p && isFishingAt(b.pondId));
+                        item.classList.toggle('nek-fish-scheduled', !!(b && !active));
+                        item.classList.toggle('nek-fish-active', active);
                         let badge = item.querySelector('.nek-fish-badge');
-                        if (match) {
+                        if (b) {
                             if (!badge) {
                                 badge = document.createElement('div');
                                 badge.className = 'nek-fish-badge';
                                 item.appendChild(badge);
                             }
-                            badge.textContent = sch.started ? '钓鱼中' : '已预约';
+                            badge.textContent = active ? '钓鱼中' : '已预约';
                         } else if (badge) {
                             badge.remove();
                         }
                     });
                 }
-                // 状态条
+                // 状态条：逐条列出预约与倒计时，每条带独立取消入口
                 let bar = container.querySelector('.nek-fish-timer-status');
                 if (!bar) {
                     bar = document.createElement('div');
                     bar.className = 'nek-fish-timer-status';
                     container.appendChild(bar);
                 }
-                if (!sch) {
-                    bar.innerHTML = '<span class="nek-ft-hint">⏱ 点击上方预报时段可预约定时钓鱼：时段开始自动开钓（保留原队列），结束自动停止并恢复队列</span>';
+                if (!st.bookings.length) {
+                    bar.innerHTML = '<span class="nek-ft-hint">⏱ 点击上方预报时段可预约定时钓鱼：读取当前所选鱼饵，到点 ∞ 次自动开钓（保留原队列）；相邻时段预约自动衔接，最后一个时段结束自动恢复队列</span>';
                     return;
                 }
                 const now = Math.floor(Date.now() / 1000);
-                const start = sch.period * FISH_PERIOD_SEC;
-                const end = start + FISH_PERIOD_SEC;
-                const pondLabel = String(sch.pondId) === pondId ? '' : '（钓场 ' + sch.pondId + '）';
-                let txt;
-                if (now < start) {
-                    txt = '⏱ 已预约 ' + sch.timeText + ' ' + sch.weather + pondLabel + ' · ' + fmtFishDur(start - now) + '后自动开钓';
-                } else if (now < end) {
-                    txt = '🎣 定时钓鱼进行中 ' + pondLabel + ' · ' + fmtFishDur(end - now) + '后自动停止并恢复队列';
-                } else {
-                    txt = '⏱ 预约时段已结束，等待清理';
-                }
-                bar.innerHTML = '<span>' + txt + '</span><span class="nek-ft-cancel">取消预约</span>';
-                bar.querySelector('.nek-ft-cancel').addEventListener('click', function (e) {
-                    e.stopPropagation();
-                    cancelFishSchedule('已取消预约', true);
+                const html = st.bookings.map(function (b) {
+                    const start = b.period * FISH_PERIOD_SEC;
+                    const end = start + FISH_PERIOD_SEC;
+                    const pondLabel = String(b.pondId) === pondId ? '' : '（钓场 ' + b.pondId + '）';
+                    const active = !!(st.chain && st.chain.currentPeriod === b.period && isFishingAt(b.pondId));
+                    let txt;
+                    if (active) {
+                        txt = '🎣 ' + b.timeText + ' ' + b.weather + pondLabel + ' · 钓鱼中，' + fmtFishDur(end - now) + '后自动停止并恢复队列';
+                    } else if (now < start) {
+                        txt = '⏱ ' + b.timeText + ' ' + b.weather + pondLabel + ' · ' + fmtFishDur(start - now) + '后开钓（鱼饵：' + (b.baitName || '无') + '）';
+                    } else {
+                        txt = '⏱ ' + b.timeText + ' ' + b.weather + pondLabel + ' · 时段进行中（若钓鱼被手动更换将不作处理）';
+                    }
+                    return '<span class="nek-ft-item">' + txt +
+                        '<span class="nek-ft-cancel" data-pond="' + b.pondId + '" data-period="' + b.period + '">✕</span></span>';
+                }).join('');
+                bar.innerHTML = html;
+                bar.querySelectorAll('.nek-ft-cancel').forEach(function (el) {
+                    el.addEventListener('click', function (e) {
+                        e.stopPropagation();
+                        removeFishBooking(el.dataset.pond, parseInt(el.dataset.period, 10));
+                    });
                 });
             } catch (e) { /* 忽略 */ }
         }
@@ -4288,9 +4432,10 @@
                 '.nek-fish-forecast-item.nek-fish-active .nek-fish-badge { color: #ffd76e; }',
                 '.nek-fish-timer-status { margin-top: 6px; padding: 6px 10px; border: 1px solid rgba(55, 226, 212, .35);',
                 '  border-radius: 6px; background: rgba(10, 25, 45, .72); color: #d8fff9; font-size: 12px;',
-                '  display: flex; align-items: center; gap: 10px; }',
+                '  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }',
                 '.nek-ft-hint { color: #7fa8a3; }',
-                '.nek-ft-cancel { margin-left: auto; color: #ff7a8a; cursor: pointer; text-decoration: underline; white-space: nowrap; }'
+                '.nek-ft-item { display: inline-flex; align-items: center; gap: 6px; }',
+                '.nek-ft-cancel { color: #ff7a8a; cursor: pointer; text-decoration: underline; white-space: nowrap; }'
             ].join('\n');
             const s = document.createElement('style');
             s.id = 'nek-fishtimer-style';
@@ -4311,8 +4456,8 @@
             setInterval(ensureFishTimerUI, 1500);    // 钓鱼页重绘后自动补挂点击与状态条
             setInterval(fishTimerTick, FISH_TICK_MS);
             setTimeout(fishTimerTick, 8000);
-            flog('已加载：预约天气预报时段自动开钓（∞ 次无鱼饵，开钓快照原队列），时段结束自动停止并恢复队列；当前' +
-                (isFishTimerEnabled() ? '开启' : '关闭'));
+            flog('已加载：预约天气预报时段自动 ∞ 次开钓（读取所选鱼饵，未选需确认；队列满拒绝预约；' +
+                '多时段自动衔接；队列满/手动干预不作破坏性处理）。当前' + (isFishTimerEnabled() ? '开启' : '关闭'));
         }
         initHarvest();   // 启动自动收菜（等待游戏就绪后挂载主循环与队列位置开关）
         initFishTimer();   // 启动定时钓鱼（天气预报时段自动开钓/停止/恢复队列）
