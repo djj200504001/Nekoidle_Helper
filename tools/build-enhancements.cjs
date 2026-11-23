@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const file = path.join(root, '银河猫娘放置小助手.user.js');
-const version = '1.41.2';
+const version = '1.41.3';
 const original = fs.readFileSync(file, 'utf8');
 const newline = original.includes('\r\n') ? '\r\n' : '\n';
 let script = original.replace(/\r\n/g, '\n');
@@ -28,7 +28,7 @@ if (!script.includes('        nekEnhancements.init();')) script = script.replace
 script = script.replace(/(\/\/ @version\s+)\S+/, (_, prefix) => prefix + version)
     .replace(/const CURRENT_VERSION = '[^']+';/, "const CURRENT_VERSION = '" + version + "';")
     .replace(/(\/\/ @description\s+)(?:v1\.\d+\.\d+：[^。]*。)?/, (_, prefix) =>
-        prefix + 'v' + version + '：研究队列记录并预留开研材料，支持桌面和手机手动收起与展开，手机端支持滚动吸顶折叠，材料不足或无效的条目显示红字及原因；支持自动结算研究、自动接受任务和领取任务奖励，梳毛/采集/生产/烹饪产出物显示背包库存和队列预计产出。');
+        prefix + 'v' + version + '：生产材料显示扣除进行中和排队行动用量后的剩余可用量；梳毛/采集/生产/烹饪产出物显示背包库存和队列预计产出；研究队列预留开研材料，支持手动折叠、受阻条目标红和自动结算；支持自动接受任务和领取任务奖励。');
 new (require('node:vm').Script)(script, { filename: file });
 if (!script.includes(block) || !script.includes('        nekEnhancements.init();') || !script.includes('function () { nekEnhancements.decorate(); }')) {
     throw new Error('Userscript integration anchors changed; build aborted.');

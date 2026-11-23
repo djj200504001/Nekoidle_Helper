@@ -58,7 +58,10 @@ function setup() {
     };
     msg.handlers.update_queue = ({ content }) => { game.queue = content; };
     msg.handlers.action_update = () => {};
-    msg.handlers.action_complete = () => 'completed';
+    msg.handlers.action_complete = ({ content }) => {
+        for (const item of content.remove || []) quantities[item.item + '-' + (item.enhancement || 0)] -= item.quantity;
+        return 'completed';
+    };
     msg.handlers.action_canceled = () => {};
     ui.researchTaskHost = node('task-host'); ui.researchRoot = node('research-root');
     const setting = node('nek-assist-section'); node('setting-list', setting);
@@ -258,6 +261,73 @@ test('showItem 原生返回值不变且绑定真实 ID，静止装饰不产生 D
     h.feature.decorate(); h.document.mutations = 0; h.feature.decorate();
     assert.equal(h.document.mutations, 0);
     assert.equal(h.intervals.length, 1); h.feature.init(); assert.equal(h.intervals.length, 1);
+});
+test('生产可用量按队首剩余次数和待执行批次扣算，结算不会重复扣料', () => {
+    const h = setup();
+    h.quantities['20-0'] = 100;
+    h.game.getLifeBonusActionType = skill => skill === 6 ? 7 : skill;
+    h.game.getLifeMasterRate = type => type === 7 ? 0.25 : 0;
+    h.data.actions = { 61: { action: 6, requirements: [{ itemId: 20, quantity: 4 }] } };
+    const production = h.output('nek-prod-detail', 20, { title: '消耗', fallback: true });
+    const unrelated = h.output('nek-pick-detail', 20, { title: '消耗' });
+    const active = { type: 'action', id: 61, count: 20, remaining: 3, item: { multiplier: 2 } };
+    h.msg.handlers.update_queue({ content: [active] });
+    h.msg.handlers.action_added({ content: { type: 'action', id: 61, count: 2, multiplier: 3, mold: 'after' } });
+    const value = () => production.row.querySelector('.nek-material-available')?.textContent;
+    h.feature.decorate();
+    assert.equal(value(), '剩余可用：64'); // 100 − (3 × 2 + 2 × 3) × 4 × 0.75
+    assert.equal(unrelated.row.querySelector('.nek-material-available'), null);
+    assert.equal(production.row.querySelector('.nek-output-holding'), null);
+    h.msg.handlers.action_complete({ content: { ...active, remaining: 2, remove: [{ item: 20, quantity: 6 }] } });
+    h.feature.decorate();
+    assert.equal(value(), '剩余可用：64');
+    h.msg.handlers.update_queue({ content: [{ ...active, remaining: 2 }] });
+    h.feature.decorate();
+    assert.equal(value(), '剩余可用：82');
+    h.msg.send('queue', { type: 'cancel' });
+    h.msg.handlers.action_canceled({});
+    h.feature.decorate();
+    assert.equal(value(), '剩余可用：94');
+    h.feature.core.setting('holdings', false);
+    h.feature.decorate();
+    assert.equal(value(), undefined);
+});
+test('原生生产弹窗只在消耗列表显示可用量，计入烹饪替代和炼金同物品消耗', () => {
+    const h = setup(), native = h.output('action-modal-content', 20, { native: true, actionType: 6, title: '基本信息' });
+    const consume = h.node('action-item-container-list', native.section);
+    native.section.insertBefore(h.node('modal-container-title', null, '消耗'), consume);
+    const input = h.output('nek-prod-detail', 20, { title: '消耗' });
+    const popupInput = h.output('action-modal-content', 20, { native: true, actionType: 6, title: '消耗' });
+    consume.appendChild(popupInput.row);
+    popupInput.root.remove();
+    const plain = () => input.row.querySelector('.nek-material-available');
+    const nativeLabel = () => consume.querySelector('.nek-material-available');
+    h.quantities['20-0'] = 20;
+    Object.assign(h.data.items[10], { substitute_group: 'fruit', substitute_value: 4 });
+    Object.assign(h.data.items[20], { substitute_group: 'fruit', substitute_value: 3 });
+    h.game.getLifeMasterRate = type => type === 9 ? 0.25 : 0;
+    h.data.food = { fruit: 0.25 };
+    h.data.cookingRecipes = { 81: { ingredients: [{ itemId: 10, quantity: 2 }] } };
+    h.data.alchemyQuantum = { 30: [{ secondary: 20, quantity: 2 }] };
+    h.game.queue = [
+        { type: 'cooking', id: 81, remaining: 2, item: { multiplier: 2, choices: { 0: 20 } } },
+        { type: 'alchemy', id: 9, remaining: 3, item: { primaryItem: 30, enhancement: 3, secondaryItem: 20 } },
+        { type: 'alchemy', id: 2, remaining: 100, item: { primaryItem: 20, enhancement: 1 } }
+    ];
+    h.feature.decorate();
+    assert.equal(nativeLabel().textContent, '剩余可用：4'); // 20 − 2 × 5 − 3 × 2
+    assert.equal(plain().textContent, nativeLabel().textContent);
+    assert.equal(native.row.querySelector('.nek-material-available'), null);
+    h.game.queue[0].remaining = -1;
+    h.feature.decorate();
+    assert.equal(nativeLabel().textContent, '剩余可用：0');
+    assert.match(nativeLabel().title, /不限次/);
+    h.game.queue[0].remaining = 5;
+    h.feature.decorate();
+    assert.equal(nativeLabel().textContent, '剩余可用：0');
+    h.document.mutations = 0;
+    h.feature.decorate();
+    assert.equal(h.document.mutations, 0);
 });
 test('角色快照替换背包前清空数量缓存，产出和原生渲染都读取更新后的库存', () => {
     const h = setup(), row = h.output('nek-prod-detail', 20);

@@ -21,6 +21,10 @@ class Element {
     set title(value) { this._title = value; this.mutate(); }
     get children() { return this.childNodes.filter(c => c.tagName !== '#TEXT'); }
     get firstElementChild() { return this.children[0] || null; }
+    get nextElementSibling() {
+        const siblings = this.parentNode?.children || [];
+        return siblings[siblings.indexOf(this) + 1] || null;
+    }
     get textContent() { return this._text + this.childNodes.map(c => c.textContent).join(''); }
     set textContent(value) {
         this._text = String(value); this.childNodes.forEach(c => { c.parentNode = null; }); this.childNodes = []; this.mutate();

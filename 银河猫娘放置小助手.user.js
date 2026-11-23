@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.41.2
-// @description  v1.41.2：研究队列记录并预留开研材料，支持桌面和手机手动收起与展开，手机端支持滚动吸顶折叠，材料不足或无效的条目显示红字及原因；支持自动结算研究、自动接受任务和领取任务奖励，梳毛/采集/生产/烹饪产出物显示背包库存和队列预计产出。主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口与炼金界面（原子/神秘/量子炼金执行区）经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色；炼金期望按成功率折算）并快捷填入升级所需执行次数，炼金执行区另有「背包可执行次数」按钮（按当前点金/分解/研究/提纯/还原/转换/量子配方逐项折算材料持有量）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知；跳过地块改用游戏原生「地块锁」（🔒），锁定地块的自动收获与手动单块收获均在客户端拦截（服务端批量收获跳过锁定地块，但单块收获不校验，故加客户端兜底），自动收菜开关按钮以背景进度条显示检测进度（60 秒往返循环：前 30 秒收获绿覆盖黄底、后 30 秒黄底覆盖绿色，rAF 每帧重算丝滑无跳秒，进度锚定实际检测时钟、按钮中途出现也显示真实进度，不另起独立计时）；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）；九、检查更新——每次加载游戏时检测 GitHub 最新版本（发现新版本且距上次提醒超过 60 分钟时，顶部通知引导在 Tampermonkey 中更新）；设置区标题旁显示当前版本号；十、v1116 生活装备适配——自绘生产/采集详情材料需求按巨匠省料率折算（两位小数、加工倍数与执行校验同口径），额外奖励几率乘装备幸运（研究幸运/10+装备幸运/100），行动窗口「背包可执行次数」按钮按省料后需求折算，经验效率经 game.getEfficiency 自动含面罩最终效率乘区；自绘生产/采集详情「额外奖励」补显示 v1116 宝箱掉落（梳毛/采集/生产宝箱，几率含幸运加成、数量不随加工倍数放大，复用原生 getActionChestPreview）；修复检查更新因 window.UI 引用错误（UI 为顶层词法绑定不在 window 上）导致检测从未执行的问题；十一、定时钓鱼——已订阅天气预报的钓场，钓鱼页「天气预报」时段条目可点击预约：预约时读取当前所选鱼饵（未选鱼饵二次确认后以无鱼饵预约），到点每 5 秒检查并自动以 ∞ 次立即开钓（mold start 替换当前行动，开钓快照原队列，服务端 update_queue 后 diff 补回）；预约时队列已满直接拒绝（不删除已有队列），开钓时队列仍满则等待并低频提醒；相邻时段预约自动衔接换钓（可跨钓场，不停钓），链条最后一个时段结束自动停钓并恢复原队列；自动开钓后用户手动取消/更换钓鱼不作处理（本时段预约自然失效，未来时段保留），时段结束时队头不是预约钓场的钓鱼同样不作处理；状态条逐条显示预约倒计时与独立取消入口；支持旧版单预约自动迁移；设置-「其他」标签页「定时钓鱼」开关，受总开关联动控制；十二、v1.36.0 修复——①满级用户生产/采集/烹饪详情两个按钮（升下一级次数/背包可执行次数）与经验效率模块整体消失：满级分支不再提前 return，「背包可执行次数」与「经验效率」照常显示（目标等级计算行满级时隐藏），可执行按钮在无升级按钮时改以 ∞ 档为锚点；②生产详情选多倍率后持有数值恒红：持有数文字带千分位逗号，parseInt 在逗号处截断（12,000→12）导致恒判不足，修复为先去逗号再解析；十三、v1.37.0 定时钓鱼状态按钮——当前行动「取消」左侧新增钓鱼状态按钮（与「自动收菜」开关并列）：未预约显示「未预约钓鱼」（金色底灰字，底色 v1.37.7 改用自动收菜同款金色 var(--c-warning)），已预约显示「天气·钓场名·鱼饵」，背景以开钓时刻前 4 小时为起点由米色向湖水青渐变覆盖、开钓时刻覆盖完成（进度锚定时段真实时间戳，按钮中途出现即显示正确进度），钓鱼中改为原色从左往右渐变覆盖回青色上、时段结束刚好完全回色（v1.37.6，连续预约按方案A每段独立回色，段末衔接瞬间跳回满青），无下一次预约自动回到未预约状态；点击按钮可取消显示中的预约（钓鱼中取消会停钓并按快照恢复原队列）；预约状态展示从天气预报状态条迁移至该按钮，预报条目「已预约/钓鱼中」角标与点击预约保留；v1.37.1 修复钓鱼按钮复用收菜类名导致出现两个「自动收菜」；v1.37.2/3 预报区提示栏改常态文本并接入 DOM 装饰链同步出现（含防 MutationObserver 自激循环的零写缓存）；十四、v1.37.4 市场行情修复——部分物品永远显示「获取市场数据中……」：市场无行情数据的物品（新物品/从未上架/特定强化等级），服务端不响应 market_cache 单物品请求（10 秒超时返回 null），且全量快照中无该条目时占位符无终止机制；现全量缓存就绪且未过期仍查不到时判定为确定无行情，显示「暂无市场行情」终止等待，后续全量重拉若数据出现自动恢复；单物品强刷返回快照但缺该强化等级时同样终止等待；十五、v1.37.5 修复生产行动弹窗/详情面板高级装备无按钮——原生经验行经 Utils.formatNumber 渲染（游戏默认开启万进制），单次经验 ≥ 1 万时显示「1.2万」等缩写，而小助手解析「xx经验值 N 点」的正则只认纯数字/千分位，匹配失败导致整段装饰（升下一级次数/背包可执行次数按钮与经验效率模块）被跳过——低级装备经验小于 1 万故正常；现正则支持小数与 万/亿/兆/京/K/M/B/T 单位（新增 mkParseNumUnit 解析），并识别到动作时改用游戏同款 calcExpWithBonus 精确覆盖文本解析值（消除缩写舍入误差，烹饪因口径不同保持文本解析）；十六、v1.38.0 自动收菜补种提醒——自动收获发送时记录开启了原生「自动播种」的地块及其作物（crop_id 即种子物品 id），收获响应落定后地块变回空地而背包已无该种子 → 判定种子不足未能补种，按作物聚合提醒「种子不足，N 块地未补种——作物×N」（同一作物 10 分钟节流；背包仍有种子时不误报；观察表只记录本次收获发送的地块，判定后即清除）。
+// @version      1.41.3
+// @description  v1.41.3：生产材料显示扣除进行中和排队行动用量后的剩余可用量；梳毛/采集/生产/烹饪产出物显示背包库存和队列预计产出；研究队列预留开研材料，支持手动折叠、受阻条目标红和自动结算；支持自动接受任务和领取任务奖励。主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口与炼金界面（原子/神秘/量子炼金执行区）经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色；炼金期望按成功率折算）并快捷填入升级所需执行次数，炼金执行区另有「背包可执行次数」按钮（按当前点金/分解/研究/提纯/还原/转换/量子配方逐项折算材料持有量）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知；跳过地块改用游戏原生「地块锁」（🔒），锁定地块的自动收获与手动单块收获均在客户端拦截（服务端批量收获跳过锁定地块，但单块收获不校验，故加客户端兜底），自动收菜开关按钮以背景进度条显示检测进度（60 秒往返循环：前 30 秒收获绿覆盖黄底、后 30 秒黄底覆盖绿色，rAF 每帧重算丝滑无跳秒，进度锚定实际检测时钟、按钮中途出现也显示真实进度，不另起独立计时）；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）；九、检查更新——每次加载游戏时检测 GitHub 最新版本（发现新版本且距上次提醒超过 60 分钟时，顶部通知引导在 Tampermonkey 中更新）；设置区标题旁显示当前版本号；十、v1116 生活装备适配——自绘生产/采集详情材料需求按巨匠省料率折算（两位小数、加工倍数与执行校验同口径），额外奖励几率乘装备幸运（研究幸运/10+装备幸运/100），行动窗口「背包可执行次数」按钮按省料后需求折算，经验效率经 game.getEfficiency 自动含面罩最终效率乘区；自绘生产/采集详情「额外奖励」补显示 v1116 宝箱掉落（梳毛/采集/生产宝箱，几率含幸运加成、数量不随加工倍数放大，复用原生 getActionChestPreview）；修复检查更新因 window.UI 引用错误（UI 为顶层词法绑定不在 window 上）导致检测从未执行的问题；十一、定时钓鱼——已订阅天气预报的钓场，钓鱼页「天气预报」时段条目可点击预约：预约时读取当前所选鱼饵（未选鱼饵二次确认后以无鱼饵预约），到点每 5 秒检查并自动以 ∞ 次立即开钓（mold start 替换当前行动，开钓快照原队列，服务端 update_queue 后 diff 补回）；预约时队列已满直接拒绝（不删除已有队列），开钓时队列仍满则等待并低频提醒；相邻时段预约自动衔接换钓（可跨钓场，不停钓），链条最后一个时段结束自动停钓并恢复原队列；自动开钓后用户手动取消/更换钓鱼不作处理（本时段预约自然失效，未来时段保留），时段结束时队头不是预约钓场的钓鱼同样不作处理；状态条逐条显示预约倒计时与独立取消入口；支持旧版单预约自动迁移；设置-「其他」标签页「定时钓鱼」开关，受总开关联动控制；十二、v1.36.0 修复——①满级用户生产/采集/烹饪详情两个按钮（升下一级次数/背包可执行次数）与经验效率模块整体消失：满级分支不再提前 return，「背包可执行次数」与「经验效率」照常显示（目标等级计算行满级时隐藏），可执行按钮在无升级按钮时改以 ∞ 档为锚点；②生产详情选多倍率后持有数值恒红：持有数文字带千分位逗号，parseInt 在逗号处截断（12,000→12）导致恒判不足，修复为先去逗号再解析；十三、v1.37.0 定时钓鱼状态按钮——当前行动「取消」左侧新增钓鱼状态按钮（与「自动收菜」开关并列）：未预约显示「未预约钓鱼」（金色底灰字，底色 v1.37.7 改用自动收菜同款金色 var(--c-warning)），已预约显示「天气·钓场名·鱼饵」，背景以开钓时刻前 4 小时为起点由米色向湖水青渐变覆盖、开钓时刻覆盖完成（进度锚定时段真实时间戳，按钮中途出现即显示正确进度），钓鱼中改为原色从左往右渐变覆盖回青色上、时段结束刚好完全回色（v1.37.6，连续预约按方案A每段独立回色，段末衔接瞬间跳回满青），无下一次预约自动回到未预约状态；点击按钮可取消显示中的预约（钓鱼中取消会停钓并按快照恢复原队列）；预约状态展示从天气预报状态条迁移至该按钮，预报条目「已预约/钓鱼中」角标与点击预约保留；v1.37.1 修复钓鱼按钮复用收菜类名导致出现两个「自动收菜」；v1.37.2/3 预报区提示栏改常态文本并接入 DOM 装饰链同步出现（含防 MutationObserver 自激循环的零写缓存）；十四、v1.37.4 市场行情修复——部分物品永远显示「获取市场数据中……」：市场无行情数据的物品（新物品/从未上架/特定强化等级），服务端不响应 market_cache 单物品请求（10 秒超时返回 null），且全量快照中无该条目时占位符无终止机制；现全量缓存就绪且未过期仍查不到时判定为确定无行情，显示「暂无市场行情」终止等待，后续全量重拉若数据出现自动恢复；单物品强刷返回快照但缺该强化等级时同样终止等待；十五、v1.37.5 修复生产行动弹窗/详情面板高级装备无按钮——原生经验行经 Utils.formatNumber 渲染（游戏默认开启万进制），单次经验 ≥ 1 万时显示「1.2万」等缩写，而小助手解析「xx经验值 N 点」的正则只认纯数字/千分位，匹配失败导致整段装饰（升下一级次数/背包可执行次数按钮与经验效率模块）被跳过——低级装备经验小于 1 万故正常；现正则支持小数与 万/亿/兆/京/K/M/B/T 单位（新增 mkParseNumUnit 解析），并识别到动作时改用游戏同款 calcExpWithBonus 精确覆盖文本解析值（消除缩写舍入误差，烹饪因口径不同保持文本解析）；十六、v1.38.0 自动收菜补种提醒——自动收获发送时记录开启了原生「自动播种」的地块及其作物（crop_id 即种子物品 id），收获响应落定后地块变回空地而背包已无该种子 → 判定种子不足未能补种，按作物聚合提醒「种子不足，N 块地未补种——作物×N」（同一作物 10 分钟节流；背包仍有种子时不误报；观察表只记录本次收获发送的地块，判定后即清除）。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
 // @match        https://nekoidle.net/*
@@ -3377,22 +3377,30 @@
             return { tick, enqueue, remove, setting, view, message, observeSend, isAutomaticReward, workAvailable, claimable, release };
         }
 
+        function* queuedBatches(game, metadata) {
+            for (const entry of game.queue || []) {
+                if (!entry) continue;
+                const state = metadata.get(entry);
+                const remaining = Number(state?.remaining ?? entry.remaining ?? entry.count);
+                if (remaining !== -1 && (!Number.isSafeInteger(remaining) || remaining <= 0)) continue;
+                const multiplier = Number(state?.multiplier ?? entry.multiplier ?? entry.item?.multiplier);
+                const batch = Number.isSafeInteger(multiplier) && multiplier > 0 ? multiplier : 1;
+                yield { entry, remaining, batch };
+            }
+        }
+
         // 按已排定的剩余次数估算毛产出，使用当前等级、研究、祝福与装备。
         function estimateQueueOutputs(game, ui, data, metadata, cookingChestDivisor) {
             const totals = new Map();
-            for (const entry of game.queue || []) {
-                if (!entry || !['action', 'cooking'].includes(entry.type)) continue;
+            for (const { entry, remaining, batch: multiplier } of queuedBatches(game, metadata)) {
+                if (!['action', 'cooking'].includes(entry.type)) continue;
                 const cooking = entry.type === 'cooking';
                 const action = cooking ? data?.cookingRecipes?.[entry.id] : game.getAction(entry.id);
                 const skill = cooking ? 7 : Number(action?.action);
                 if (!action || ![1, 2, 6, 7].includes(skill)) continue;
-                const state = metadata.get(entry);
-                const remaining = Number(state?.remaining ?? entry.remaining ?? entry.count);
-                if (remaining !== -1 && (!Number.isSafeInteger(remaining) || remaining <= 0)) continue;
                 const success = (cooking ? ui.getCookingLevelState(action) : ui.getActionLevelState(action)).successRate / 100;
                 if (!(success > 0)) continue;
-                const queuedMultiplier = Number(state?.multiplier ?? entry.multiplier ?? entry.item?.multiplier);
-                const batch = (cooking || skill === 6) && Number.isSafeInteger(queuedMultiplier) && queuedMultiplier > 0 ? queuedMultiplier : 1;
+                const batch = cooking || skill === 6 ? multiplier : 1;
                 const facility = cooking ? 12 : game.getResearchFacilityIdForAction(action);
                 const productBonus = Math.max(0, Number(game.getResearchEffectPct(facility, 'product')) || 0);
                 const researchLuck = Math.max(0, Number(game.getResearchEffectPct(facility, 'lucky')) || 0);
@@ -3432,6 +3440,67 @@
                 add(action.rewards, false);
                 add(action.extraRewards, true);
                 add(chests, true);
+            }
+            return totals;
+        }
+
+        function queueIngredient(game, data, ingredient, choice, batch, saveRate) {
+            let itemId = ingredient.itemId;
+            // 与游戏的烹饪材料计算一致：先按份数及省料取整，再换算替代食材。
+            let quantity = Math.floor(ingredient.quantity * batch * (1 - saveRate));
+            if (choice && Number(itemId) !== Number(choice)) {
+                const original = game.getItem(Number(itemId)), substitute = game.getItem(Number(choice));
+                const group = original?.substitute_group;
+                const loss = Number(data?.food?.[group]);
+                if (group && group !== 'processed' && substitute?.substitute_group === group && loss > 0
+                    && original.substitute_value > 0 && substitute.substitute_value > 0) {
+                    itemId = choice;
+                    quantity = Math.ceil(quantity * original.substitute_value * (1 + loss) / substitute.substitute_value);
+                }
+            }
+            return { itemId, quantity };
+        }
+
+        function estimateQueueMaterials(game, data, metadata) {
+            const totals = new Map();
+            const saving = type => Math.max(0, Math.min(1, Number(game.getLifeMasterRate?.(type)) || 0));
+            for (const { entry, remaining, batch } of queuedBatches(game, metadata)) {
+                const add = (itemId, quantity, enhancement = 0) => {
+                    const id = Number(itemId), level = Number(enhancement);
+                    if (!Number.isInteger(id) || id <= 0 || !Number.isInteger(level) || !Number.isFinite(quantity) || quantity <= 0) return;
+                    const key = id + ':' + level;
+                    totals.set(key, remaining === -1 ? Infinity : (totals.get(key) || 0) + quantity * remaining);
+                };
+                if (entry.type === 'action') {
+                    const action = game.getAction(entry.id);
+                    const production = Number(action?.action) === 6;
+                    const scale = production ? batch * (1 - saving(game.getLifeBonusActionType(6))) : 1;
+                    for (const ingredient of action?.requirements || []) add(ingredient.itemId, ingredient.quantity * scale);
+                } else if (entry.type === 'cooking') {
+                    const ingredients = data?.cookingRecipes?.[entry.id]?.ingredients || [];
+                    const saveRate = saving(9);
+                    ingredients.forEach((ingredient, index) => {
+                        const { itemId, quantity } = queueIngredient(game, data, ingredient, entry.item?.choices?.[index], batch, saveRate);
+                        add(itemId, quantity);
+                    });
+                } else if (entry.type === 'alchemy') {
+                    const { primaryItem, secondaryItem, enhancement } = entry.item || {};
+                    const recipe = Number(entry.id);
+                    const occult = { 3: 'up', 4: 'down', 5: 'change' }[recipe];
+                    if (recipe === 9) {
+                        const upgrade = data?.alchemyQuantum?.[primaryItem]?.find(row => Number(row.secondary) === Number(secondaryItem));
+                        if (!upgrade) continue;
+                        add(primaryItem, 1, enhancement);
+                        add(secondaryItem, Number(upgrade.quantity));
+                    } else if (occult) {
+                        add(primaryItem, Number(data?.alchemyOccultism?.[primaryItem]?.[occult]?.quantity ?? 1), enhancement);
+                    } else if (recipe === 1 || recipe === 2 || recipe === 6) {
+                        const quantity = recipe === 1 ? Number(game.getItem(Number(primaryItem))?.auri || 1) : 1;
+                        add(primaryItem, quantity, enhancement);
+                    }
+                } else if (entry.type === 'fishing') {
+                    add(entry.item?.primaryItem, 1);
+                }
             }
             return totals;
         }
@@ -3614,6 +3683,7 @@
                     '.nek-research-queue .btn{flex-shrink:0}',
                     '.research-project-action.nek-research-actions{flex-wrap:wrap;gap:6px}',
                     '.nek-output-holding,.nek-output-queue{white-space:nowrap}',
+                    '.nek-material-available{white-space:nowrap}',
                     '.nek-output-name{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:flex-start;row-gap:2px}',
                     // 受阻条目、摘要和材料不足提示使用同一色值。
                     '.nek-research-insufficient{color:#FF4B88;font-weight:700}'
@@ -3758,40 +3828,74 @@
                     block = doc.createElement('div'); block.className = 'nek-auto-settings';
                     toggle('队列自动开研', 'researchQueue', block); toggle('自动领取已完成研究', 'researchFinish', block);
                     toggle('自动接受任务', 'questAccept', block); toggle('自动领取任务奖励', 'questReward', block);
-                    toggle('产出物显示背包和队列产出', 'holdings', block);
+                    toggle('显示产出库存、队列产出和生产材料可用量', 'holdings', block);
                     const status = doc.createElement('div'); status.className = 'nek-quest-status stat-sub'; block.appendChild(status); section.appendChild(block);
                 }
                 text(block.querySelector('.nek-quest-status'), v.questStatus);
             }
+            function resolveInventoryItem(row, name) {
+                const icon = row.querySelector('.action-item-container-icon .item');
+                if (!icon) return null;
+                const known = itemInfo.get(icon);
+                if (known) return known;
+                // 注入前已经渲染的面板按完整物品名唯一匹配，不把贴图编号当物品 ID。
+                const label = name.firstElementChild?.textContent.trim();
+                const matches = Object.values(env.data()?.items || {}).filter(d => d.name === label);
+                const enhancement = Number(icon.querySelector('.item-enhancement')?.textContent.trim() || 0);
+                return matches.length === 1 && Number.isInteger(enhancement) ? { id: Number(matches[0].id), enhancement } : null;
+            }
             function decorateHoldings(v) {
                 if (!env.enabled() || !v.settings.holdings) {
-                    doc.querySelectorAll('.nek-output-holding, .nek-output-queue').forEach(el => el.remove());
+                    doc.querySelectorAll('.nek-output-holding, .nek-output-queue, .nek-material-available').forEach(el => el.remove());
                     doc.querySelectorAll('.nek-output-name').forEach(el => el.classList.remove('nek-output-name')); return;
                 }
                 const g = env.game(); if (!g?.character?.uid) return;
-                let projection;
-                const decorated = new Set();
+                let projection, reservations;
+                const decorated = new Set(), materialLabels = new Set();
+                const decorateMaterial = row => {
+                    const info = row.querySelector('.action-item-container-info');
+                    const name = info?.querySelector('.action-item-container-text');
+                    const item = name && resolveInventoryItem(row, name);
+                    if (!item) return;
+                    reservations ??= estimateQueueMaterials(g, env.data(), queueMetadata);
+                    const have = Number(g.getItemQuantity(item.id, item.enhancement) || 0);
+                    const reserved = reservations.get(item.id + ':' + item.enhancement) || 0;
+                    let label = info.querySelector('.nek-material-available');
+                    if (!label) {
+                        label = doc.createElement('div');
+                        label.className = 'action-item-container-text stat-sub nek-material-available';
+                        info.appendChild(label);
+                    }
+                    materialLabels.add(label);
+                    const available = Math.max(0, have - reserved);
+                    text(label, '剩余可用：' + available.toLocaleString('zh-CN', { maximumFractionDigits: 2 }));
+                    const hint = reserved === Infinity ? '不限次行动已预留该材料' :
+                        '当前背包数量减去进行中和待执行行动的计划用量，按当前加成估算。';
+                    if (label.title !== hint) label.title = hint;
+                };
                 doc.querySelectorAll('.cooking-page .cooking-detail, .nek-prod-detail, .nek-pick-detail, .action-modal-content').forEach(root => {
+                    let production = root.matches('.nek-prod-detail');
                     if (root.matches('.action-modal-content')) {
                         const action = env.identifyAction(root);
                         if (!action || ![1, 2, 6, 7].includes(Number(action.action))) return;
+                        production = Number(action.action) === 6;
                     }
                     root.querySelectorAll('.cooking-detail-section, .modal-box-item').forEach(section => {
-                        const title = section.querySelector('.modal-container-title')?.textContent.trim();
+                        const titles = section.querySelectorAll('.modal-container-title');
+                        if (production) {
+                            titles.forEach(heading => {
+                                if (heading.textContent.trim() !== '消耗') return;
+                                // 原生弹窗将「基本信息」和「消耗」放在同一 section，各自有材料/信息列表。
+                                const list = heading.nextElementSibling;
+                                if (list?.matches('.action-item-container-list')) list.querySelectorAll('.action-item-container').forEach(decorateMaterial);
+                                else if (titles.length === 1) section.querySelectorAll('.action-item-container').forEach(decorateMaterial);
+                            });
+                        }
+                        const title = titles[0]?.textContent.trim();
                         if (!['获得', '产出', '额外奖励'].includes(title)) return;
                         section.querySelectorAll('.action-item-container').forEach(row => {
-                            const icon = row.querySelector('.action-item-container-icon .item');
-                            const info = row.querySelector('.action-item-container-info');
-                            const name = info?.querySelector('.action-item-container-text');
-                            if (!icon || !name) return; // 经验行和材料区不装饰。
-                            let item = itemInfo.get(icon);
-                            if (!item) {
-                                // 注入前已经渲染的面板：用完整物品名唯一匹配，不把贴图编号当物品 ID。
-                                const label = name.firstElementChild?.textContent.trim();
-                                const matches = Object.values(env.data()?.items || {}).filter(d => d.name === label);
-                                const enhancement = Number(icon.querySelector('.item-enhancement')?.textContent.trim() || 0);
-                                if (matches.length === 1 && Number.isInteger(enhancement)) item = { id: Number(matches[0].id), enhancement };
-                            }
+                            const name = row.querySelector('.action-item-container-info .action-item-container-text');
+                            const item = name && resolveInventoryItem(row, name);
                             if (!item) return;
                             decorated.add(name);
                             let tag = name.querySelector('.nek-output-holding');
@@ -3822,6 +3926,7 @@
                     name.querySelectorAll('.nek-output-holding, .nek-output-queue').forEach(el => el.remove());
                     name.classList.remove('nek-output-name');
                 });
+                doc.querySelectorAll('.nek-material-available').forEach(label => { if (!materialLabels.has(label)) label.remove(); });
             }
             function decorate() {
                 const v = core.view();
@@ -4894,7 +4999,7 @@
         // ---------------- 自动检查更新（GitHub raw 头部 @version 对比） ----------------
         // 注意：发布新版本时需同步修改 CURRENT_VERSION（与头部 @version 保持一致）。
         // 页面上下文无 GM_info（@grant none 且经 <script> 注入），只能内置当前版本号。
-        const CURRENT_VERSION = '1.41.2';
+        const CURRENT_VERSION = '1.41.3';
         const LS_UPD_KEY = 'nek_update_check_enabled';        // 检查更新开关，默认开
         const LS_UPD_REMIND = 'nek_update_remind_last';       // 上次提醒时间戳（提醒节流）
         const UPD_REMIND_INTERVAL = 60 * 60 * 1000;           // 提醒节流：距上次提醒超过 60 分钟才再次提醒
