@@ -421,6 +421,41 @@ test('同物品的有限和不限次产出分别显示，强化产出独立统�
     h.feature.core.setting('holdings', false); h.feature.decorate();
     assert.equal(h.document.querySelector('.nek-output-queue'), null);
 });
+test('同一物品在产物和生产消耗栏共用队列产出，并随队列更新', () => {
+    const h = setup();
+    h.data.items[20].name = '毛线团';
+    const product = h.output('nek-prod-detail', 20);
+    const material = h.output('nek-prod-detail', 20, { title: '消耗', fallback: true });
+    const modalMaterial = h.output('action-modal-content', 20, { title: '消耗', native: true, actionType: 6 });
+    const cookingMaterial = h.output('cooking-detail', 20, { title: '消耗' });
+    h.data.actions = {
+        5: { action: 6, rewards: [{ itemId: 20, num: 2, chance: 50 }] },
+        6: { action: 6, requirements: [{ itemId: 20, quantity: 3 }] }
+    };
+    h.msg.handlers.update_queue({ content: [
+        { type: 'action', id: 5, remaining: 3, item: { multiplier: 2 } },
+        { type: 'action', id: 6, remaining: 1 },
+        { type: 'action', id: 5, remaining: -1 }
+    ] });
+    const label = view => view.row.querySelector('.nek-output-queue')?.textContent;
+    h.feature.decorate();
+    assert.equal(label(product), '队列产出：约 6 + 不限次');
+    assert.equal(label(material), label(product));
+    assert.equal(label(modalMaterial), label(product));
+    assert.equal(label(cookingMaterial), undefined);
+    assert.equal(material.row.querySelector('.nek-material-available').textContent, '剩余可用：197');
+
+    product.root.remove();
+    h.msg.handlers.update_queue({ content: [{ type: 'action', id: 6, remaining: 2 }] });
+    h.feature.decorate();
+    assert.equal(label(material), '队列产出：0');
+    assert.equal(label(modalMaterial), label(material));
+    assert.equal(material.row.querySelectorAll('.nek-output-queue').length, 1);
+    h.feature.core.setting('holdings', false);
+    h.feature.decorate();
+    assert.equal(label(material), undefined);
+    assert.equal(label(modalMaterial), undefined);
+});
 test('自动领奖只隐藏对应弹窗，原生消息 this、参数、返回值和手工弹窗保留', () => {
     const h = setup(); h.feature.core.setting('researchQueue', false); h.feature.core.setting('researchFinish', false);
     h.feature.core.setting('questReward', true);

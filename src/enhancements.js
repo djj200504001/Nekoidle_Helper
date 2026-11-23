@@ -869,7 +869,24 @@ function createNekEnhancements(env) {
         }
         const g = env.game(); if (!g?.character?.uid) return;
         let projection, reservations;
-        const decorated = new Set(), materialLabels = new Set();
+        const decorated = new Set(), materialLabels = new Set(), queueLabels = new Set();
+        function decorateQueueOutput(holder, item, material = false) {
+            projection ??= estimateQueueOutputs(g, env.ui(), env.data(), queueMetadata, env.cookingChestDivisor);
+            const total = projection.get(item.id + ':' + item.enhancement);
+            let label = holder.querySelector('.nek-output-queue');
+            if (!label) {
+                label = doc.createElement(material ? 'div' : 'span');
+                label.className = (material ? 'action-item-container-text ' : '') + 'stat-sub nek-output-queue';
+                label.title = '当前行动及待执行队列的计划毛产出，按当前加成估算，假设材料足够。随机掉落按期望值计算，不限次行动单独标出。';
+                holder.appendChild(label);
+            }
+            queueLabels.add(label);
+            const amount = total?.amount || 0;
+            const finite = amount > 0 && amount < 0.01 ? '<0.01' : (total?.approximate ? '约 ' : '') +
+                amount.toLocaleString('zh-CN', { maximumFractionDigits: 2 });
+            const display = total?.unlimited ? (amount > 0 ? finite + ' + 不限次' : '不限次') : finite;
+            text(label, '队列产出：' + display);
+        }
         const decorateMaterial = row => {
             const info = row.querySelector('.action-item-container-info');
             const name = info?.querySelector('.action-item-container-text');
@@ -890,6 +907,7 @@ function createNekEnhancements(env) {
             const hint = reserved === Infinity ? '不限次行动已预留该材料' :
                 '当前背包数量减去进行中和待执行行动的计划用量，按当前加成估算。';
             if (label.title !== hint) label.title = hint;
+            decorateQueueOutput(info, item, true);
         };
         doc.querySelectorAll('.cooking-page .cooking-detail, .nek-prod-detail, .nek-pick-detail, .action-modal-content').forEach(root => {
             let production = root.matches('.nek-prod-detail');
@@ -923,27 +941,16 @@ function createNekEnhancements(env) {
                         name.classList.add('nek-output-name'); name.appendChild(tag);
                     }
                     text(tag, '背包：' + Number(g.getItemQuantity(item.id, item.enhancement) || 0).toLocaleString('zh-CN'));
-                    projection ??= estimateQueueOutputs(g, env.ui(), env.data(), queueMetadata, env.cookingChestDivisor);
-                    const total = projection.get(item.id + ':' + item.enhancement);
-                    let queueTag = name.querySelector('.nek-output-queue');
-                    if (!queueTag) {
-                        queueTag = doc.createElement('span'); queueTag.className = 'stat-sub nek-output-queue';
-                        queueTag.title = '当前行动及待执行队列的计划毛产出，按当前加成估算，假设材料足够。随机掉落按期望值计算，不限次行动单独标出。';
-                        name.appendChild(queueTag);
-                    }
-                    const amount = total?.amount || 0;
-                    const finite = (amount > 0 && amount < 0.01 ? '<0.01' : (total?.approximate ? '约 ' : '') +
-                        amount.toLocaleString('zh-CN', { maximumFractionDigits: 2 }));
-                    const display = total?.unlimited ? (amount > 0 ? finite + ' + 不限次' : '不限次') : finite;
-                    text(queueTag, '队列产出：' + display);
+                    decorateQueueOutput(name, item);
                 });
             });
         });
         doc.querySelectorAll('.nek-output-name').forEach(name => {
             if (decorated.has(name)) return;
-            name.querySelectorAll('.nek-output-holding, .nek-output-queue').forEach(el => el.remove());
+            name.querySelectorAll('.nek-output-holding').forEach(el => el.remove());
             name.classList.remove('nek-output-name');
         });
+        doc.querySelectorAll('.nek-output-queue').forEach(label => { if (!queueLabels.has(label)) label.remove(); });
         doc.querySelectorAll('.nek-material-available').forEach(label => { if (!materialLabels.has(label)) label.remove(); });
     }
     function decorate() {

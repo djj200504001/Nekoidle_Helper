@@ -14,8 +14,8 @@ test('安装文件与模块源码一致，入口、版本号和单次初始化�
     assert.equal((script.match(/\/\/ NEK_ENHANCEMENTS_END/g) || []).length, 1);
     assert.equal((script.match(/nekEnhancements\.init\(\);/g) || []).length, 1);
     assert.equal((script.match(/function \(\) \{ nekEnhancements\.decorate\(\); \}/g) || []).length, 1);
-    assert.match(script, /@version\s+1\.41\.3\n/);
-    assert.match(script, /@description\s+v1\.41\.3：/);
-    assert.match(script, /const CURRENT_VERSION = '1\.41\.3';/);
+    assert.match(script, /@version\s+1\.41\.4\n/);
+    assert.match(script, /@description\s+v1\.41\.4：/);
+    assert.match(script, /const CURRENT_VERSION = '1\.41\.4';/);
     assert.doesNotThrow(() => new vm.Script(script));
 });
