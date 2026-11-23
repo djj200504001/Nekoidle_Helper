@@ -7,7 +7,7 @@ const { Document } = require('./helpers/dom.cjs');
 
 function setup() {
     const document = new Document(), intervals = [], sent = [], notifications = [], popups = [], calls = [];
-    const data = { items: { 10: { id: 10, name: '绒毛' }, 20: { id: 20, name: '果实' }, 30: { id: 30, name: '成品' }, 40: { id: 40, name: '料理' } }, quests: {},
+    const data = { items: { 10: { id: 10, name: '绒毛' }, 20: { id: 20, name: '果实' }, 30: { id: 30, name: '成品' }, 40: { id: 40, name: '料理' }, 9610: { id: 9610, name: '分析数据' }, 1101: { id: 1101, name: '地元素水晶' } }, quests: {},
         research: { facilities: [{ name: '梳毛研究所', reportItem: 9610, elementBase: 1101, projects: [{ id: 11, name: '绒毛解析', maxLevel: 30, basePct: 1000 }] }] } };
     const quantities = { '10-0': 12345, '20-0': 200, '30-3': 12, '40-0': 0, '9610-0': 10000, '1101-0': 10000 };
     const game = { character: { uid: 123, level: 1, quest_max: 0 }, quests: { main: [], work: [] }, queue: [],
@@ -29,8 +29,28 @@ function setup() {
             calls.push(['row', this, facility, project]);
             const row = node('research-project', null);
             if (!project.running) node('research-start-btn', node('research-project-action', row), '开始研究');
+            if (project.cost) {
+                // 模拟原生 createResearchCostItem 结构：icon(.item) + 名称/需要/持有三行文本
+                const costItems = node('research-cost-items', row);
+                [[project.cost.reportItem, project.cost.reports], [project.cost.elementItem, project.cost.elementQuantity]].forEach(([id, need]) => {
+                    const container = node('action-item-container', costItems);
+                    const iconHolder = node('action-item-container-icon', container);
+                    const info = node('action-item-container-info', container);
+                    const nameText = node('action-item-container-text', info);
+                    const nameSpan = document.createElement('span'); nameSpan.textContent = data.items[id].name; nameText.appendChild(nameSpan);
+                    const needText = node('action-item-container-text', info);
+                    const needLabel = document.createElement('span'); needLabel.textContent = '需要'; needText.appendChild(needLabel);
+                    const needValue = document.createElement('span'); needValue.textContent = String(need); needText.appendChild(needValue);
+                    const heldText = node('action-item-container-text quantity-display', info);
+                    const heldLabel = document.createElement('span'); heldLabel.textContent = '持有'; heldText.appendChild(heldLabel);
+                    const heldValue = document.createElement('span'); heldValue.className = 'quantity-value'; heldValue.textContent = game.getItemQuantity(id).toLocaleString('zh-CN'); heldText.appendChild(heldValue);
+                    const icon = node('item', iconHolder);
+                    this.showItem(icon, data.items[id], { quantity: need });
+                });
+            }
             return row;
         },
+        refreshResearchCostHoldings() {},
         createItemElement(def, options) { calls.push(['item', this, def, options]); return node('item', null); },
         showItem(el, def, options) { calls.push(['showItem', this, def, options]); el.className = 'item'; },
         showQuestRewardModal(rewards) { popups.push(rewards); return 'modal-result'; },
@@ -144,6 +164,46 @@ test('待加入卡片按计划执行等级显示：进行中的研究占一级�
     const plain = Object.assign({}, view, { level: 0, effect: 10, nextEffect: 10.6 });
     h.ui.createResearchProjectRow(facility, plain);
     assert.equal(h.calls[0][3], plain);
+});
+test('待加入卡片材料行显示扣除队列预留后的可用数量，不足标红', () => {
+    const h = setup(), facility = h.data.research.facilities[0];
+    const view = { id: 11, name: '绒毛解析', level: 0, maxLevel: 30, locked: false, cost: { reportItem: 9610, reports: 500, elementItem: 1101, elementQuantity: 100 } };
+    // 队列为空：显示原生「持有」
+    let row = h.ui.createResearchProjectRow(facility, Object.assign({}, view));
+    h.document.body.appendChild(row);
+    let helds = row.querySelectorAll('.quantity-display');
+    assert.equal(helds[0].querySelector('span').textContent, '持有');
+    assert.equal(helds[0].querySelector('.quantity-value').textContent, '10,000');
+    // 入队一条：卡片重绘后材料行变「可用」（扣除预留 500/100）
+    row.querySelector('.nek-research-add').fire('click');
+    row = h.ui.createResearchProjectRow(facility, Object.assign({}, view));
+    h.document.body.appendChild(row);
+    let displays = row.querySelectorAll('.quantity-display');
+    assert.equal(displays[0].querySelector('span').textContent, '可用');
+    assert.equal(displays[0].querySelector('.quantity-value').textContent, '9,500');
+    assert.equal(displays[1].querySelector('.quantity-value').textContent, '9,900');
+    assert.equal(displays[1].querySelector('.quantity-value').classList.contains('nek-research-insufficient'), false);
+    // 库存降到可用不足：数值标红；库存恢复后被 refreshResearchCostHoldings 重写，需重新应用并解除红色
+    h.quantities['1101-0'] = 72;
+    row = h.ui.createResearchProjectRow(facility, Object.assign({}, view));
+    h.document.body.appendChild(row);
+    displays = row.querySelectorAll('.quantity-display');
+    assert.equal(displays[1].querySelector('span').textContent, '可用');
+    assert.equal(displays[1].querySelector('.quantity-value').textContent, '-28');
+    assert.ok(displays[1].querySelector('.quantity-value').classList.contains('nek-research-insufficient'));
+    // refreshResearchCostHoldings 原生会把数值重写回持有并去掉红色标记逻辑，包装层应重新应用「可用」
+    h.ui.refreshResearchCostHoldings();
+    displays = row.querySelectorAll('.quantity-display');
+    assert.equal(displays[1].querySelector('span').textContent, '可用');
+    assert.equal(displays[1].querySelector('.quantity-value').textContent, '-28');
+    assert.ok(displays[1].querySelector('.quantity-value').classList.contains('nek-research-insufficient'));
+    // 移出队列后回到原生「持有」显示
+    h.ui.researchRoot.querySelector('.nek-research-queue .nek-research-entry .btn').fire('click');
+    row = h.ui.createResearchProjectRow(facility, Object.assign({}, view));
+    h.document.body.appendChild(row);
+    displays = row.querySelectorAll('.quantity-display');
+    assert.equal(displays[1].querySelector('span').textContent, '持有');
+    assert.equal(displays[1].querySelector('.quantity-value').textContent, '72');
 });
 test('研究队列面板嵌入列表滚动流并支持点击标题折叠吸顶', () => {
     const h = setup(), facility = h.data.research.facilities[0];

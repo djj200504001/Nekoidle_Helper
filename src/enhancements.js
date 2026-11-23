@@ -577,6 +577,34 @@ function createNekEnhancements(env) {
             ui.showQuestRewardModal = function () { if (!silentReward) return original.apply(this, arguments); };
         }
         if (typeof ui.createResearchProjectRow === 'function') {
+            // v1.41.3 待加入卡片的材料行「持有 → 可用」：队列里已有条目会预留材料（开研时才扣），
+            // 卡片继续显示背包总量会高估可用量。改为「可用 = 持有 − 队列预留」，不足标红；
+            // 库存变化时原生 refreshResearchCostHoldings 会把数值重写回持有，需在包装层重新应用。
+            function applyAvailableMaterials(row) {
+                if (!row || !row.querySelector('.nek-research-add')) return;
+                let totals;
+                try { totals = core.view().queue.totals || {}; } catch (e) { return; }
+                if (!Object.keys(totals).some(id => Number(totals[id]) > 0)) return;
+                row.querySelectorAll('.research-cost-items .action-item-container').forEach(container => {
+                    const icon = container.querySelector('.action-item-container-icon .item');
+                    const item = icon && itemInfo.get(icon);
+                    const reserve = item ? Number(totals[item.id]) || 0 : 0;
+                    if (!(reserve > 0)) return;
+                    const display = container.querySelector('.quantity-display');
+                    const value = display?.querySelector('.quantity-value');
+                    if (!display || !value) return;
+                    // 「需要」行是第二行文本，取末尾数值做对比。
+                    const need = Number((container.querySelectorAll('.action-item-container-text')[1]
+                        ?.lastElementChild?.textContent || '').replace(/,/g, '')) || 0;
+                    const held = Number(env.game()?.getItemQuantity(item.id)) || 0;
+                    const available = held - reserve;
+                    const label = display.querySelector('span');
+                    if (label) label.textContent = '可用';
+                    value.textContent = available.toLocaleString('zh-CN');
+                    value.classList.toggle('nek-research-insufficient', available < need);
+                    display.classList.toggle('disabled', available < need);
+                });
+            }
             const original = ui.createResearchProjectRow;
             ui.createResearchProjectRow = function (facility, project) {
                 // v1.41.2 待加入卡片按「计划执行等级」显示：进行中的研究占掉一级（Lv.11 研究中
@@ -622,8 +650,18 @@ function createNekEnhancements(env) {
                     actions.classList.add('nek-research-actions');
                     actions.appendChild(control);
                 }
+                applyAvailableMaterials(row);
                 return row;
             };
+            // 库存变化后原生按「持有」重写数值，这里对全部待加入卡片重新应用「可用」显示。
+            if (typeof ui.refreshResearchCostHoldings === 'function') {
+                const originalRefresh = ui.refreshResearchCostHoldings;
+                ui.refreshResearchCostHoldings = function () {
+                    const result = originalRefresh.apply(this, arguments);
+                    doc.querySelectorAll('.research-project').forEach(applyAvailableMaterials);
+                    return result;
+                };
+            }
         }
         ['showItem', 'createItemElement'].forEach(name => {
             const original = ui[name];
