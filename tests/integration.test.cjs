@@ -107,50 +107,116 @@ test('研究开始按钮旁加入队列按钮，点击展示记录与材料预�
     panel.querySelector('.nek-research-entry .btn').fire('click');
     assert.equal(h.feature.core.view().queue.entries.length, 0);
 });
-test('研究队列面板嵌入列表滚动流并支持点击标题折叠吸顶', () => {
-    const h = setup(), facility = h.data.research.facilities[0];
-    h.ui.createResearchProjectRow(facility, { id: 11, level: 0, maxLevel: 30, locked: false });
-    // 手机端：面板插入在 researchRoot（项目列表滚动容器）开头，而非固定 taskHost
-    const panel = h.ui.researchRoot.querySelector('.nek-research-queue');
-    assert.ok(panel && h.ui.researchRoot.firstElementChild === panel);
+test('手机端队列可用按钮收起，并在未手动切换时随研究列表滚动折叠', () => {
+    const h = setup(), host = h.ui.researchRoot;
+    const panel = host.querySelector('.nek-research-queue');
+    const control = panel.querySelector('.nek-research-collapse');
+    const body = panel.querySelector('.nek-research-body');
+    const hint = panel.querySelector('.nek-research-head-hint');
+    assert.equal(host.firstElementChild, panel);
     assert.ok(panel.classList.contains('nek-float'));
-    assert.ok(panel.querySelector('.nek-research-head .section-title').textContent === '研究队列');
-    // 点击标题手动折叠/展开（先复位到未贴顶基准态：创建时初始 _nekSync 在 mock 默认 rect 下会先折叠）
-    panel._rectTop = 189; h.ui.researchRoot._rectTop = 183;
-    panel._nekSync();
-    assert.ok(!panel.classList.contains('nek-collapsed'), '未贴顶时应展开');
-    const head = panel.querySelector('.nek-research-head');
-    head.fire('click');
-    assert.ok(panel.classList.contains('nek-collapsed'));
-    assert.match(panel.querySelector('.nek-research-head-arrow').textContent, /▸/);
-    assert.match(panel.querySelector('.nek-research-head-hint').textContent, /研究/);   // 折叠时标题条显示状态摘要
-    head.fire('click');
-    assert.ok(!panel.classList.contains('nek-collapsed'));
-    assert.match(panel.querySelector('.nek-research-head-arrow').textContent, /▾/);
-    assert.equal(panel.querySelector('.nek-research-head-hint').textContent, '');
-    // 滚动自动折叠：面板顶部越过滚动容器顶（模拟 rect）→ 折叠；回到原位 → 展开
-    h.ui.researchRoot._rectTop = 183; panel._rectTop = -10;
-    panel._nekSync();
-    assert.ok(panel.classList.contains('nek-collapsed'), '滚过容器顶自动折叠');
+    assert.equal(control.tagName, 'BUTTON');
+    assert.ok(control.classList.contains('research-task-finish'));
+    assert.equal(control.attributes['aria-controls'], body.id);
+    host._rectTop = 183; panel._rectTop = 189;
+    host.fire('scroll');
+    assert.equal(control.textContent, '收起队列');
+    assert.equal(control.ariaExpanded, 'true');
+    panel._rectTop = 183;
+    host.fire('scroll');
+    assert.equal(body.hidden, true);
+    assert.equal(control.ariaExpanded, 'false');
     panel._rectTop = 189;
-    panel._nekSync();
-    assert.ok(!panel.classList.contains('nek-collapsed'), '滚回原位自动展开');
+    host.fire('scroll');
+    assert.equal(body.hidden, false);
+
+    control.fire('click');
+    assert.equal(body.hidden, true);
+    assert.equal(control.textContent, '展开队列');
+    assert.equal(hint.textContent, '0 项');
+    panel._rectTop = 183; host.fire('scroll');
+    panel._rectTop = 189; host.fire('scroll');
+    assert.equal(body.hidden, true, '滚动后保持手动收起');
+    control.fire('click');
+    assert.equal(body.hidden, false);
 });
-test('PC 宽屏保留 v1.40 固定面板样式（无吸顶折叠结构）', () => {
-    const h = setup(); h.setNarrow(false);
-    const facility = h.data.research.facilities[0];
-    h.ui.createResearchProjectRow(facility, { id: 11, level: 0, maxLevel: 30, locked: false });
-    h.feature.decorate();   // 触发装饰创建面板
-    const panel = h.ui.researchTaskHost.querySelector('.nek-research-queue');
-    assert.ok(panel, '面板挂在固定 taskHost');
-    assert.ok(!panel.classList.contains('nek-float'), '无吸顶样式');
-    assert.equal(panel.querySelector('.nek-research-head'), null, '无折叠头');
-    assert.equal(h.ui.researchRoot.querySelector('.nek-research-queue'), null, '列表滚动流内无面板');
-    // 跨断点切换：恢复窄屏后旧面板清理并重建为吸顶结构
+test('桌面队列可折叠，原生重绘及切换屏幕宽度保留手动状态', () => {
+    const h = setup(), root = h.ui.researchRoot, taskHost = h.ui.researchTaskHost;
+    h.setNarrow(false); h.feature.decorate();
+    const panel = taskHost.querySelector('.nek-research-queue');
+    assert.ok(panel && !panel.classList.contains('nek-float'));
+    assert.equal(root.querySelector('.nek-research-queue'), null);
+    assert.equal(root.listeners.scroll.length, 0);
+    panel.querySelector('.nek-research-collapse').fire('click');
+    assert.equal(panel.querySelector('.nek-research-body').hidden, true);
+
+    h.ui.renderResearchPage();
+    h.feature.decorate();
+    const replacement = taskHost.querySelector('.nek-research-queue');
+    assert.notEqual(replacement, panel);
+    assert.equal(replacement.querySelector('.nek-research-body').hidden, true);
     h.setNarrow(true); h.feature.decorate();
-    assert.equal(h.ui.researchTaskHost.querySelector('.nek-research-queue'), null);
-    const moved = h.ui.researchRoot.querySelector('.nek-research-queue');
-    assert.ok(moved && moved.classList.contains('nek-float'));
+    assert.equal(taskHost.querySelector('.nek-research-queue'), null);
+    const moved = root.querySelector('.nek-research-queue');
+    assert.ok(moved.classList.contains('nek-float'));
+    assert.equal(moved.querySelector('.nek-research-body').hidden, true);
+    h.feature.decorate();
+    assert.equal(root.listeners.scroll.length, 1);
+    h.enable(false); h.feature.decorate();
+    assert.equal(root.listeners.scroll.length, 0);
+});
+test('按队列顺序标红缺料条目并说明缺多少，补足材料或移除前项后恢复', () => {
+    const h = setup();
+    assert.equal(h.feature.core.enqueue(11).ok, true);
+    assert.equal(h.feature.core.enqueue(11).ok, true);
+    h.quantities['9610-0'] = 700;
+    h.feature.decorate();
+    const panel = h.ui.researchRoot.querySelector('.nek-research-queue');
+    const labels = () => panel.querySelectorAll('.nek-research-entry span');
+    const hint = panel.querySelector('.nek-research-head-hint');
+    const isRed = el => el.classList.contains('nek-research-insufficient');
+    assert.equal(isRed(labels()[0]), false);
+    assert.equal(isRed(labels()[1]), true);
+    assert.match(labels()[1].textContent, /材料不足：#9610 缺 300/);
+    assert.equal(hint.textContent, '2 项 · 1 项受阻');
+    assert.equal(isRed(hint), true);
+    h.quantities['9610-0'] = 1000;
+    h.feature.decorate();
+    assert.equal(isRed(labels()[1]), false);
+    assert.equal(hint.textContent, '2 项');
+    h.quantities['9610-0'] = 700;
+    h.feature.decorate();
+    panel.querySelector('.nek-research-entry .btn').fire('click');
+    assert.equal(labels().length, 1);
+    assert.equal(isRed(labels()[0]), false);
+});
+test('被改为锁定的研究条目标红，解除锁定后恢复', () => {
+    const h = setup(), project = h.data.research.facilities[0].projects[0];
+    assert.equal(h.feature.core.enqueue(11).ok, true);
+    const label = () => h.ui.researchRoot.querySelector('.nek-research-entry span');
+    project.basePct = 0;
+    h.feature.decorate();
+    assert.ok(label().classList.contains('nek-research-insufficient'));
+    assert.match(label().textContent, /研究项目暂未开放/);
+    project.basePct = 1000;
+    h.feature.decorate();
+    assert.ok(!label().classList.contains('nek-research-insufficient'));
+});
+test('开研确认期间暂停缺料判断，到账并确认后按剩余队列判断', () => {
+    const h = setup();
+    assert.equal(h.feature.core.enqueue(11).ok, true);
+    assert.equal(h.feature.core.enqueue(11).ok, true);
+    h.intervals[0]();
+    assert.ok(h.sent.some(message => message.type === 'research_start'));
+    h.quantities['9610-0'] = 500;
+    h.feature.decorate();
+    const panel = h.ui.researchRoot.querySelector('.nek-research-queue');
+    assert.match(panel.textContent, /开研确认中/);
+    assert.equal(panel.querySelectorAll('.nek-research-entry .nek-research-insufficient').length, 0);
+    h.msg.handlers.research_started({ content: { task: { projectId: 11 }, levels: {} } });
+    h.feature.decorate();
+    assert.equal(panel.querySelectorAll('.nek-research-entry').length, 1);
+    assert.equal(panel.querySelectorAll('.nek-research-entry .nek-research-insufficient').length, 0);
 });
 test('已有研究时原生不带开始区也可加入队列，锁定与满级项目不增加按钮', () => {
     const h = setup(), facility = h.data.research.facilities[0];

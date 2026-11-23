@@ -2,7 +2,7 @@
 class Element {
     constructor(tag, owner) {
         this.tagName = tag.toUpperCase(); this.ownerDocument = owner; this.parentNode = null;
-        this.childNodes = []; this.dataset = {}; this.listeners = {}; this._text = ''; this._class = '';
+        this.childNodes = []; this.dataset = {}; this.listeners = {}; this.attributes = {}; this._text = ''; this._class = '';
         this._hidden = false; this._title = ''; this.id = '';
         const classes = () => new Set(this._class.split(/\s+/).filter(Boolean));
         this.classList = {
@@ -38,6 +38,8 @@ class Element {
     replaceChildren(...children) { this.textContent = ''; this.append(...children); }
     remove() { if (this.parentNode) { const parent = this.parentNode; parent.childNodes = parent.childNodes.filter(c => c !== this); this.parentNode = null; parent.mutate(); } }
     addEventListener(type, fn) { (this.listeners[type] ||= []).push(fn); }
+    removeEventListener(type, fn) { this.listeners[type] = (this.listeners[type] || []).filter(listener => listener !== fn); }
+    setAttribute(name, value) { this.attributes[name] = String(value); }
     fire(type) { this.listeners[type]?.forEach(fn => fn({ stopPropagation() {} })); }
     matches(selector) {
         const parts = selector.trim().split(/\s+/), last = parts.pop();

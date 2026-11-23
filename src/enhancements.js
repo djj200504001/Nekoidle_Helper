@@ -369,7 +369,28 @@ function createNekController(env) {
     }
     function view() {
         const c = context(), state = read();
-        return { account, settings: state.settings, queue: plan(state, c), researchStatus, questStatus };
+        const queue = plan(state, c);
+        // 开研确认前，背包可能已扣款，也可能还没扣款。等同步后再比较，避免预留重复扣算。
+        const canCheckMaterials = c?.connected && c.researchReady && !questNeedsSync && !researchNeedsRefresh
+            && !queue.entries.some(e => e.entry.submitted);
+        const remaining = {};
+        for (const row of queue.entries) {
+            row.issue = row.entry.submitted ? '' : row.error;
+            if (!canCheckMaterials || row.issue) continue;
+            const missing = [];
+            for (const [id, quantity] of Object.entries(row.materials)) {
+                remaining[id] ??= Number(env.quantity(Number(id)));
+                const available = remaining[id];
+                if (!Number.isFinite(available)) {
+                    missing.push(env.itemName(Number(id)) + '库存未知');
+                    continue;
+                }
+                if (available < quantity) missing.push(env.itemName(Number(id)) + ' 缺 ' + (quantity - available));
+                remaining[id] = Math.max(0, available - quantity);
+            }
+            if (missing.length) row.issue = '材料不足：' + missing.join('、');
+        }
+        return { account, settings: state.settings, queue, canCheckMaterials, researchStatus, questStatus };
     }
     return { tick, enqueue, remove, setting, view, message, observeSend, isAutomaticReward, workAvailable, claimable, release };
 }
@@ -439,6 +460,7 @@ function createNekEnhancements(env) {
     const queueMetadata = new WeakMap();
     let installed = false, timer = null, silentReward = false;
     let cancelRequest = null;
+    let researchPanel = null, researchPanelAccount = '', manualResearchCollapse = null;
     const core = createNekController({
         instance: 'nek-' + Math.random().toString(36).slice(2), storage,
         enabled: env.enabled,
@@ -598,12 +620,11 @@ function createNekEnhancements(env) {
             '.nek-research-queue.nek-float{position:sticky;top:0;z-index:20;margin-top:8px;background-color:var(--c-bg,#092653);background-image:linear-gradient(rgba(0,0,0,.18),rgba(0,0,0,.18))}',
             '.nek-research-queue.nek-float.nek-collapsed{box-shadow:0 2px 6px rgba(0,0,0,.35)}',
             '.nek-research-queue.nek-collapsed > .nek-research-body{display:none}',
-            '.nek-research-queue .nek-research-head{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;-webkit-user-select:none}',
-            '.nek-research-queue .nek-research-head .section-title{flex:0 0 auto;margin:0;cursor:pointer}',
+            '.nek-research-queue .nek-research-head{display:flex;align-items:center;gap:8px}',
+            '.nek-research-queue .nek-research-head .section-title{flex:0 0 auto;margin:0}',
             '.nek-research-queue .nek-research-head-hint{flex:1;min-width:0;font-size:12px;line-height:20px;color:var(--c-text-dim,#83c3c3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}',
             '.nek-research-queue .nek-research-head-hint.nek-research-insufficient{color:#FF4B88}',
-            '.nek-research-queue .nek-research-head-arrow{flex:0 0 auto;font-size:12px;color:var(--color-mian,#74F9BC);transition:transform .2s ease}',
-            '.nek-research-queue.nek-collapsed .nek-research-head-arrow{transform:rotate(-90deg)}',
+            '.nek-research-queue .nek-research-collapse{white-space:nowrap}',
             '.nek-research-queue .setting-item{grid-template-columns:auto 1fr auto}',
             '.nek-research-entries,.nek-research-total{max-height:min(24vh,14rem);overflow:auto}',
             '.nek-research-entry{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0}',
@@ -612,132 +633,140 @@ function createNekEnhancements(env) {
             '.research-project-action.nek-research-actions{flex-wrap:wrap;gap:6px}',
             '.nek-output-holding,.nek-output-queue{white-space:nowrap}',
             '.nek-output-name{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:flex-start;row-gap:2px}',
-            // 缺少材料提醒：红色加粗（含状态行与材料明细行）
+            // 受阻条目、摘要和材料不足提示使用同一色值。
             '.nek-research-insufficient{color:#FF4B88;font-weight:700}'
         ].join('\n');
         doc.head.appendChild(el);
     }
-    function decorateResearch(v) {
-        const ui = env.ui();
-        doc.querySelectorAll('.nek-research-add').forEach(b => { const hidden = !env.enabled(); if (b.hidden !== hidden) b.hidden = hidden; });
-        if (!env.enabled() || !v.account) { doc.querySelectorAll('.nek-research-queue').forEach(p => p.remove()); return; }
-        // 窄屏/触屏（与游戏断点一致）才启用「嵌入列表+吸顶折叠」；PC 端空间足够，保留 v1.40.0 固定面板样式
-        const narrow = (function () { try { return env.window.matchMedia('(hover: none), (max-width: 768px)').matches; } catch (e) { return false; } })();
-        const host = narrow && ui?.researchRoot?.isConnected ? ui.researchRoot
-            : (ui?.researchTaskHost?.isConnected ? ui.researchTaskHost : null);
-        if (!host) return;
-        let panel = host.querySelector('.nek-research-queue');
-        // 跨断点切换（旋转屏幕/拉伸窗口）时结构与宿主都会变：清掉所有不匹配当前模式的面板
-        doc.querySelectorAll('.nek-research-queue').forEach(p => { if (p !== panel || (panel && panel._nekNarrow !== narrow)) p.remove(); });
-        if (panel && !panel.isConnected) panel = null;
-        if (!panel && narrow) {
-            panel = doc.createElement('div'); panel.className = 'neon-section nek-research-queue nek-float';
-            panel._nekNarrow = true;
-            const head = doc.createElement('div'); head.className = 'nek-research-head';
-            const title = doc.createElement('div'); title.className = 'section-title'; title.textContent = '研究队列';
-            const hint = doc.createElement('div'); hint.className = 'nek-research-head-hint';
-            const arrow = doc.createElement('div'); arrow.className = 'nek-research-head-arrow'; arrow.textContent = '▾';
-            head.append(title, hint, arrow);
-            panel.appendChild(head);
-            const body = doc.createElement('div'); body.className = 'nek-research-body';
-            const options = doc.createElement('div'); options.className = 'setting-list';
-            toggle('队列自动开研', 'researchQueue', options); toggle('自动领取已完成研究', 'researchFinish', options); body.appendChild(options);
-            const help = doc.createElement('div'); help.textContent = '加入队列仅预留材料；轮到开研时才扣除。移出队列不会取消正在进行的研究。'; body.appendChild(help);
-            const status = doc.createElement('div'); status.className = 'nek-research-status'; body.appendChild(status);
-            const entries = doc.createElement('div'); entries.className = 'nek-research-entries'; body.appendChild(entries);
-            const total = doc.createElement('div'); total.className = 'nek-research-total'; body.appendChild(total);
-            panel.appendChild(body);
-            // 折叠状态应用（点击标题与自动折叠共用）；IO 回调不产生 childList 变更，标题摘要须在此处直接刷新
-            panel._nekApply = function () {
-                const collapsed = panel._nekManual !== undefined && panel._nekManual !== null
-                    ? panel._nekManual : !!panel._nekAutoOver;
-                if (panel.classList.contains('nek-collapsed') !== collapsed) {
-                    if (collapsed) {
-                        // 吸顶面板折叠后自身变矮，下方内容整体上移：scrollTop 补偿 +grow 让视口内内容保持不动。
-                        // 注意方向必须为 +（原 - 会令面板脱离吸顶立即回展开，形成折叠↔展开抖动循环）
-                        const grow = body.offsetHeight;
-                        panel.classList.add('nek-collapsed');
-                        try { if (grow > 0 && host.scrollTop > 0) host.scrollTop = host.scrollTop + grow; } catch (e) { /* 忽略 */ }
-                    } else {
-                        panel.classList.remove('nek-collapsed');
-                    }
-                }
-                arrow.textContent = collapsed ? '▸' : '▾';
-                try {
-                    const v2 = core.view();
-                    text(hint, collapsed ? v2.researchStatus : '');
-                    hint.classList.toggle('nek-research-insufficient', collapsed && String(v2.researchStatus).includes('材料不足'));
-                } catch (e) { /* 忽略 */ }
-            };
-            head.addEventListener('click', e => { e.stopPropagation(); panel._nekManual = !panel.classList.contains('nek-collapsed'); panel._nekApply(); });
+    function createResearchPanel(host, floating) {
+        const panel = doc.createElement('div');
+        panel.className = 'neon-section nek-research-queue' + (floating ? ' nek-float' : '');
+        const head = doc.createElement('div'); head.className = 'nek-research-head';
+        const title = doc.createElement('div'); title.className = 'section-title'; title.textContent = '研究队列';
+        const hint = doc.createElement('div'); hint.className = 'nek-research-head-hint';
+        const body = doc.createElement('div'); body.className = 'nek-research-body'; body.id = 'nek-research-queue-body';
+        const options = doc.createElement('div'); options.className = 'setting-list';
+        toggle('队列自动开研', 'researchQueue', options);
+        toggle('自动领取已完成研究', 'researchFinish', options);
+        const help = doc.createElement('div'); help.textContent = '加入队列仅预留材料；轮到开研时才扣除。移出队列不会取消正在进行的研究。';
+        const status = doc.createElement('div'); status.className = 'nek-research-status';
+        const entries = doc.createElement('div'); entries.className = 'nek-research-entries';
+        const total = doc.createElement('div'); total.className = 'nek-research-total';
+        body.append(options, help, status, entries, total);
+
+        let atStickyTop = false, signature;
+        function applyCollapse() {
+            const collapsed = manualResearchCollapse ?? atStickyTop;
+            if (body.hidden !== collapsed) {
+                const height = collapsed && floating && atStickyTop ? body.offsetHeight : 0;
+                body.hidden = collapsed;
+                panel.classList.toggle('nek-collapsed', collapsed);
+                if (height > 0 && host.scrollTop > 0) host.scrollTop += height;
+            }
+            text(control, collapsed ? '展开队列' : '收起队列');
+            const expanded = String(!collapsed);
+            if (control.ariaExpanded !== expanded) control.ariaExpanded = expanded;
+        }
+        const control = button('', 'research-task-finish nek-research-collapse', () => {
+            manualResearchCollapse = !body.hidden;
+            applyCollapse();
+        });
+        control.setAttribute('aria-controls', body.id);
+        head.append(title, hint, control);
+        panel.append(head, body);
+        applyCollapse();
+
+        function syncScroll() {
+            if (!panel.isConnected) return;
+            const cs = getComputedStyle(host);
+            const top = host.getBoundingClientRect().top + (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.paddingTop) || 0);
+            atStickyTop = panel.getBoundingClientRect().top <= top + 1;
+            applyCollapse();
+        }
+        if (floating) {
             host.insertBefore(panel, host.firstElementChild);
-            // 滚动检测：面板顶部贴住容器可视区顶即折叠吸顶，离开即展开。
-            // 不用 IntersectionObserver——沙盒环境中 IO 回调不触发（实测），scroll + 几何判定跨环境可靠。
-            // 阈值须计入容器 padding/border：sticky top:0 贴的是 content 区顶，而非 border-box 顶
-            panel._nekSync = function () {
-                if (!panel.isConnected || !host.isConnected) return;
-                let over = false;
-                try {
-                    const cs = getComputedStyle(host);
-                    const top = host.getBoundingClientRect().top + (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.paddingTop) || 0);
-                    over = panel.getBoundingClientRect().top <= top + 1;
-                } catch (e) { return; }
-                if (over !== !!panel._nekAutoOver) { panel._nekAutoOver = over; panel._nekManual = null; panel._nekApply(); }
-            };
-            host.addEventListener('scroll', panel._nekSync, { passive: true });
-            panel._nekSync();   // 刷新时可能已在列表中部：立即同步折叠状态
-        } else if (!panel) {
-            panel = doc.createElement('div'); panel.className = 'neon-section nek-research-queue';
-            panel._nekNarrow = false;
-            const heading = doc.createElement('div'); heading.className = 'section-title'; heading.textContent = '研究队列'; panel.appendChild(heading);
-            const options = doc.createElement('div'); options.className = 'setting-list';
-            toggle('队列自动开研', 'researchQueue', options); toggle('自动领取已完成研究', 'researchFinish', options); panel.appendChild(options);
-            const help = doc.createElement('div'); help.textContent = '加入队列仅预留材料；轮到开研时才扣除。移出队列不会取消正在进行的研究。'; panel.appendChild(help);
-            const status = doc.createElement('div'); status.className = 'nek-research-status'; panel.appendChild(status);
-            const entries = doc.createElement('div'); entries.className = 'nek-research-entries'; panel.appendChild(entries);
-            const total = doc.createElement('div'); total.className = 'nek-research-total'; panel.appendChild(total);
+            // 沙盒中的 IntersectionObserver 回调不可靠，沿用宿主滚动事件。
+            host.addEventListener('scroll', syncScroll, { passive: true });
+            syncScroll();
+        } else {
             host.appendChild(panel);
         }
-        const statusEl = panel.querySelector('.nek-research-status');
-        text(statusEl, v.researchStatus);
-        const headHint = panel.querySelector('.nek-research-head-hint');
-        if (headHint) {
-            const collapsed = panel.classList.contains('nek-collapsed');
-            text(headHint, collapsed ? v.researchStatus : '');
-            headHint.classList.toggle('nek-research-insufficient', collapsed && String(v.researchStatus).includes('材料不足'));
+
+        return {
+            panel, host, floating,
+            remove() {
+                if (floating) host.removeEventListener('scroll', syncScroll);
+                panel.remove();
+            },
+            update(v) {
+                const rows = v.queue.entries;
+                const blocked = rows.filter(row => row.issue).length;
+                text(hint, rows.length + ' 项' + (blocked ? ' · ' + blocked + ' 项受阻' : ''));
+                hint.classList.toggle('nek-research-insufficient', blocked > 0);
+                text(status, v.researchStatus);
+
+                const nextSignature = JSON.stringify(rows.map(row => [
+                    row.entry.key, row.entry.projectId, row.level, row.targetLevel, row.materials, row.issue, !!row.entry.submitted
+                ]));
+                const queueLocked = rows.some(row => row.entry.submitted);
+                const game = env.game();
+                const itemName = id => game.getItem(Number(id))?.name || '#' + id;
+                if (signature !== nextSignature) {
+                    signature = nextSignature;
+                    entries.replaceChildren();
+                    rows.forEach((e, i) => {
+                        const row = doc.createElement('div'); row.className = 'nek-research-entry';
+                        const label = doc.createElement('span');
+                        const name = e.found ? e.found.facility.name + ' · ' + e.found.project.name : '#' + e.entry.projectId;
+                        const cost = Object.entries(e.materials).map(([id, qty]) => itemName(id) + '×' + qty).join('、');
+                        const detail = e.error && e.issue ? e.issue : '预留：' + (cost || '无') + (e.issue ? '\n' + e.issue : '');
+                        label.textContent = (i + 1) + '. ' + name + ' Lv.' + e.level + ' → Lv.' + e.targetLevel +
+                            (e.entry.submitted ? '（开研确认中）' : '') + '\n' + detail;
+                        label.classList.toggle('nek-research-insufficient', !!e.issue);
+                        const remove = button('移出', 'research-task-finish', () => { core.remove(e.entry.key); decorate(); });
+                        remove.disabled = queueLocked;
+                        if (queueLocked) remove.classList.add('disabled');
+                        row.append(label, remove); entries.appendChild(row);
+                    });
+                    if (!rows.length) entries.textContent = '队列为空，请在研究项目旁点击「加入研究队列」。';
+                }
+
+                let insufficient = false;
+                const totals = Object.entries(v.queue.totals).map(([id, reserved]) => {
+                    const prefix = itemName(id) + '：预留 ' + reserved;
+                    if (!v.canCheckMaterials) return prefix;
+                    const have = Number(game.getItemQuantity(Number(id)));
+                    if (!Number.isFinite(have)) return prefix + ' / 背包数量未知';
+                    if (have < reserved) insufficient = true;
+                    return prefix + ' / 背包 ' + have +
+                        (have < reserved ? '（缺 ' + (reserved - have) + '）' : ' / 可用 ' + (have - reserved));
+                }).join('\n');
+                text(total, totals);
+                total.classList.toggle('nek-research-insufficient', insufficient);
+                status.classList.toggle('nek-research-insufficient', insufficient || (blocked > 0 && !!rows[0]?.issue));
+            }
+        };
+    }
+    function decorateResearch(v) {
+        const ui = env.ui(), enabled = env.enabled();
+        doc.querySelectorAll('.nek-research-add').forEach(b => { if (b.hidden === enabled) b.hidden = !enabled; });
+        if (researchPanelAccount !== v.account) {
+            researchPanelAccount = v.account;
+            manualResearchCollapse = null;
+            researchPanel?.remove();
+            researchPanel = null;
         }
-        const signature = JSON.stringify(v.queue.entries.map(e => [e.entry.key, e.entry.projectId, e.targetLevel, e.materials, e.error, !!e.entry.submitted]));
-        if (panel._nekQueueSignature !== signature) {
-            panel._nekQueueSignature = signature;
-            const entries = panel.querySelector('.nek-research-entries'); entries.replaceChildren();
-            const queueLocked = v.queue.entries.some(row => row.entry.submitted);
-            v.queue.entries.forEach((e, i) => {
-                const row = doc.createElement('div'); row.className = 'nek-research-entry';
-                const label = doc.createElement('span');
-                const name = e.found ? e.found.facility.name + ' · ' + e.found.project.name : '#' + e.entry.projectId;
-                const cost = Object.keys(e.materials).map(id => (env.game().getItem(Number(id))?.name || '#' + id) + '×' + e.materials[id]).join('、');
-                // 显示起止等级：消耗对应「从当前计划等级升到目标等级」的那次研究，便于核对
-                label.textContent = (i + 1) + '. ' + name + ' Lv.' + e.level + ' → Lv.' + e.targetLevel +
-                    (e.entry.submitted ? '（开研确认中）' : '') + '\n' + (e.error || '预留：' + (cost || '无'));
-                const remove = button('移出', 'research-task-finish', () => { core.remove(e.entry.key); decorate(); });
-                remove.disabled = queueLocked;
-                if (remove.disabled) remove.classList.add('disabled');
-                row.append(label, remove); entries.appendChild(row);
-            });
-            if (!v.queue.entries.length) entries.textContent = '队列为空，请在研究项目旁点击「加入研究队列」。';
+        const narrow = env.window.matchMedia?.('(hover: none), (max-width: 768px)').matches;
+        const floating = !!(narrow && ui?.researchRoot?.isConnected);
+        const candidate = floating ? ui.researchRoot : ui?.researchTaskHost;
+        const host = enabled && v.account && candidate?.isConnected ? candidate : null;
+        if (researchPanel && (researchPanel.host !== host || researchPanel.floating !== floating || !researchPanel.panel.isConnected)) {
+            researchPanel.remove();
+            researchPanel = null;
         }
-        let insufficient = false;
-        const totals = Object.keys(v.queue.totals).map(id => {
-            const have = env.game().getItemQuantity(Number(id)), reserved = v.queue.totals[id];
-            if (have < reserved) insufficient = true;
-            return (env.game().getItem(Number(id))?.name || '#' + id) + '：预留 ' + reserved + ' / 背包 ' + have + (have < reserved ? '（缺 ' + (reserved - have) + '）' : ' / 可用 ' + (have - reserved));
-        }).join('\n');
-        const totalEl = panel.querySelector('.nek-research-total'); text(totalEl, totals);
-        totalEl.classList.toggle('nek-research-insufficient', insufficient);
-        // 缺少材料提醒统一红色：状态行（如「队首材料不足，等待补充」）与折叠标题摘要
-        const lack = insufficient || String(v.researchStatus).includes('材料不足');
-        statusEl.classList.toggle('nek-research-insufficient', lack);
-        if (headHint) headHint.classList.toggle('nek-research-insufficient', lack && panel.classList.contains('nek-collapsed'));
+        if (!host) return;
+        researchPanel ??= createResearchPanel(host, floating);
+        researchPanel.update(v);
     }
     function decorateSettings(v) {
         const section = doc.querySelector('.nek-assist-section .setting-list');
@@ -814,7 +843,7 @@ function createNekEnhancements(env) {
     }
     function decorate() {
         const v = core.view();
-        if (!v.account) return;
+        if (!v.account) { if (researchPanel) decorateResearch(v); return; }
         style(); decorateResearch(v); decorateSettings(v); decorateHoldings(v);
         doc.querySelectorAll('[data-nek-option]').forEach(input => {
             const checked = v.settings[input.dataset.nekOption]; if (input.checked !== checked) input.checked = checked;
