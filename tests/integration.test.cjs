@@ -64,10 +64,10 @@ function setup() {
     const setting = node('nek-assist-section'); node('setting-list', setting);
     const store = new Map(), listeners = {};
     const storage = { getItem: k => store.get(k) || null, setItem: (k, v) => store.set(k, v), removeItem: k => store.delete(k) };
-    let enabled = true;
+    let enabled = true, narrow = true;   // 默认手机端（吸顶折叠模式），setNarrow 可切换 PC 模式
     const sandbox = { module: { exports: {} }, console, setInterval: fn => { intervals.push(fn); return 1; } };
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/enhancements.js'), 'utf8'), sandbox);
-    const feature = sandbox.module.exports.createNekEnhancements({ document, window: { addEventListener: (type, fn) => { listeners[type] = fn; } },
+    const feature = sandbox.module.exports.createNekEnhancements({ document, window: { addEventListener: (type, fn) => { listeners[type] = fn; }, matchMedia: q => ({ matches: narrow, media: q }) },
         storage, game: () => game, ui: () => ui, msg: () => msg, data: () => data,
         enabled: () => enabled, identifyAction: el => ({ action: el.actionType }), cookingChestDivisor: 21600 });
     feature.init(); feature.core.setting('questAccept', false); feature.core.setting('questReward', false);
@@ -86,7 +86,7 @@ function setup() {
         if (!options.fallback) iconHolder.appendChild(icon);
         return { root, row, name, icon, section };
     }
-    return { feature, ui, msg, game, data, quantities, sent, notifications, popups, calls, document, node, output, intervals, listeners, enable: v => { enabled = v; } };
+    return { feature, ui, msg, game, data, quantities, sent, notifications, popups, calls, document, node, output, intervals, listeners, enable: v => { enabled = v; }, setNarrow: v => { narrow = v; } };
 }
 
 test('研究开始按钮旁加入队列按钮，点击展示记录与材料预留，保持背包不变', () => {
@@ -110,12 +110,15 @@ test('研究开始按钮旁加入队列按钮，点击展示记录与材料预�
 test('研究队列面板嵌入列表滚动流并支持点击标题折叠吸顶', () => {
     const h = setup(), facility = h.data.research.facilities[0];
     h.ui.createResearchProjectRow(facility, { id: 11, level: 0, maxLevel: 30, locked: false });
-    // 面板与哨兵插入在 researchRoot（项目列表滚动容器）开头，而非固定 taskHost
-    assert.equal(h.ui.researchRoot.firstElementChild.className, 'nek-research-sentinel');
+    // 手机端：面板插入在 researchRoot（项目列表滚动容器）开头，而非固定 taskHost
     const panel = h.ui.researchRoot.querySelector('.nek-research-queue');
-    assert.ok(panel && h.ui.researchRoot.childNodes[1] === panel);
+    assert.ok(panel && h.ui.researchRoot.firstElementChild === panel);
+    assert.ok(panel.classList.contains('nek-float'));
     assert.ok(panel.querySelector('.nek-research-head .section-title').textContent === '研究队列');
-    // mock 环境无 IntersectionObserver：点击标题手动折叠/展开（自动折叠在浏览器内生效）
+    // 点击标题手动折叠/展开（先复位到未贴顶基准态：创建时初始 _nekSync 在 mock 默认 rect 下会先折叠）
+    panel._rectTop = 189; h.ui.researchRoot._rectTop = 183;
+    panel._nekSync();
+    assert.ok(!panel.classList.contains('nek-collapsed'), '未贴顶时应展开');
     const head = panel.querySelector('.nek-research-head');
     head.fire('click');
     assert.ok(panel.classList.contains('nek-collapsed'));
@@ -125,6 +128,29 @@ test('研究队列面板嵌入列表滚动流并支持点击标题折叠吸顶',
     assert.ok(!panel.classList.contains('nek-collapsed'));
     assert.match(panel.querySelector('.nek-research-head-arrow').textContent, /▾/);
     assert.equal(panel.querySelector('.nek-research-head-hint').textContent, '');
+    // 滚动自动折叠：面板顶部越过滚动容器顶（模拟 rect）→ 折叠；回到原位 → 展开
+    h.ui.researchRoot._rectTop = 183; panel._rectTop = -10;
+    panel._nekSync();
+    assert.ok(panel.classList.contains('nek-collapsed'), '滚过容器顶自动折叠');
+    panel._rectTop = 189;
+    panel._nekSync();
+    assert.ok(!panel.classList.contains('nek-collapsed'), '滚回原位自动展开');
+});
+test('PC 宽屏保留 v1.40 固定面板样式（无吸顶折叠结构）', () => {
+    const h = setup(); h.setNarrow(false);
+    const facility = h.data.research.facilities[0];
+    h.ui.createResearchProjectRow(facility, { id: 11, level: 0, maxLevel: 30, locked: false });
+    h.feature.decorate();   // 触发装饰创建面板
+    const panel = h.ui.researchTaskHost.querySelector('.nek-research-queue');
+    assert.ok(panel, '面板挂在固定 taskHost');
+    assert.ok(!panel.classList.contains('nek-float'), '无吸顶样式');
+    assert.equal(panel.querySelector('.nek-research-head'), null, '无折叠头');
+    assert.equal(h.ui.researchRoot.querySelector('.nek-research-queue'), null, '列表滚动流内无面板');
+    // 跨断点切换：恢复窄屏后旧面板清理并重建为吸顶结构
+    h.setNarrow(true); h.feature.decorate();
+    assert.equal(h.ui.researchTaskHost.querySelector('.nek-research-queue'), null);
+    const moved = h.ui.researchRoot.querySelector('.nek-research-queue');
+    assert.ok(moved && moved.classList.contains('nek-float'));
 });
 test('已有研究时原生不带开始区也可加入队列，锁定与满级项目不增加按钮', () => {
     const h = setup(), facility = h.data.research.facilities[0];

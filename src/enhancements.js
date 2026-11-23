@@ -593,11 +593,11 @@ function createNekEnhancements(env) {
         if (doc.getElementById('nek-enhancements-style')) return;
         const el = doc.createElement('style'); el.id = 'nek-enhancements-style';
         el.textContent = [
-            // 吸顶折叠：面板嵌在研究列表滚动流内，滚过容器顶自动折叠成标题条并 sticky 吸顶
-            '.nek-research-queue{position:sticky;top:0;z-index:20;margin-top:8px}',
-            '.nek-research-queue.nek-collapsed{background:var(--c-bg,#092653);box-shadow:0 2px 6px rgba(0,0,0,.35)}',
+            // 手机端吸顶折叠（nek-float 仅窄屏添加）：面板嵌在研究列表滚动流内，滚过容器顶自动折叠成标题条并 sticky 吸顶。
+            // 背景必须不透明：neon-section 原背景 rgba(0,0,0,.18) 半透明，吸顶时下方滚动内容会透过面板造成文字重叠
+            '.nek-research-queue.nek-float{position:sticky;top:0;z-index:20;margin-top:8px;background-color:var(--c-bg,#092653);background-image:linear-gradient(rgba(0,0,0,.18),rgba(0,0,0,.18))}',
+            '.nek-research-queue.nek-float.nek-collapsed{box-shadow:0 2px 6px rgba(0,0,0,.35)}',
             '.nek-research-queue.nek-collapsed > .nek-research-body{display:none}',
-            '.nek-research-sentinel{height:0}',
             '.nek-research-queue .nek-research-head{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;-webkit-user-select:none}',
             '.nek-research-queue .nek-research-head .section-title{flex:0 0 auto;margin:0;cursor:pointer}',
             '.nek-research-queue .nek-research-head-hint{flex:1;min-width:0;font-size:12px;line-height:20px;color:var(--c-text-dim,#83c3c3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}',
@@ -620,15 +620,19 @@ function createNekEnhancements(env) {
     function decorateResearch(v) {
         const ui = env.ui();
         doc.querySelectorAll('.nek-research-add').forEach(b => { const hidden = !env.enabled(); if (b.hidden !== hidden) b.hidden = hidden; });
-        // 面板嵌入研究项目列表（researchRoot = .bipanel-main 滚动容器）开头，跟随内容滚动；
-        // 原先挂在 researchTaskHost（固定区）不随列表滚动，手机端长期占据大面积空间。
-        const host = ui?.researchRoot?.isConnected ? ui.researchRoot : null;
+        if (!env.enabled() || !v.account) { doc.querySelectorAll('.nek-research-queue').forEach(p => p.remove()); return; }
+        // 窄屏/触屏（与游戏断点一致）才启用「嵌入列表+吸顶折叠」；PC 端空间足够，保留 v1.40.0 固定面板样式
+        const narrow = (function () { try { return env.window.matchMedia('(hover: none), (max-width: 768px)').matches; } catch (e) { return false; } })();
+        const host = narrow && ui?.researchRoot?.isConnected ? ui.researchRoot
+            : (ui?.researchTaskHost?.isConnected ? ui.researchTaskHost : null);
         if (!host) return;
         let panel = host.querySelector('.nek-research-queue');
-        if (!env.enabled() || !v.account) { if (panel) panel.remove(); return; }
-        if (!panel) {
-            const sentinel = doc.createElement('div'); sentinel.className = 'nek-research-sentinel';
-            panel = doc.createElement('div'); panel.className = 'neon-section nek-research-queue';
+        // 跨断点切换（旋转屏幕/拉伸窗口）时结构与宿主都会变：清掉所有不匹配当前模式的面板
+        doc.querySelectorAll('.nek-research-queue').forEach(p => { if (p !== panel || (panel && panel._nekNarrow !== narrow)) p.remove(); });
+        if (panel && !panel.isConnected) panel = null;
+        if (!panel && narrow) {
+            panel = doc.createElement('div'); panel.className = 'neon-section nek-research-queue nek-float';
+            panel._nekNarrow = true;
             const head = doc.createElement('div'); head.className = 'nek-research-head';
             const title = doc.createElement('div'); title.className = 'section-title'; title.textContent = '研究队列';
             const hint = doc.createElement('div'); hint.className = 'nek-research-head-hint';
@@ -643,17 +647,17 @@ function createNekEnhancements(env) {
             const entries = doc.createElement('div'); entries.className = 'nek-research-entries'; body.appendChild(entries);
             const total = doc.createElement('div'); total.className = 'nek-research-total'; body.appendChild(total);
             panel.appendChild(body);
-            // 折叠状态应用（点击标题与自动折叠共用）；折叠瞬间补偿滚动位置，防止内容跳动；
-            // IO 回调不产生 childList 变更（不会触发装饰链），标题摘要须在此处直接刷新
+            // 折叠状态应用（点击标题与自动折叠共用）；IO 回调不产生 childList 变更，标题摘要须在此处直接刷新
             panel._nekApply = function () {
                 const collapsed = panel._nekManual !== undefined && panel._nekManual !== null
                     ? panel._nekManual : !!panel._nekAutoOver;
-                const was = panel.classList.contains('nek-collapsed');
-                if (was !== collapsed) {
+                if (panel.classList.contains('nek-collapsed') !== collapsed) {
                     if (collapsed) {
-                        const shrink = body.offsetHeight;
+                        // 吸顶面板折叠后自身变矮，下方内容整体上移：scrollTop 补偿 +grow 让视口内内容保持不动。
+                        // 注意方向必须为 +（原 - 会令面板脱离吸顶立即回展开，形成折叠↔展开抖动循环）
+                        const grow = body.offsetHeight;
                         panel.classList.add('nek-collapsed');
-                        try { if (shrink > 0 && host.scrollTop > 0) host.scrollTop = Math.max(0, host.scrollTop - shrink); } catch (e) { /* 忽略 */ }
+                        try { if (grow > 0 && host.scrollTop > 0) host.scrollTop = host.scrollTop + grow; } catch (e) { /* 忽略 */ }
                     } else {
                         panel.classList.remove('nek-collapsed');
                     }
@@ -666,24 +670,36 @@ function createNekEnhancements(env) {
                 } catch (e) { /* 忽略 */ }
             };
             head.addEventListener('click', e => { e.stopPropagation(); panel._nekManual = !panel.classList.contains('nek-collapsed'); panel._nekApply(); });
-            host.insertBefore(sentinel, host.firstElementChild);
-            host.insertBefore(panel, sentinel.nextSibling);
-            // 哨兵滚过容器顶 → 自动折叠吸顶；滚回原位 → 自动展开（手动切换优先，越界状态翻转时重置）
-            try {
-                panel._nekObserver = new IntersectionObserver(entryList => {
-                    const item = entryList && entryList[entryList.length - 1];
-                    if (!item) return;
-                    const over = !item.isIntersecting && item.boundingClientRect.top < 0;
-                    if (over !== !!panel._nekAutoOver) { panel._nekAutoOver = over; panel._nekManual = null; panel._nekApply(); }
-                }, { root: host.isConnected ? host : null, threshold: 0 });
-                panel._nekObserver.observe(sentinel);
-            } catch (e) { /* 无 IntersectionObserver（旧环境）：仅支持点击标题手动折叠 */ }
+            host.insertBefore(panel, host.firstElementChild);
+            // 滚动检测：面板顶部贴住容器顶即折叠吸顶，离开即展开。
+            // 不用 IntersectionObserver——沙盒环境中 IO 回调不触发（实测），scroll + 几何判定跨环境可靠
+            panel._nekSync = function () {
+                if (!panel.isConnected || !host.isConnected) return;
+                const over = panel.getBoundingClientRect().top <= host.getBoundingClientRect().top + 1;
+                if (over !== !!panel._nekAutoOver) { panel._nekAutoOver = over; panel._nekManual = null; panel._nekApply(); }
+            };
+            host.addEventListener('scroll', panel._nekSync, { passive: true });
+            panel._nekSync();   // 刷新时可能已在列表中部：立即同步折叠状态
+        } else if (!panel) {
+            panel = doc.createElement('div'); panel.className = 'neon-section nek-research-queue';
+            panel._nekNarrow = false;
+            const heading = doc.createElement('div'); heading.className = 'section-title'; heading.textContent = '研究队列'; panel.appendChild(heading);
+            const options = doc.createElement('div'); options.className = 'setting-list';
+            toggle('队列自动开研', 'researchQueue', options); toggle('自动领取已完成研究', 'researchFinish', options); panel.appendChild(options);
+            const help = doc.createElement('div'); help.textContent = '加入队列仅预留材料；轮到开研时才扣除。移出队列不会取消正在进行的研究。'; panel.appendChild(help);
+            const status = doc.createElement('div'); status.className = 'nek-research-status'; panel.appendChild(status);
+            const entries = doc.createElement('div'); entries.className = 'nek-research-entries'; panel.appendChild(entries);
+            const total = doc.createElement('div'); total.className = 'nek-research-total'; panel.appendChild(total);
+            host.appendChild(panel);
         }
         const statusEl = panel.querySelector('.nek-research-status');
         text(statusEl, v.researchStatus);
         const headHint = panel.querySelector('.nek-research-head-hint');
-        const collapsed = panel.classList.contains('nek-collapsed');
-        text(headHint, collapsed ? v.researchStatus : '');
+        if (headHint) {
+            const collapsed = panel.classList.contains('nek-collapsed');
+            text(headHint, collapsed ? v.researchStatus : '');
+            headHint.classList.toggle('nek-research-insufficient', collapsed && String(v.researchStatus).includes('材料不足'));
+        }
         const signature = JSON.stringify(v.queue.entries.map(e => [e.entry.key, e.entry.projectId, e.targetLevel, e.materials, e.error, !!e.entry.submitted]));
         if (panel._nekQueueSignature !== signature) {
             panel._nekQueueSignature = signature;
@@ -715,7 +731,7 @@ function createNekEnhancements(env) {
         // 缺少材料提醒统一红色：状态行（如「队首材料不足，等待补充」）与折叠标题摘要
         const lack = insufficient || String(v.researchStatus).includes('材料不足');
         statusEl.classList.toggle('nek-research-insufficient', lack);
-        headHint.classList.toggle('nek-research-insufficient', lack && collapsed);
+        if (headHint) headHint.classList.toggle('nek-research-insufficient', lack && panel.classList.contains('nek-collapsed'));
     }
     function decorateSettings(v) {
         const section = doc.querySelector('.nek-assist-section .setting-list');

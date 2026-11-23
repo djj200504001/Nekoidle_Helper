@@ -27,6 +27,8 @@ class Element {
     }
     get isConnected() { let e = this; while (e.parentNode) e = e.parentNode; return e.tagName === '#DOCUMENT'; }
     appendChild(child) { if (child.parentNode) child.remove(); child.parentNode = this; this.childNodes.push(child); this.mutate(); return child; }
+    // 离线几何：仅 top 参与（吸顶折叠判定用），测试可写 el._rectTop 模拟滚动位置
+    getBoundingClientRect() { return { top: this._rectTop || 0 }; }
     insertBefore(node, ref) {
         if (node.parentNode) node.remove();
         if (!ref || ref.parentNode !== this) return this.appendChild(node);
