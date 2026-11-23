@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const file = path.join(root, '银河猫娘放置小助手.user.js');
-const version = '1.39.1';
+const version = '1.40.0';
 const original = fs.readFileSync(file, 'utf8');
 const newline = original.includes('\r\n') ? '\r\n' : '\n';
 let script = original.replace(/\r\n/g, '\n');
@@ -15,6 +15,7 @@ const block = start + '\n' + source.split('\n').map(l => l.trim() ? '        ' +
             ui: () => typeof UI !== 'undefined' ? UI : null,
             msg: () => typeof MSG !== 'undefined' ? MSG : null,
             data: () => typeof Data !== 'undefined' ? Data : null,
+            cookingChestDivisor: typeof CHEST_TIME_DIVISOR_COOKING !== 'undefined' ? CHEST_TIME_DIVISOR_COOKING : 21600,
             enabled: isEnabled, identifyAction, document, window,
             storage: { getItem: k => localStorage.getItem(k), setItem: (k, v) => localStorage.setItem(k, v), removeItem: k => localStorage.removeItem(k) }
         });\n` + end;
@@ -26,8 +27,8 @@ if (!script.includes('function () { nekEnhancements.decorate(); }')) {
 if (!script.includes('        nekEnhancements.init();')) script = script.replace('        initHarvest();   // 启动自动收菜', '        nekEnhancements.init();\n        initHarvest();   // 启动自动收菜');
 script = script.replace(/(\/\/ @version\s+)\S+/, (_, prefix) => prefix + version)
     .replace(/const CURRENT_VERSION = '[^']+';/, "const CURRENT_VERSION = '" + version + "';")
-    .replace(/(\/\/ @description\s+)(?:v1\.39\.\d+：研究队列[^。]*。)?/, (_, prefix) =>
-        prefix + 'v' + version + '：研究队列（记录并预留材料、开研时扣除）与自动结算研究，自动接受任务/领取奖励，梳毛/采集/生产/烹饪产出物显示背包库存。');
+    .replace(/(\/\/ @description\s+)(?:v1\.\d+\.\d+：研究队列[^。]*。)?/, (_, prefix) =>
+        prefix + 'v' + version + '：研究队列（记录并预留材料、开研时扣除）与自动结算研究，自动接受任务/领取奖励，梳毛/采集/生产/烹饪产出物显示背包库存和队列预计产出。');
 new (require('node:vm').Script)(script, { filename: file });
 if (!script.includes(block) || !script.includes('        nekEnhancements.init();') || !script.includes('function () { nekEnhancements.decorate(); }')) {
     throw new Error('Userscript integration anchors changed; build aborted.');
