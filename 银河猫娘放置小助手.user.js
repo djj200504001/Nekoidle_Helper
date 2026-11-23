@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.38.0
-// @description  主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口与炼金界面（原子/神秘/量子炼金执行区）经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色；炼金期望按成功率折算）并快捷填入升级所需执行次数，炼金执行区另有「背包可执行次数」按钮（按当前点金/分解/研究/提纯/还原/转换/量子配方逐项折算材料持有量）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知；跳过地块改用游戏原生「地块锁」（🔒），锁定地块的自动收获与手动单块收获均在客户端拦截（服务端批量收获跳过锁定地块，但单块收获不校验，故加客户端兜底），自动收菜开关按钮以背景进度条显示检测进度（60 秒往返循环：前 30 秒收获绿覆盖黄底、后 30 秒黄底覆盖绿色，rAF 每帧重算丝滑无跳秒，进度锚定实际检测时钟、按钮中途出现也显示真实进度，不另起独立计时）；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）；九、检查更新——每次加载游戏时检测 GitHub 最新版本（发现新版本且距上次提醒超过 60 分钟时，顶部通知引导在 Tampermonkey 中更新）；设置区标题旁显示当前版本号；十、v1116 生活装备适配——自绘生产/采集详情材料需求按巨匠省料率折算（两位小数、加工倍数与执行校验同口径），额外奖励几率乘装备幸运（研究幸运/10+装备幸运/100），行动窗口「背包可执行次数」按钮按省料后需求折算，经验效率经 game.getEfficiency 自动含面罩最终效率乘区；自绘生产/采集详情「额外奖励」补显示 v1116 宝箱掉落（梳毛/采集/生产宝箱，几率含幸运加成、数量不随加工倍数放大，复用原生 getActionChestPreview）；修复检查更新因 window.UI 引用错误（UI 为顶层词法绑定不在 window 上）导致检测从未执行的问题；十一、定时钓鱼——已订阅天气预报的钓场，钓鱼页「天气预报」时段条目可点击预约：预约时读取当前所选鱼饵（未选鱼饵二次确认后以无鱼饵预约），到点每 5 秒检查并自动以 ∞ 次立即开钓（mold start 替换当前行动，开钓快照原队列，服务端 update_queue 后 diff 补回）；预约时队列已满直接拒绝（不删除已有队列），开钓时队列仍满则等待并低频提醒；相邻时段预约自动衔接换钓（可跨钓场，不停钓），链条最后一个时段结束自动停钓并恢复原队列；自动开钓后用户手动取消/更换钓鱼不作处理（本时段预约自然失效，未来时段保留），时段结束时队头不是预约钓场的钓鱼同样不作处理；状态条逐条显示预约倒计时与独立取消入口；支持旧版单预约自动迁移；设置-「其他」标签页「定时钓鱼」开关，受总开关联动控制；十二、v1.36.0 修复——①满级用户生产/采集/烹饪详情两个按钮（升下一级次数/背包可执行次数）与经验效率模块整体消失：满级分支不再提前 return，「背包可执行次数」与「经验效率」照常显示（目标等级计算行满级时隐藏），可执行按钮在无升级按钮时改以 ∞ 档为锚点；②生产详情选多倍率后持有数值恒红：持有数文字带千分位逗号，parseInt 在逗号处截断（12,000→12）导致恒判不足，修复为先去逗号再解析；十三、v1.37.0 定时钓鱼状态按钮——当前行动「取消」左侧新增钓鱼状态按钮（与「自动收菜」开关并列）：未预约显示「未预约钓鱼」（金色底灰字，底色 v1.37.7 改用自动收菜同款金色 var(--c-warning)），已预约显示「天气·钓场名·鱼饵」，背景以开钓时刻前 4 小时为起点由米色向湖水青渐变覆盖、开钓时刻覆盖完成（进度锚定时段真实时间戳，按钮中途出现即显示正确进度），钓鱼中改为原色从左往右渐变覆盖回青色上、时段结束刚好完全回色（v1.37.6，连续预约按方案A每段独立回色，段末衔接瞬间跳回满青），无下一次预约自动回到未预约状态；点击按钮可取消显示中的预约（钓鱼中取消会停钓并按快照恢复原队列）；预约状态展示从天气预报状态条迁移至该按钮，预报条目「已预约/钓鱼中」角标与点击预约保留；v1.37.1 修复钓鱼按钮复用收菜类名导致出现两个「自动收菜」；v1.37.2/3 预报区提示栏改常态文本并接入 DOM 装饰链同步出现（含防 MutationObserver 自激循环的零写缓存）；十四、v1.37.4 市场行情修复——部分物品永远显示「获取市场数据中……」：市场无行情数据的物品（新物品/从未上架/特定强化等级），服务端不响应 market_cache 单物品请求（10 秒超时返回 null），且全量快照中无该条目时占位符无终止机制；现全量缓存就绪且未过期仍查不到时判定为确定无行情，显示「暂无市场行情」终止等待，后续全量重拉若数据出现自动恢复；单物品强刷返回快照但缺该强化等级时同样终止等待；十五、v1.37.5 修复生产行动弹窗/详情面板高级装备无按钮——原生经验行经 Utils.formatNumber 渲染（游戏默认开启万进制），单次经验 ≥ 1 万时显示「1.2万」等缩写，而小助手解析「xx经验值 N 点」的正则只认纯数字/千分位，匹配失败导致整段装饰（升下一级次数/背包可执行次数按钮与经验效率模块）被跳过——低级装备经验小于 1 万故正常；现正则支持小数与 万/亿/兆/京/K/M/B/T 单位（新增 mkParseNumUnit 解析），并识别到动作时改用游戏同款 calcExpWithBonus 精确覆盖文本解析值（消除缩写舍入误差，烹饪因口径不同保持文本解析）；十六、v1.38.0 自动收菜补种提醒——自动收获发送时记录开启了原生「自动播种」的地块及其作物（crop_id 即种子物品 id），收获响应落定后地块变回空地而背包已无该种子 → 判定种子不足未能补种，按作物聚合提醒「种子不足，N 块地未补种——作物×N」（同一作物 10 分钟节流；背包仍有种子时不误报；观察表只记录本次收获发送的地块，判定后即清除）。
+// @version      1.39.1
+// @description  v1.39.1：研究队列（记录并预留材料、开研时扣除）与自动结算研究，自动接受任务/领取奖励，梳毛/采集/生产/烹饪产出物显示背包库存。主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口与炼金界面（原子/神秘/量子炼金执行区）经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色；炼金期望按成功率折算）并快捷填入升级所需执行次数，炼金执行区另有「背包可执行次数」按钮（按当前点金/分解/研究/提纯/还原/转换/量子配方逐项折算材料持有量）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知；跳过地块改用游戏原生「地块锁」（🔒），锁定地块的自动收获与手动单块收获均在客户端拦截（服务端批量收获跳过锁定地块，但单块收获不校验，故加客户端兜底），自动收菜开关按钮以背景进度条显示检测进度（60 秒往返循环：前 30 秒收获绿覆盖黄底、后 30 秒黄底覆盖绿色，rAF 每帧重算丝滑无跳秒，进度锚定实际检测时钟、按钮中途出现也显示真实进度，不另起独立计时）；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）；九、检查更新——每次加载游戏时检测 GitHub 最新版本（发现新版本且距上次提醒超过 60 分钟时，顶部通知引导在 Tampermonkey 中更新）；设置区标题旁显示当前版本号；十、v1116 生活装备适配——自绘生产/采集详情材料需求按巨匠省料率折算（两位小数、加工倍数与执行校验同口径），额外奖励几率乘装备幸运（研究幸运/10+装备幸运/100），行动窗口「背包可执行次数」按钮按省料后需求折算，经验效率经 game.getEfficiency 自动含面罩最终效率乘区；自绘生产/采集详情「额外奖励」补显示 v1116 宝箱掉落（梳毛/采集/生产宝箱，几率含幸运加成、数量不随加工倍数放大，复用原生 getActionChestPreview）；修复检查更新因 window.UI 引用错误（UI 为顶层词法绑定不在 window 上）导致检测从未执行的问题；十一、定时钓鱼——已订阅天气预报的钓场，钓鱼页「天气预报」时段条目可点击预约：预约时读取当前所选鱼饵（未选鱼饵二次确认后以无鱼饵预约），到点每 5 秒检查并自动以 ∞ 次立即开钓（mold start 替换当前行动，开钓快照原队列，服务端 update_queue 后 diff 补回）；预约时队列已满直接拒绝（不删除已有队列），开钓时队列仍满则等待并低频提醒；相邻时段预约自动衔接换钓（可跨钓场，不停钓），链条最后一个时段结束自动停钓并恢复原队列；自动开钓后用户手动取消/更换钓鱼不作处理（本时段预约自然失效，未来时段保留），时段结束时队头不是预约钓场的钓鱼同样不作处理；状态条逐条显示预约倒计时与独立取消入口；支持旧版单预约自动迁移；设置-「其他」标签页「定时钓鱼」开关，受总开关联动控制；十二、v1.36.0 修复——①满级用户生产/采集/烹饪详情两个按钮（升下一级次数/背包可执行次数）与经验效率模块整体消失：满级分支不再提前 return，「背包可执行次数」与「经验效率」照常显示（目标等级计算行满级时隐藏），可执行按钮在无升级按钮时改以 ∞ 档为锚点；②生产详情选多倍率后持有数值恒红：持有数文字带千分位逗号，parseInt 在逗号处截断（12,000→12）导致恒判不足，修复为先去逗号再解析；十三、v1.37.0 定时钓鱼状态按钮——当前行动「取消」左侧新增钓鱼状态按钮（与「自动收菜」开关并列）：未预约显示「未预约钓鱼」（金色底灰字，底色 v1.37.7 改用自动收菜同款金色 var(--c-warning)），已预约显示「天气·钓场名·鱼饵」，背景以开钓时刻前 4 小时为起点由米色向湖水青渐变覆盖、开钓时刻覆盖完成（进度锚定时段真实时间戳，按钮中途出现即显示正确进度），钓鱼中改为原色从左往右渐变覆盖回青色上、时段结束刚好完全回色（v1.37.6，连续预约按方案A每段独立回色，段末衔接瞬间跳回满青），无下一次预约自动回到未预约状态；点击按钮可取消显示中的预约（钓鱼中取消会停钓并按快照恢复原队列）；预约状态展示从天气预报状态条迁移至该按钮，预报条目「已预约/钓鱼中」角标与点击预约保留；v1.37.1 修复钓鱼按钮复用收菜类名导致出现两个「自动收菜」；v1.37.2/3 预报区提示栏改常态文本并接入 DOM 装饰链同步出现（含防 MutationObserver 自激循环的零写缓存）；十四、v1.37.4 市场行情修复——部分物品永远显示「获取市场数据中……」：市场无行情数据的物品（新物品/从未上架/特定强化等级），服务端不响应 market_cache 单物品请求（10 秒超时返回 null），且全量快照中无该条目时占位符无终止机制；现全量缓存就绪且未过期仍查不到时判定为确定无行情，显示「暂无市场行情」终止等待，后续全量重拉若数据出现自动恢复；单物品强刷返回快照但缺该强化等级时同样终止等待；十五、v1.37.5 修复生产行动弹窗/详情面板高级装备无按钮——原生经验行经 Utils.formatNumber 渲染（游戏默认开启万进制），单次经验 ≥ 1 万时显示「1.2万」等缩写，而小助手解析「xx经验值 N 点」的正则只认纯数字/千分位，匹配失败导致整段装饰（升下一级次数/背包可执行次数按钮与经验效率模块）被跳过——低级装备经验小于 1 万故正常；现正则支持小数与 万/亿/兆/京/K/M/B/T 单位（新增 mkParseNumUnit 解析），并识别到动作时改用游戏同款 calcExpWithBonus 精确覆盖文本解析值（消除缩写舍入误差，烹饪因口径不同保持文本解析）；十六、v1.38.0 自动收菜补种提醒——自动收获发送时记录开启了原生「自动播种」的地块及其作物（crop_id 即种子物品 id），收获响应落定后地块变回空地而背包已无该种子 → 判定种子不足未能补种，按作物聚合提醒「种子不足，N 块地未补种——作物×N」（同一作物 10 分钟节流；背包仍有种子时不误报；观察表只记录本次收获发送的地块，判定后即清除）。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
 // @match        https://nekoidle.net/*
@@ -2979,6 +2979,616 @@
             UI.showItemMenu = wrapped;
         }
 
+        // NEK_ENHANCEMENTS_START
+        // 纯调度器：只通过 env.send 发消息，便于用真实响应顺序进行离线回归。
+        function createNekController(env) {
+            const defaults = { researchQueue: true, researchFinish: true, questAccept: true, questReward: true, holdings: true };
+            const now = env.now || Date.now;
+            let account = '', pendingResearch = null, pendingQuest = null, connection = null;
+            let synced = false, infoAt = -Infinity, researchAfter = 0, questAfter = 0, issuing = false;
+            let infoQuery = null, ownsLease = false, questNeedsSync = false, snapshotAt = -Infinity;
+            let researchNeedsRefresh = false;
+            let researchStatus = '等待研究数据', questStatus = '等待任务数据';
+            const prefix = 'nek_enhancements_v1:';
+
+            function context() {
+                const c = env.context();
+                const uid = c && c.uid != null ? String(c.uid) : '';
+                if (uid !== account) {
+                    account = uid;
+                    pendingResearch = pendingQuest = null;
+                    connection = null; synced = false; infoAt = -Infinity;
+                    infoQuery = null; ownsLease = false; questNeedsSync = false; snapshotAt = -Infinity;
+                    researchNeedsRefresh = false;
+                    researchAfter = questAfter = 0;
+                    researchStatus = '等待研究数据'; questStatus = '等待任务数据';
+                }
+                if (uid && c.connected && connection !== c.connection) {
+                    if (connection !== null) {
+                        questNeedsSync = researchNeedsRefresh = true;
+                        pendingResearch = pendingQuest = null;
+                        snapshotAt = -Infinity;
+                    }
+                    connection = c.connection;
+                    synced = false; infoAt = -Infinity; infoQuery = null;
+                }
+                return c;
+            }
+            function key() { return prefix + account; }
+            function read() {
+                let saved = {};
+                let readable = true;
+                try { saved = JSON.parse(env.storage.getItem(key()) || '{}') || {}; }
+                catch (e) { readable = false; researchStatus = '本地存储读取失败，辅助已暂停'; }
+                const settings = Object.assign({}, defaults);
+                Object.keys(defaults).forEach(k => { if (typeof saved.settings?.[k] === 'boolean') settings[k] = saved.settings[k]; });
+                const queue = Array.isArray(saved.queue) ? saved.queue.filter(e => e && typeof e.key === 'string' && Number.isInteger(e.projectId) && e.projectId > 0).slice(0, 100) : [];
+                return { settings, queue, readable };
+            }
+            function save(state) {
+                try { env.storage.setItem(key(), JSON.stringify({ settings: state.settings, queue: state.queue })); return true; }
+                catch (e) { researchStatus = '本地存储不可用，队列已暂停'; return false; }
+            }
+            function leader() {
+                try {
+                    const lk = key() + ':lease';
+                    const prev = JSON.parse(env.storage.getItem(lk) || 'null');
+                    if (prev && prev.owner !== env.instance && Number(prev.until) > now()) { ownsLease = false; return false; }
+                    env.storage.setItem(lk, JSON.stringify({ owner: env.instance, until: now() + 12000 }));
+                    const acquired = JSON.parse(env.storage.getItem(lk)).owner === env.instance;
+                    if (acquired && !ownsLease) {
+                        synced = false; infoAt = -Infinity; infoQuery = null;
+                        if (prev && prev.owner !== env.instance) questNeedsSync = researchNeedsRefresh = true;
+                    }
+                    ownsLease = acquired;
+                    return acquired;
+                } catch (e) { return false; }
+            }
+            function release() {
+                try {
+                    const lk = key() + ':lease';
+                    const value = JSON.parse(env.storage.getItem(lk) || 'null');
+                    // 保留所有者记录，让接管标签页先刷新任务快照。
+                    if (value?.owner === env.instance) env.storage.setItem(lk, JSON.stringify({ owner: env.instance, until: 0 }));
+                    ownsLease = false;
+                } catch (e) { /* 租约会自动过期 */ }
+            }
+            function project(id) { return env.project(Number(id)); }
+            function plan(state, c) {
+                const levels = Object.assign({}, c?.levels || {});
+                const active = c?.task;
+                if (active) levels[active.projectId] = (Number(levels[active.projectId]) || 0) + 1;
+                const totals = {};
+                const entries = state.queue.map(entry => {
+                    const found = project(entry.projectId);
+                    const level = Number(levels[entry.projectId]) || 0;
+                    const targetLevel = level + 1;
+                    let cost = null, error = '';
+                    if (!found) error = '研究项目不存在';
+                    else if (found.locked) error = '研究项目暂未开放';
+                    else if (level >= found.maxLevel) error = '研究项目已达上限';
+                    else cost = env.cost(found.facility, level);
+                    if (!error && (!cost || !Number.isFinite(cost.reports) || !Number.isFinite(cost.elementQuantity) || cost.reports < 0 || cost.elementQuantity < 0)) error = '研究消耗数据不可用';
+                    if (!error && ((cost.reports > 0 && !(cost.reportItem > 0)) || (cost.elementQuantity > 0 && !(cost.elementItem > 0)))) error = '研究材料数据不可用';
+                    const materials = {};
+                    if (!error) {
+                        [[cost.reportItem, cost.reports], [cost.elementItem, cost.elementQuantity]].forEach(([id, qty]) => {
+                            if (qty > 0) { materials[id] = (materials[id] || 0) + qty; totals[id] = (totals[id] || 0) + qty; }
+                        });
+                        levels[entry.projectId] = targetLevel;
+                    }
+                    return { entry, found, level, targetLevel, cost, materials, error };
+                });
+                return { entries, totals };
+            }
+            function shortages(materials) {
+                return Object.keys(materials).filter(id => !Number.isFinite(Number(env.quantity(Number(id)))) || Number(env.quantity(Number(id))) < materials[id]);
+            }
+            function materialText(materials) {
+                return Object.keys(materials).map(id => env.itemName(Number(id)) + '×' + materials[id]).join('、') || '无';
+            }
+            function recordPlan(state, p) {
+                let changed = false;
+                p.entries.forEach(e => {
+                    if (e.entry.submitted) return;
+                    const record = { fromLevel: e.level, targetLevel: e.targetLevel, cost: e.cost };
+                    if (JSON.stringify(e.entry.record) !== JSON.stringify(record)) { e.entry.record = record; changed = true; }
+                });
+                if (changed) return save(state);
+                return true;
+            }
+            function enqueue(projectId) {
+                const c = context();
+                if (!account || !c?.connected || !c.researchReady || questNeedsSync || researchNeedsRefresh) {
+                    return { ok: false, message: '请等待背包和研究数据同步' };
+                }
+                const state = read();
+                if (!state.readable) return { ok: false, message: '无法读取本地研究队列' };
+                if (state.queue.some(e => e.submitted)) return { ok: false, message: '研究开研请求正在确认，请稍后加入' };
+                if (state.queue.length >= 100) return { ok: false, message: '研究队列最多 100 项' };
+                const entry = { key: env.instance + ':' + now() + ':' + Math.random().toString(36).slice(2), projectId: Number(projectId) };
+                state.queue.push(entry);
+                const p = plan(state, c);
+                const invalid = p.entries.find(e => e.error);
+                if (invalid) return { ok: false, message: invalid.error + '，请先调整队列' };
+                const lack = shortages(p.totals);
+                if (lack.length) {
+                    return { ok: false, message: '加入失败：扣除已有队列预留后材料不足——' + lack.map(id => env.itemName(Number(id)) + ' 缺 ' + (p.totals[id] - env.quantity(Number(id)))).join('、') };
+                }
+                p.entries.forEach(e => { e.entry.record = { fromLevel: e.level, targetLevel: e.targetLevel, cost: e.cost }; });
+                if (!save(state)) return { ok: false, message: '无法保存研究队列' };
+                return { ok: true, message: '已加入研究队列；预留 ' + materialText(p.entries[p.entries.length - 1].materials) + '（开研时才扣除）' };
+            }
+            function remove(entryKey) {
+                const c = context(), state = read();
+                if (!state.readable || state.queue.some(e => e.submitted)) return false;
+                const entry = state.queue.find(e => e.key === entryKey);
+                if (entry?.submitted) return false;
+                state.queue = state.queue.filter(e => e.key !== entryKey);
+                const p = plan(state, c);
+                p.entries.forEach(e => { e.entry.record = { fromLevel: e.level, targetLevel: e.targetLevel, cost: e.cost }; });
+                return save(state);
+            }
+            function setting(name, value) {
+                context();
+                if (!account || !(name in defaults)) return false;
+                const state = read(); state.settings[name] = !!value;
+                if (!state.readable) return false;
+                return save(state);
+            }
+            function send(type, data, lane, detail) {
+                const request = Object.assign({ type, at: now(), automatic: true }, detail);
+                if (lane === 'research') pendingResearch = request;
+                else pendingQuest = request;
+                issuing = true;
+                let sent = false;
+                try { sent = env.send(type, data) === true; } catch (e) { /* 下次重试 */ }
+                finally { issuing = false; }
+                if (!sent) {
+                    if (lane === 'research') { pendingResearch = null; researchAfter = now() + 10000; }
+                    else { pendingQuest = null; questAfter = now() + 10000; }
+                }
+                return sent;
+            }
+            function requestInfo() {
+                if (now() - infoAt < 10000) return;
+                infoAt = now();
+                infoQuery = { pending: pendingResearch };
+                try { env.send('research_info'); } catch (e) { /* 重连后重试 */ }
+            }
+            function requestSnapshot() {
+                if (now() - snapshotAt < 30000) return;
+                snapshotAt = now();
+                try { env.send('init_character_data'); } catch (e) { /* 保持暂停直到快照到达 */ }
+            }
+            function settleSubmitted(state, c, allowRetry) {
+                if (!state.readable) return;
+                const head = state.queue[0];
+                if (!head?.submitted) return;
+                const sent = head.submitted;
+                const actualLevel = Number(c.levels?.[head.projectId]) || 0;
+                if ((c.task && Number(c.task.projectId) === head.projectId && actualLevel + 1 === sent.targetLevel) || actualLevel >= sent.targetLevel) {
+                    state.queue.shift();
+                    // 状态查询无法补发 research_started 的背包扣款，须刷新角色快照。
+                    if (allowRetry) questNeedsSync = researchNeedsRefresh = true;
+                } else if (allowRetry && now() - sent.at >= 15000) {
+                    delete head.submitted;
+                    researchAfter = now() + 60000;
+                    researchStatus = '开研状态已核对，等待重试';
+                }
+                save(state);
+            }
+            function observeSend(type, data, sent) {
+                if (issuing || !sent) return;
+                context();
+                if (type === 'init_character_data') {
+                    // 游戏切回前台或重连时也会主动拉取角色快照。
+                    questNeedsSync = researchNeedsRefresh = true;
+                    snapshotAt = now();
+                } else if (type === 'research_start' || type === 'research_finish') {
+                    pendingResearch = { type, at: now(), automatic: false, projectId: Number(data?.projectId) };
+                } else if (type === 'quest_accept' || type === 'quest_reward') {
+                    pendingQuest = { type, at: now(), automatic: false, questType: data?.type, id: data?.id };
+                }
+            }
+            function isAutomaticReward(content) {
+                context();
+                return !!(pendingQuest?.automatic && pendingQuest.type === 'quest_reward' && String(content?.id) === String(pendingQuest.id) && content?.type === pendingQuest.questType);
+            }
+            function message(type, content) {
+                const c = context();
+                if (!account) return;
+                if (type === 'init_character_data') {
+                    synced = false; infoAt = -Infinity;
+                    researchNeedsRefresh = true;
+                    // 快照可能先于刚提交的请求到达。保留未超时的请求，等待它自己的响应。
+                    if (pendingQuest && now() - pendingQuest.at >= 60000) pendingQuest = null;
+                    questNeedsSync = false;
+                    return;
+                }
+                if (type === 'research_info' && content && Object.prototype.hasOwnProperty.call(content, 'task')) {
+                    // 开研前发出的查询可能延迟到达，不能用它判定本次开研失败。
+                    if (pendingResearch && infoQuery?.pending !== pendingResearch) return;
+                    synced = true;
+                    if (!questNeedsSync) researchNeedsRefresh = false;
+                    settleSubmitted(read(), c, true);
+                    pendingResearch = null;
+                    infoQuery = null;
+                } else if (type === 'research_started') {
+                    settleSubmitted(read(), c, false);
+                    pendingResearch = null; synced = !researchNeedsRefresh;
+                } else if (type === 'research_finished') {
+                    pendingResearch = null; synced = !researchNeedsRefresh;
+                } else if (type === 'research_error') {
+                    // 保留 submitted，等待原生随后拉取的 research_info 确认服务端真实状态。
+                    pendingResearch = { type: 'reconcile', at: now(), automatic: false };
+                    researchAfter = now() + 60000;
+                    researchStatus = '研究请求失败，等待服务端核对后重试';
+                    infoAt = -Infinity;
+                    requestInfo();
+                } else if (type === 'new_quests' && pendingQuest?.type === 'quest_accept') {
+                    const requested = pendingQuest.questType;
+                    if (content?.type === requested || Array.isArray(content?.quests?.[requested])) {
+                        pendingQuest = null; questAfter = now() + 2000;
+                    }
+                } else if (type === 'quest_reward_claimed' && pendingQuest?.type === 'quest_reward' && String(content?.id) === String(pendingQuest.id) && content?.type === pendingQuest.questType) {
+                    pendingQuest = null; questAfter = now() + 2000;
+                } else if (type === 'error' && typeof content === 'string' && /^(quest_|no_available_quest)/.test(content)) {
+                    pendingQuest = null; questAfter = now() + 60000;
+                    questStatus = '任务请求暂不可用，稍后重试';
+                }
+            }
+            function workAvailable(c) {
+                const works = c.quests?.work;
+                const cap = Number(c.character?.quest_max);
+                if (!Array.isArray(works) || !Number.isFinite(cap) || cap <= works.length) return 0;
+                let stored = Number(c.character.quest) || 0;
+                const time = Number(c.character.quest_time) * 1000;
+                if (!time) stored = cap - works.length;
+                else {
+                    // 北京时间固定 0/6/12/18 点，与原生 getNextQuestBoundary 一致。
+                    const six = 21600000, offset = 28800000;
+                    const first = (Math.floor((time + offset) / six) + 1) * six - offset;
+                    if (first <= now()) stored += Math.min(1 + Math.floor((now() - first) / six), Math.max(0, cap - works.length - stored));
+                }
+                return Math.max(0, Math.min(stored, cap - works.length));
+            }
+            function claimable(q, template, c) {
+                if (Number(q.status) === 1 || !template) return false;
+                return (template.objectives || []).some((obj, i) => {
+                    const need = Number(obj.count);
+                    if (!Number.isFinite(need) || need < 0) return false;
+                    const have = obj.type === 'level' ? Number(c.character.level) : Number(q.progress?.[i]) || 0;
+                    return have >= need;
+                });
+            }
+            function tickResearch(state, c) {
+                if (!state.settings.researchQueue && !state.settings.researchFinish) return;
+                if (pendingResearch) {
+                    if (now() - pendingResearch.at >= 15000) {
+                        synced = false; researchStatus = '请求未确认，正在核对服务端研究状态'; requestInfo();
+                    }
+                    return;
+                }
+                if (!synced || !c.researchReady) { researchStatus = '正在读取研究数据'; requestInfo(); return; }
+                if (state.queue[0]?.submitted) { synced = false; requestInfo(); return; }
+                if (now() < researchAfter) return;
+                if (c.task) {
+                    const finish = Number(c.task.finishTime);
+                    if (Number.isFinite(finish) && finish > 0 && finish * 1000 <= c.researchNow) {
+                        researchStatus = state.settings.researchFinish ? '正在领取已完成研究' : '研究已到期，等待领取';
+                        if (state.settings.researchFinish && !c.researchSettling) send('research_finish', undefined, 'research');
+                    } else researchStatus = '等待当前研究完成';
+                    return;
+                }
+                if (!state.settings.researchQueue) { researchStatus = '队列已暂停'; return; }
+                const p = plan(state, c);
+                if (!recordPlan(state, p)) return;
+                const head = p.entries[0];
+                if (!head) { researchStatus = '研究队列为空'; return; }
+                if (head.error) { researchStatus = head.error + '，请移除或调整队首'; return; }
+                const missing = shortages(head.materials);
+                if (missing.length) {
+                    researchStatus = '队首材料不足，等待补充：' + missing.map(id => env.itemName(Number(id)) + ' 缺 ' + (head.materials[id] - env.quantity(Number(id)))).join('、');
+                    return;
+                }
+                head.entry.submitted = { at: now(), targetLevel: head.targetLevel };
+                if (!save(state)) return;
+                researchStatus = '正在开始队首研究';
+                if (!send('research_start', { projectId: head.entry.projectId }, 'research', { key: head.entry.key })) {
+                    delete head.entry.submitted; save(state);
+                }
+            }
+            function tickQuests(state, c) {
+                if (!state.settings.questAccept && !state.settings.questReward) return;
+                if (!Array.isArray(c.quests?.main) || !Array.isArray(c.quests?.work)) return;
+                if (pendingQuest) {
+                    if (now() - pendingQuest.at < 60000) return;
+                    questNeedsSync = true;
+                }
+                if (questNeedsSync) { questStatus = '正在核对任务快照'; requestSnapshot(); return; }
+                if (now() < questAfter) return;
+                if (state.settings.questReward) {
+                    for (const questType of ['main', 'work']) {
+                        const q = c.quests[questType].find(q => claimable(q, questType === 'main' ? env.quest(q.id) : q, c));
+                        if (q) {
+                            questStatus = '正在领取已完成任务奖励';
+                            send('quest_reward', { type: questType, id: q.id }, 'quest', { questType, id: q.id }); return;
+                        }
+                    }
+                }
+                if (state.settings.questAccept) {
+                    const main = c.quests.main;
+                    const available = env.questTemplates().some(t => {
+                        if (!t || !t.id || ![1, 2].includes(Number(t.type)) || main.some(q => String(q.id) === String(t.id))) return false;
+                        return !t.prerequisite_quest || main.some(q => String(q.id) === String(t.prerequisite_quest) && Number(q.status) === 1);
+                    });
+                    if (available) {
+                        questStatus = '正在接受主线或支线任务';
+                        send('quest_accept', { type: 'main' }, 'quest', { questType: 'main' }); return;
+                    }
+                    if (workAvailable(c) > 0) {
+                        questStatus = '正在接受劳务派遣';
+                        send('quest_accept', { type: 'work' }, 'quest', { questType: 'work' }); return;
+                    }
+                }
+                questStatus = '暂无可自动领取的任务或奖励';
+            }
+            function tick() {
+                const c = context();
+                if (!account || !c?.connected || !env.enabled()) { release(); return; }
+                const state = read();
+                if (!state.readable) { release(); return; }
+                if (!state.settings.researchQueue && !state.settings.researchFinish && !state.settings.questAccept && !state.settings.questReward) { release(); return; }
+                if (!leader()) { researchStatus = '自动化由另一个游戏标签页处理'; return; }
+                if (questNeedsSync) { researchStatus = '正在核对角色数据'; questStatus = '正在核对角色与任务快照'; requestSnapshot(); return; }
+                tickResearch(state, c);
+                tickQuests(state, c);
+            }
+            function view() {
+                const c = context(), state = read();
+                return { account, settings: state.settings, queue: plan(state, c), researchStatus, questStatus };
+            }
+            return { tick, enqueue, remove, setting, view, message, observeSend, isAutomaticReward, workAvailable, claimable, release };
+        }
+
+        function createNekEnhancements(env) {
+            const doc = env.document, storage = env.storage;
+            const itemInfo = new WeakMap();
+            let installed = false, timer = null, silentReward = false;
+            const core = createNekController({
+                instance: 'nek-' + Math.random().toString(36).slice(2), storage,
+                enabled: env.enabled,
+                context() {
+                    const g = env.game(), ui = env.ui(), msg = env.msg();
+                    return {
+                        uid: g?.character?.uid, character: g?.character, quests: g?.quests,
+                        connected: msg?.ws?.readyState === 1, connection: msg?.ws,
+                        levels: ui?.researchInfo?.levels || g?.researchLevels || {},
+                        task: ui?.researchInfo?.task || null,
+                        researchReady: !!(ui?.researchInfo && Object.prototype.hasOwnProperty.call(ui.researchInfo, 'task')),
+                        researchNow: Date.now() - (Number(ui?.researchOffset) || 0), researchSettling: ui?.researchSettling
+                    };
+                },
+                send: (type, data) => env.msg().send(type, data),
+                quantity: id => env.game().getItemQuantity(id),
+                itemName: id => env.game()?.getItem(id)?.name || '#' + id,
+                quest: id => env.game()?.getQuest(id),
+                questTemplates: () => Object.values(env.data()?.quests || {}),
+                project(id) {
+                    for (const facility of env.data()?.research?.facilities || []) {
+                        const p = (facility.projects || []).find(p => Number(p.id) === id);
+                        if (p) return { project: p, facility, maxLevel: Number(p.maxLevel) || 30, locked: !(Number(p.basePct) > 0) && Number(p.direction) !== 5 };
+                    }
+                    return null;
+                },
+                cost: (facility, level) => env.ui()?.getResearchCost(facility, level)
+            });
+            function text(el, value) { if (el.textContent !== value) el.textContent = value; }
+            function button(label, fn) {
+                const b = doc.createElement('button'); b.type = 'button'; b.className = 'btn'; b.textContent = label;
+                b.addEventListener('click', e => { e.stopPropagation(); fn(); }); return b;
+            }
+            function toggle(label, name, holder) {
+                const wrap = doc.createElement('label'); wrap.className = 'nek-auto-option';
+                const input = doc.createElement('input'); input.type = 'checkbox'; input.dataset.nekOption = name;
+                input.addEventListener('change', () => { core.setting(name, input.checked); decorate(); });
+                wrap.append(input, doc.createTextNode(label)); holder.appendChild(wrap);
+            }
+            function install() {
+                const ui = env.ui(), msg = env.msg();
+                if (!ui || !msg?.handlers || !env.game()?.character?.uid) return;
+                if (installed) return;
+                installed = true;
+                const send = msg.send;
+                msg.send = function (type, data) {
+                    const result = send.apply(this, arguments);
+                    core.observeSend(type, data, result === true); return result;
+                };
+                ['init_character_data', 'research_info', 'research_started', 'research_finished', 'research_error', 'new_quests', 'quest_reward_claimed', 'quest_progress', 'error'].forEach(type => {
+                    const original = msg.handlers[type];
+                    if (typeof original !== 'function') return;
+                    msg.handlers[type] = function (data) {
+                        // 原生全量快照替换背包数组，但不会使旧的数量缓存失效。
+                        if (type === 'init_character_data' && Array.isArray(data?.content?.inventory)) {
+                            env.game()?.itemQuantityCache?.clear();
+                        }
+                        const autoReward = type === 'quest_reward_claimed' && core.isAutomaticReward(data?.content);
+                        silentReward = autoReward;
+                        let result;
+                        try { result = original.apply(this, arguments); }
+                        finally { silentReward = false; }
+                        core.message(type, data?.content);
+                        if (autoReward) ui.notifier?.show('小助手：已领取任务奖励', 'success', 3000);
+                        return result;
+                    };
+                });
+                if (typeof ui.showQuestRewardModal === 'function') {
+                    const original = ui.showQuestRewardModal;
+                    ui.showQuestRewardModal = function () { if (!silentReward) return original.apply(this, arguments); };
+                }
+                if (typeof ui.createResearchProjectRow === 'function') {
+                    const original = ui.createResearchProjectRow;
+                    ui.createResearchProjectRow = function (facility, project) {
+                        const row = original.apply(this, arguments);
+                        if (row && !project.locked && project.level < project.maxLevel) {
+                            const control = button('加入研究队列', () => {
+                                const r = core.enqueue(project.id);
+                                ui.notifier?.show(r.message, r.ok ? 'success' : 'error', 5000); decorate();
+                            });
+                            control.classList.add('nek-research-add'); control.dataset.projectId = project.id;
+                            let actions = row.querySelector('.research-project-action');
+                            if (!actions) { actions = doc.createElement('div'); actions.className = 'research-project-action'; row.appendChild(actions); }
+                            actions.classList.add('nek-research-actions');
+                            actions.appendChild(control);
+                        }
+                        return row;
+                    };
+                }
+                ['showItem', 'createItemElement'].forEach(name => {
+                    const original = ui[name];
+                    if (typeof original !== 'function') return;
+                    ui[name] = function () {
+                        const result = original.apply(this, arguments);
+                        const element = name === 'showItem' ? arguments[0] : result;
+                        const def = name === 'showItem' ? arguments[1] : arguments[0];
+                        const options = (name === 'showItem' ? arguments[2] : arguments[1]) || {};
+                        if (element && Number(def?.id) > 0) itemInfo.set(element, { id: Number(def.id), enhancement: Number(options.enhancement) || 0 });
+                        return result;
+                    };
+                });
+                // 已打开的研究页也补上按钮，后续重绘由原生行构造器处理。
+                if (ui.researchRoot?.isConnected) ui.renderResearchPage();
+            }
+            function style() {
+                if (doc.getElementById('nek-enhancements-style')) return;
+                const el = doc.createElement('style'); el.id = 'nek-enhancements-style';
+                el.textContent = '.nek-research-queue{padding:10px;margin-top:8px;border:1px solid var(--c-main-bright,#37e2d4);border-radius:6px;font-size:12px}.nek-auto-options{display:flex;gap:12px;flex-wrap:wrap;margin:6px 0}.nek-auto-option{display:inline-flex;align-items:center;gap:5px}.nek-research-entry{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid #ffffff22}.nek-research-entry span{white-space:pre-line}.nek-research-total{white-space:pre-line;line-height:1.7}.research-project .research-project-action.nek-research-actions{display:flex;flex-direction:row;align-items:center;flex-wrap:wrap;gap:6px}.nek-research-add{margin:4px}.nek-research-queue .btn{flex-shrink:0}.nek-output-holding{margin-left:8px;color:var(--c-main-bright,#37e2d4);font-size:12px;white-space:nowrap}.nek-output-name{flex-wrap:wrap;justify-content:flex-start!important;gap:4px}.nek-auto-settings{padding-top:8px}.nek-research-insufficient{color:#ff806e}';
+                doc.head.appendChild(el);
+            }
+            function decorateResearch(v) {
+                const ui = env.ui();
+                doc.querySelectorAll('.nek-research-add').forEach(b => { const hidden = !env.enabled(); if (b.hidden !== hidden) b.hidden = hidden; });
+                const host = ui?.researchTaskHost;
+                if (!host?.isConnected) return;
+                let panel = host.querySelector('.nek-research-queue');
+                if (!env.enabled() || !v.account) { if (panel) panel.remove(); return; }
+                if (!panel) {
+                    panel = doc.createElement('div'); panel.className = 'nek-research-queue';
+                    const heading = doc.createElement('strong'); heading.textContent = '研究队列'; panel.appendChild(heading);
+                    const options = doc.createElement('div'); options.className = 'nek-auto-options';
+                    toggle('队列自动开研', 'researchQueue', options); toggle('自动领取已完成研究', 'researchFinish', options); panel.appendChild(options);
+                    const help = doc.createElement('div'); help.textContent = '加入队列仅预留材料；轮到开研时才扣除。移出队列不会取消正在进行的研究。'; panel.appendChild(help);
+                    const status = doc.createElement('div'); status.className = 'nek-research-status'; panel.appendChild(status);
+                    const entries = doc.createElement('div'); entries.className = 'nek-research-entries'; panel.appendChild(entries);
+                    const total = doc.createElement('div'); total.className = 'nek-research-total'; panel.appendChild(total);
+                    host.appendChild(panel);
+                }
+                text(panel.querySelector('.nek-research-status'), v.researchStatus);
+                const signature = JSON.stringify(v.queue.entries.map(e => [e.entry.key, e.entry.projectId, e.targetLevel, e.materials, e.error, !!e.entry.submitted]));
+                if (panel._nekQueueSignature !== signature) {
+                    panel._nekQueueSignature = signature;
+                    const entries = panel.querySelector('.nek-research-entries'); entries.replaceChildren();
+                    v.queue.entries.forEach((e, i) => {
+                        const row = doc.createElement('div'); row.className = 'nek-research-entry';
+                        const label = doc.createElement('span');
+                        const name = e.found ? e.found.facility.name + ' · ' + e.found.project.name : '#' + e.entry.projectId;
+                        const cost = Object.keys(e.materials).map(id => (env.game().getItem(Number(id))?.name || '#' + id) + '×' + e.materials[id]).join('、');
+                        label.textContent = (i + 1) + '. ' + name + ' → Lv.' + e.targetLevel + (e.entry.submitted ? '（开研确认中）' : '') + '\n' + (e.error || '预留：' + (cost || '无'));
+                        const remove = button('移出', () => { core.remove(e.entry.key); decorate(); }); remove.disabled = !!e.entry.submitted;
+                        row.append(label, remove); entries.appendChild(row);
+                    });
+                    if (!v.queue.entries.length) entries.textContent = '队列为空，请在研究项目旁点击「加入研究队列」。';
+                }
+                let insufficient = false;
+                const totals = Object.keys(v.queue.totals).map(id => {
+                    const have = env.game().getItemQuantity(Number(id)), reserved = v.queue.totals[id];
+                    if (have < reserved) insufficient = true;
+                    return (env.game().getItem(Number(id))?.name || '#' + id) + '：预留 ' + reserved + ' / 背包 ' + have + (have < reserved ? '（缺 ' + (reserved - have) + '）' : ' / 可用 ' + (have - reserved));
+                }).join('\n');
+                const totalEl = panel.querySelector('.nek-research-total'); text(totalEl, totals);
+                totalEl.classList.toggle('nek-research-insufficient', insufficient);
+            }
+            function decorateSettings(v) {
+                const section = doc.querySelector('.nek-assist-section .setting-list');
+                if (!section || !v.account) return;
+                let block = section.querySelector('.nek-auto-settings');
+                if (!block) {
+                    block = doc.createElement('div'); block.className = 'nek-auto-settings';
+                    const options = doc.createElement('div'); options.className = 'nek-auto-options';
+                    toggle('队列自动开研', 'researchQueue', options); toggle('自动领取已完成研究', 'researchFinish', options);
+                    toggle('自动接受任务', 'questAccept', options); toggle('自动领取任务奖励', 'questReward', options);
+                    toggle('产出物显示背包数量', 'holdings', options); block.appendChild(options);
+                    const note = doc.createElement('div'); note.textContent = '任务辅助包含主线、支线和劳务派遣；自动领取奖励使用顶部通知。'; block.appendChild(note);
+                    const status = doc.createElement('div'); status.className = 'nek-quest-status'; block.appendChild(status); section.appendChild(block);
+                }
+                text(block.querySelector('.nek-quest-status'), v.questStatus);
+            }
+            function decorateHoldings(v) {
+                if (!env.enabled() || !v.settings.holdings) {
+                    doc.querySelectorAll('.nek-output-holding').forEach(el => el.remove());
+                    doc.querySelectorAll('.nek-output-name').forEach(el => el.classList.remove('nek-output-name')); return;
+                }
+                const g = env.game(); if (!g?.character?.uid) return;
+                doc.querySelectorAll('.cooking-page .cooking-detail, .nek-prod-detail, .nek-pick-detail, .action-modal-content').forEach(root => {
+                    if (root.matches('.action-modal-content')) {
+                        const action = env.identifyAction(root);
+                        if (!action || ![1, 2, 6, 7].includes(Number(action.action))) return;
+                    }
+                    root.querySelectorAll('.cooking-detail-section, .modal-box-item').forEach(section => {
+                        const title = section.querySelector('.modal-container-title')?.textContent.trim();
+                        if (!['获得', '产出', '额外奖励'].includes(title)) return;
+                        section.querySelectorAll('.action-item-container').forEach(row => {
+                            const icon = row.querySelector('.action-item-container-icon .item');
+                            const info = row.querySelector('.action-item-container-info');
+                            const name = info?.querySelector('.action-item-container-text');
+                            if (!icon || !name) return; // 经验行和材料区不装饰。
+                            let item = itemInfo.get(icon);
+                            if (!item) {
+                                // 注入前已经渲染的面板：用完整物品名唯一匹配，不把贴图编号当物品 ID。
+                                const label = name.firstElementChild?.textContent.trim();
+                                const matches = Object.values(env.data()?.items || {}).filter(d => d.name === label);
+                                const enhancement = Number(icon.querySelector('.item-enhancement')?.textContent.trim() || 0);
+                                if (matches.length === 1 && Number.isInteger(enhancement)) item = { id: Number(matches[0].id), enhancement };
+                            }
+                            if (!item) return;
+                            let tag = name.querySelector('.nek-output-holding');
+                            if (!tag) { tag = doc.createElement('span'); tag.className = 'nek-output-holding'; name.classList.add('nek-output-name'); name.appendChild(tag); }
+                            if (!tag.title) tag.title = '当前背包同物品、同强化等级的数量（不含已装备物品）';
+                            text(tag, '背包：' + Number(g.getItemQuantity(item.id, item.enhancement) || 0).toLocaleString('zh-CN'));
+                        });
+                    });
+                });
+            }
+            function decorate() {
+                const v = core.view();
+                if (!v.account) return;
+                style(); decorateResearch(v); decorateSettings(v); decorateHoldings(v);
+                doc.querySelectorAll('[data-nek-option]').forEach(input => {
+                    const checked = v.settings[input.dataset.nekOption]; if (input.checked !== checked) input.checked = checked;
+                });
+            }
+            function pulse() {
+                try { install(); if (installed) { core.tick(); decorate(); } }
+                catch (e) { console.warn('[小助手] 研究/任务/库存辅助异常:', e); }
+            }
+            function init() {
+                if (timer) return;
+                pulse(); timer = setInterval(pulse, 2000);
+                env.window.addEventListener('pagehide', core.release);
+            }
+            return { init, decorate, core };
+        }
+        const nekEnhancements = createNekEnhancements({
+            game: () => typeof game !== 'undefined' ? game : null,
+            ui: () => typeof UI !== 'undefined' ? UI : null,
+            msg: () => typeof MSG !== 'undefined' ? MSG : null,
+            data: () => typeof Data !== 'undefined' ? Data : null,
+            enabled: isEnabled, identifyAction, document, window,
+            storage: { getItem: k => localStorage.getItem(k), setItem: (k, v) => localStorage.setItem(k, v), removeItem: k => localStorage.removeItem(k) }
+        });
+        // NEK_ENHANCEMENTS_END
+
         // ---------------- 设置页开关（游戏设置 → 其他） ----------------
         function applyEnabledState() {
             if (!isEnabled() || !isCalcEnabled()) {
@@ -4020,7 +4630,7 @@
         // ---------------- 自动检查更新（GitHub raw 头部 @version 对比） ----------------
         // 注意：发布新版本时需同步修改 CURRENT_VERSION（与头部 @version 保持一致）。
         // 页面上下文无 GM_info（@grant none 且经 <script> 注入），只能内置当前版本号。
-        const CURRENT_VERSION = '1.38.0';
+        const CURRENT_VERSION = '1.39.1';
         const LS_UPD_KEY = 'nek_update_check_enabled';        // 检查更新开关，默认开
         const LS_UPD_REMIND = 'nek_update_remind_last';       // 上次提醒时间戳（提醒节流）
         const UPD_REMIND_INTERVAL = 60 * 60 * 1000;           // 提醒节流：距上次提醒超过 60 分钟才再次提醒
@@ -4096,7 +4706,8 @@
                     function () { decorateModal(); },
                     function () { decorateAlchemy(); },            // 炼金界面：经验效率 + 升级次数计算 + 快捷填入
                     function () { ensureSettingItem(); },
-                    function () { decorateMarketMarkers(); }
+                    function () { decorateMarketMarkers(); },
+                    function () { nekEnhancements.decorate(); }
                 ];
                 steps.forEach(function (fn) {
                     try { fn(); } catch (eStep) {
@@ -4668,6 +5279,7 @@
             flog('已加载：预约天气预报时段自动 ∞ 次开钓（读取所选鱼饵，未选需确认；队列满拒绝预约；' +
                 '多时段自动衔接；队列满/手动干预不作破坏性处理）。当前' + (isFishTimerEnabled() ? '开启' : '关闭'));
         }
+        nekEnhancements.init();
         initHarvest();   // 启动自动收菜（等待游戏就绪后挂载主循环与队列位置开关）
         initFishTimer();   // 启动定时钓鱼（天气预报时段自动开钓/停止/恢复队列）
         initUpdateCheck();   // 启动检查更新（等待游戏 UI 就绪后静默检测 GitHub 最新版本）
