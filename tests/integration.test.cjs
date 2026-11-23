@@ -7,7 +7,7 @@ const { Document } = require('./helpers/dom.cjs');
 
 function setup() {
     const document = new Document(), intervals = [], sent = [], notifications = [], popups = [], calls = [];
-    const data = { items: { 10: { id: 10, name: '绒毛' }, 20: { id: 20, name: '果实' }, 30: { id: 30, name: '成品' }, 40: { id: 40, name: '料理' } }, quests: {},
+    const data = { items: { 10: { id: 10, name: '绒毛' }, 20: { id: 20, name: '果实' }, 30: { id: 30, name: '成品' }, 40: { id: 40, name: '料理' }, 9610: { id: 9610, name: '分析数据' }, 1101: { id: 1101, name: '地元素水晶' } }, quests: {},
         research: { facilities: [{ name: '梳毛研究所', reportItem: 9610, elementBase: 1101, projects: [{ id: 11, name: '绒毛解析', maxLevel: 30, basePct: 1000 }] }] } };
     const quantities = { '10-0': 12345, '20-0': 200, '30-3': 12, '40-0': 0, '9610-0': 10000, '1101-0': 10000 };
     const game = { character: { uid: 123, level: 1, quest_max: 0 }, quests: { main: [], work: [] }, queue: [],
@@ -29,8 +29,28 @@ function setup() {
             calls.push(['row', this, facility, project]);
             const row = node('research-project', null);
             if (!project.running) node('research-start-btn', node('research-project-action', row), '开始研究');
+            if (project.cost) {
+                // 模拟原生 createResearchCostItem 结构：icon(.item) + 名称/需要/持有三行文本
+                const costItems = node('research-cost-items', row);
+                [[project.cost.reportItem, project.cost.reports], [project.cost.elementItem, project.cost.elementQuantity]].forEach(([id, need]) => {
+                    const container = node('action-item-container', costItems);
+                    const iconHolder = node('action-item-container-icon', container);
+                    const info = node('action-item-container-info', container);
+                    const nameText = node('action-item-container-text', info);
+                    const nameSpan = document.createElement('span'); nameSpan.textContent = data.items[id].name; nameText.appendChild(nameSpan);
+                    const needText = node('action-item-container-text', info);
+                    const needLabel = document.createElement('span'); needLabel.textContent = '需要'; needText.appendChild(needLabel);
+                    const needValue = document.createElement('span'); needValue.textContent = String(need); needText.appendChild(needValue);
+                    const heldText = node('action-item-container-text quantity-display', info);
+                    const heldLabel = document.createElement('span'); heldLabel.textContent = '持有'; heldText.appendChild(heldLabel);
+                    const heldValue = document.createElement('span'); heldValue.className = 'quantity-value'; heldValue.textContent = game.getItemQuantity(id).toLocaleString('zh-CN'); heldText.appendChild(heldValue);
+                    const icon = node('item', iconHolder);
+                    this.showItem(icon, data.items[id], { quantity: need });
+                });
+            }
             return row;
         },
+        refreshResearchCostHoldings() {},
         createItemElement(def, options) { calls.push(['item', this, def, options]); return node('item', null); },
         showItem(el, def, options) { calls.push(['showItem', this, def, options]); el.className = 'item'; },
         showQuestRewardModal(rewards) { popups.push(rewards); return 'modal-result'; },
@@ -104,11 +124,108 @@ test('研究开始按钮旁加入队列按钮，点击展示记录与材料预�
     assert.deepEqual(h.quantities, before); assert.equal(h.sent.length, 0);
     const panel = h.ui.researchRoot.querySelector('.nek-research-queue');
     assert.ok(panel.classList.contains('neon-section'));
-    assert.equal(panel.querySelectorAll('.setting-item .slider-container .toggle-switch .toggle-slider').length, 2);
+    // v1.42.0 面板内不再放开关（设置页已有同款），只保留说明/状态/条目/汇总
+    assert.equal(panel.querySelectorAll('.setting-item .slider-container .toggle-switch .toggle-slider').length, 0);
     assert.match(panel.textContent, /绒毛解析 Lv\.0 → Lv\.1/); assert.match(panel.textContent, /预留 500 \/ 背包 10000/);
     assert.match(panel.textContent, /开研时才扣除/);
     panel.querySelector('.nek-research-entry .btn').fire('click');
     assert.equal(h.feature.core.view().queue.entries.length, 0);
+});
+test('待加入卡片按计划执行等级显示：进行中的研究占一级，入队后推进到下一级', () => {
+    const h = setup(), facility = h.data.research.facilities[0];
+    // 研究中：项目 11 已完成 11 级，任务正在冲 12 级 → 待加入卡片应显示 Lv.12（下一跑）数据
+    h.msg.handlers.research_info.call(h.msg, { content: { task: { projectId: 11, facilityId: 1, startTime: 0, finishTime: 0 }, levels: { 11: 11 } } });
+    const view = { id: 11, name: '绒毛解析', level: 11, maxLevel: 30, locked: false, basePct: 1000, growthPct: 60, direction: 1, effect: 16, nextEffect: 16.6, cost: { reportItem: 9610, reports: 7693, elementItem: 1101, elementQuantity: 115 } };
+    const row = h.ui.createResearchProjectRow(facility, view);
+    h.document.body.appendChild(row);
+    const passed = h.calls.find(c => c[0] === 'row')[3];
+    assert.equal(passed.level, 12);                          // 任务占一级
+    assert.equal(passed.effect, 16.6);                       // (1000+60×11)/100
+    assert.equal(passed.nextEffect, 17.2);                   // (1000+60×12)/100
+    const action = row.querySelector('.research-project-action');
+    const addBtn = [...action.children].find(c => c.textContent === '加入研究队列');
+    assert.ok(addBtn);
+    // 入队成功后重渲染页面（卡片随计划等级推进），队列条目为 Lv.12 → Lv.13
+    let rendered = 0; const origRender = h.ui.renderResearchPage;
+    h.ui.renderResearchPage = function () { rendered++; return origRender.apply(this, arguments); };
+    addBtn.fire('click');
+    assert.ok(rendered >= 1, '入队后应重绘研究页');
+    assert.match(h.ui.researchRoot.querySelector('.nek-research-queue').textContent, /绒毛解析 Lv\.12 → Lv\.13/);
+    // 再次渲染行：队列占一级 → 计划等级 13
+    h.calls.length = 0;
+    h.ui.createResearchProjectRow(facility, Object.assign({}, view));
+    assert.equal(h.calls[0][3].level, 13);
+    assert.equal(h.calls[0][3].effect, 17.2);
+    // 移出队列后计划等级回到 12
+    const panel = h.ui.researchRoot.querySelector('.nek-research-queue');
+    panel.querySelector('.nek-research-entry .btn').fire('click');
+    h.calls.length = 0;
+    h.ui.createResearchProjectRow(facility, Object.assign({}, view));
+    assert.equal(h.calls[0][3].level, 12);
+    // 无任务无队列：视图原样透传（不合成副本）
+    h.msg.handlers.research_info.call(h.msg, { content: { task: null, levels: {} } });
+    h.calls.length = 0;
+    const plain = Object.assign({}, view, { level: 0, effect: 10, nextEffect: 10.6 });
+    h.ui.createResearchProjectRow(facility, plain);
+    assert.equal(h.calls[0][3], plain);
+});
+test('待加入卡片材料行显示扣除队列预留后的可用数量，不足标红', () => {
+    const h = setup(), facility = h.data.research.facilities[0];
+    const view = { id: 11, name: '绒毛解析', level: 0, maxLevel: 30, locked: false, cost: { reportItem: 9610, reports: 500, elementItem: 1101, elementQuantity: 100 } };
+    // 队列为空：显示原生「持有」
+    let row = h.ui.createResearchProjectRow(facility, Object.assign({}, view));
+    h.document.body.appendChild(row);
+    let helds = row.querySelectorAll('.quantity-display');
+    assert.equal(helds[0].querySelector('span').textContent, '持有');
+    assert.equal(helds[0].querySelector('.quantity-value').textContent, '10,000');
+    // 入队一条：卡片重绘后材料行变「可用」（扣除预留 500/100）
+    row.querySelector('.nek-research-add').fire('click');
+    row = h.ui.createResearchProjectRow(facility, Object.assign({}, view));
+    h.document.body.appendChild(row);
+    let displays = row.querySelectorAll('.quantity-display');
+    assert.equal(displays[0].querySelector('span').textContent, '可用');
+    assert.equal(displays[0].querySelector('.quantity-value').textContent, '9,500');
+    assert.equal(displays[1].querySelector('.quantity-value').textContent, '9,900');
+    assert.equal(displays[1].querySelector('.quantity-value').classList.contains('nek-research-avail-insufficient'), false);
+    // 库存降到可用不足：数值标红；库存恢复后被 refreshResearchCostHoldings 重写，需重新应用并解除红色
+    h.quantities['1101-0'] = 72;
+    row = h.ui.createResearchProjectRow(facility, Object.assign({}, view));
+    h.document.body.appendChild(row);
+    displays = row.querySelectorAll('.quantity-display');
+    assert.equal(displays[1].querySelector('span').textContent, '可用');
+    assert.equal(displays[1].querySelector('.quantity-value').textContent, '-28');
+    assert.ok(displays[1].querySelector('.quantity-value').classList.contains('nek-research-avail-insufficient'));
+    // refreshResearchCostHoldings 原生会把数值重写回持有并去掉红色标记逻辑，包装层应重新应用「可用」
+    h.ui.refreshResearchCostHoldings();
+    displays = row.querySelectorAll('.quantity-display');
+    assert.equal(displays[1].querySelector('span').textContent, '可用');
+    assert.equal(displays[1].querySelector('.quantity-value').textContent, '-28');
+    assert.ok(displays[1].querySelector('.quantity-value').classList.contains('nek-research-avail-insufficient'));
+    // 移出队列后回到原生「持有」显示
+    h.ui.researchRoot.querySelector('.nek-research-queue .nek-research-entry .btn').fire('click');
+    row = h.ui.createResearchProjectRow(facility, Object.assign({}, view));
+    h.document.body.appendChild(row);
+    displays = row.querySelectorAll('.quantity-display');
+    assert.equal(displays[1].querySelector('span').textContent, '持有');
+    assert.equal(displays[1].querySelector('.quantity-value').textContent, '72');
+});
+test('材料不足仍可加入研究队列：仅提示不拦截，提示以 error 样式展示', () => {
+    const h = setup(), facility = h.data.research.facilities[0];
+    // 分析数据只剩 100，低于队列预留合计（500）
+    h.quantities['9610-0'] = 100;
+    const view = { id: 11, name: '绒毛解析', level: 0, maxLevel: 30, locked: false, cost: { reportItem: 9610, reports: 500, elementItem: 1101, elementQuantity: 100 } };
+    const row = h.ui.createResearchProjectRow(facility, Object.assign({}, view));
+    h.document.body.appendChild(row);
+    row.querySelector('.nek-research-add').fire('click');
+    assert.equal(h.notifications.length, 1);
+    assert.equal(h.notifications[0][1], 'error');                 // 警示样式
+    assert.match(h.notifications[0][0], /材料不足/);
+    assert.match(h.notifications[0][0], /已加入研究队列/);          // 未拦截
+    assert.match(h.notifications[0][0], /等待材料补充/);
+    assert.equal(h.feature.core.view().queue.entries.length, 1);  // 条目实际入队
+    // 队首等待机制兜底：开研确认时材料不足保持等待
+    h.feature.core.tick();
+    assert.match(h.feature.core.view().researchStatus, /材料不足/);
 });
 test('手机端队列可用按钮收起，并在未手动切换时随研究列表滚动折叠', () => {
     const h = setup(), host = h.ui.researchRoot;
@@ -180,7 +297,7 @@ test('按队列顺序标红缺料条目并说明缺多少，补足材料或移�
     const isRed = el => el.classList.contains('nek-research-insufficient');
     assert.equal(isRed(labels()[0]), false);
     assert.equal(isRed(labels()[1]), true);
-    assert.match(labels()[1].textContent, /材料不足：#9610 缺 300/);
+    assert.match(labels()[1].textContent, /材料不足：分析数据 缺 300/);
     assert.equal(hint.textContent, '2 项 · 1 项受阻');
     assert.equal(isRed(hint), true);
     h.quantities['9610-0'] = 1000;
@@ -229,7 +346,8 @@ test('已有研究时原生不带开始区也可加入队列，锁定与满级�
     const running = h.ui.createResearchProjectRow(facility, { id: 11, level: 0, maxLevel: 30, running: true });
     assert.ok(running.querySelector('.research-project-action .nek-research-add'));
     assert.equal(running.querySelectorAll('.research-project-action .btn').length, 1);
-    assert.equal(h.document.querySelectorAll('[data-nek-option]').length, 7);
+    // v1.42.0 面板开关剔除后，仅设置页保留 5 个开关（研究队列 2 + 任务 2 + 产出 1）
+    assert.equal(h.document.querySelectorAll('[data-nek-option]').length, 5);
 });
 test('四类行动输出及额外奖励显示实时库存，强化按同等级，输入与其他行动不显示', () => {
     const h = setup();

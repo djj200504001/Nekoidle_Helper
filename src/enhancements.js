@@ -132,14 +132,16 @@ function createNekController(env) {
         const invalid = p.entries.find(e => e.error);
         if (invalid) return { ok: false, message: invalid.error + '，请先调整队列' };
         const lack = shortages(p.totals);
-        if (lack.length) {
-            return { ok: false, message: '加入失败：扣除已有队列预留后材料不足——' + lack.map(id => env.itemName(Number(id)) + ' 缺 ' + (p.totals[id] - env.quantity(Number(id)))).join('、') };
-        }
+        // 背包数量无法读取（非有限值）仍拦截；材料真实不足只提示、不拦截，
+        // 队列的等待机制（队首材料不足暂不开研）本身能兜底。
+        const unreadable = lack.filter(id => !Number.isFinite(Number(env.quantity(Number(id)))));
+        if (unreadable.length) return { ok: false, message: '无法核对背包数量（' + unreadable.map(id => env.itemName(Number(id))).join('、') + '），请稍后再试' };
         p.entries.forEach(e => { e.entry.record = { fromLevel: e.level, targetLevel: e.targetLevel, cost: e.cost }; });
         if (!save(state)) return { ok: false, message: '无法保存研究队列' };
         const last = p.entries[p.entries.length - 1];
-        return { ok: true, message: '已加入研究队列（' + (last.found ? last.found.project.name : '#' + last.entry.projectId) +
-            ' Lv.' + last.level + '→Lv.' + last.targetLevel + '）；预留 ' + materialText(last.materials) + '（开研时才扣除）' };
+        const warn = lack.length ? '；材料不足：' + lack.map(id => env.itemName(Number(id)) + ' 缺 ' + (p.totals[id] - env.quantity(Number(id)))).join('、') + '（开研时将等待材料补充）' : '';
+        return { ok: true, warn: lack.length > 0, message: '已加入研究队列（' + (last.found ? last.found.project.name : '#' + last.entry.projectId) +
+            ' Lv.' + last.level + '→Lv.' + last.targetLevel + '）；预留 ' + materialText(last.materials) + '（开研时才扣除）' + warn };
     }
     function remove(entryKey) {
         const c = context(), state = read();
@@ -392,7 +394,21 @@ function createNekController(env) {
         }
         return { account, settings: state.settings, queue, canCheckMaterials, researchStatus, questStatus };
     }
-    return { tick, enqueue, remove, setting, view, message, observeSend, isAutomaticReward, workAvailable, claimable, release };
+    // 某研究项目的「计划执行等级」：已完成等级 + 进行中任务(+1) + 队列中同项目条目数。
+    // 与 plan() 的计费口径一致——队列条目与待加入卡片都按该等级显示消耗。
+    // 本地存储不可用时返回 null，调用方按原生视图渲染。
+    function plannedLevel(projectId) {
+        const state = read();
+        if (!state.readable) return null;
+        const c = context();
+        const levels = Object.assign({}, c?.levels || {});
+        const active = c?.task;
+        if (active) levels[active.projectId] = (Number(levels[active.projectId]) || 0) + 1;
+        let planned = Number(levels[Number(projectId)]) || 0;
+        state.queue.forEach(e => { if (Number(e.projectId) === Number(projectId)) planned += 1; });
+        return planned;
+    }
+    return { tick, enqueue, remove, setting, view, plannedLevel, message, observeSend, isAutomaticReward, workAvailable, claimable, release };
 }
 
 function* queuedBatches(game, metadata) {
@@ -575,6 +591,12 @@ function createNekEnhancements(env) {
         input.addEventListener('change', () => { core.setting(name, input.checked); decorate(); });
         control.append(input, slider); wrap.appendChild(control); row.append(title, spacer, wrap); holder.appendChild(row);
     }
+    // 重绘研究页：入队/移出后计划等级变化，待加入卡片须按新计划等级重新渲染
+    function refreshResearchRows() {
+        const u = env.ui();
+        try { if (u && typeof u.renderResearchPage === 'function') u.renderResearchPage(); }
+        catch (e) { /* 研究页未就绪时忽略，下次 research_info 刷新会重绘 */ }
+    }
     function observeQueue(type, content) {
         const queue = env.game()?.queue;
         if (!Array.isArray(queue)) return;
@@ -648,13 +670,72 @@ function createNekEnhancements(env) {
             ui.showQuestRewardModal = function () { if (!silentReward) return original.apply(this, arguments); };
         }
         if (typeof ui.createResearchProjectRow === 'function') {
+            // v1.41.3 待加入卡片的材料行「持有 → 可用」：队列里已有条目会预留材料（开研时才扣），
+            // 卡片继续显示背包总量会高估可用量。改为「可用 = 持有 − 队列预留」，不足标红；
+            // 库存变化时原生 refreshResearchCostHoldings 会把数值重写回持有，需在包装层重新应用。
+            function applyAvailableMaterials(row) {
+                if (!row || !row.querySelector('.nek-research-add')) return;
+                let totals;
+                try { totals = core.view().queue.totals || {}; } catch (e) { return; }
+                if (!Object.keys(totals).some(id => Number(totals[id]) > 0)) return;
+                row.querySelectorAll('.research-cost-items .action-item-container').forEach(container => {
+                    const icon = container.querySelector('.action-item-container-icon .item');
+                    const item = icon && itemInfo.get(icon);
+                    const reserve = item ? Number(totals[item.id]) || 0 : 0;
+                    if (!(reserve > 0)) return;
+                    const display = container.querySelector('.quantity-display');
+                    const value = display?.querySelector('.quantity-value');
+                    if (!display || !value) return;
+                    // 「需要」行是第二行文本，取末尾数值做对比。
+                    const need = Number((container.querySelectorAll('.action-item-container-text')[1]
+                        ?.lastElementChild?.textContent || '').replace(/,/g, '')) || 0;
+                    const held = Number(env.game()?.getItemQuantity(item.id)) || 0;
+                    const available = held - reserve;
+                    const label = display.querySelector('span');
+                    if (label) label.textContent = '可用';
+                    value.textContent = available.toLocaleString('zh-CN');
+                    value.classList.toggle('nek-research-avail-insufficient', available < need);
+                    display.classList.toggle('disabled', available < need);
+                });
+            }
             const original = ui.createResearchProjectRow;
             ui.createResearchProjectRow = function (facility, project) {
-                const row = original.apply(this, arguments);
-                if (row && !project.locked && project.level < project.maxLevel) {
+                // v1.41.2 待加入卡片按「计划执行等级」显示：进行中的研究占掉一级（Lv.11 研究中
+                // 时入队的是 Lv.12→Lv.13 那次），队列中同项目条目再逐条推进。合成调整后的项目
+                // 视图（等级/效果/下一级/消耗）交给原生渲染，点击入队后卡片随之显示下一计划
+                // 等级的数据。数据不可用时按原生视图渲染。
+                let view = project;
+                if (!project.locked) {
+                    try {
+                        // 计划等级只上不下：以行内当前等级为底，叠加任务与队列偏移。
+                        // plannedLevel 基于全局等级快照，行内视图等级更新（或不可用时）以行内为准。
+                        const stored = core.plannedLevel(project.id);
+                        const base = Number(project.level) || 0;
+                        const planned = stored == null ? base : Math.max(base, stored);
+                        const maxLevel = Number(project.maxLevel) || 30;
+                        if (planned != null && planned !== Number(project.level)) {
+                            const shown = Math.min(planned, maxLevel);
+                            const basePct = Number(project.basePct) || 0;
+                            const growthPct = Number(project.growthPct) || 0;
+                            const direction = Number(project.direction) || 0;
+                            const eff = lv => direction === 5 ? lv
+                                : (basePct + growthPct * (Math.max(0, Math.min(lv, maxLevel)) - 1)) / 100;
+                            view = Object.assign({}, project, {
+                                level: shown,
+                                effect: eff(shown),
+                                nextEffect: shown < maxLevel ? eff(shown + 1) : null,
+                                cost: shown >= maxLevel ? null : (env.ui()?.getResearchCost(facility, shown) || null)
+                            });
+                        }
+                    } catch (e) { /* 计划等级不可用时按原生视图渲染 */ }
+                }
+                const row = original.apply(this, [facility, view]);
+                if (row && !view.locked && view.level < view.maxLevel) {
                     const control = button('加入研究队列', 'research-start-btn nek-research-add', () => {
                         const r = core.enqueue(project.id);
-                        ui.notifier?.show(r.message, r.ok ? 'success' : 'error', 5000); decorate();
+                        ui.notifier?.show(r.message, r.ok && !r.warn ? 'success' : 'error', 5000);
+                        if (r.ok) refreshResearchRows();
+                        decorate();
                     });
                     control.dataset.projectId = project.id;
                     let actions = row.querySelector('.research-project-action');
@@ -662,8 +743,18 @@ function createNekEnhancements(env) {
                     actions.classList.add('nek-research-actions');
                     actions.appendChild(control);
                 }
+                applyAvailableMaterials(row);
                 return row;
             };
+            // 库存变化后原生按「持有」重写数值，这里对全部待加入卡片重新应用「可用」显示。
+            if (typeof ui.refreshResearchCostHoldings === 'function') {
+                const originalRefresh = ui.refreshResearchCostHoldings;
+                ui.refreshResearchCostHoldings = function () {
+                    const result = originalRefresh.apply(this, arguments);
+                    doc.querySelectorAll('.research-project').forEach(applyAvailableMaterials);
+                    return result;
+                };
+            }
         }
         ['showItem', 'createItemElement'].forEach(name => {
             const original = ui[name];
@@ -704,7 +795,8 @@ function createNekEnhancements(env) {
             '.nek-material-available{white-space:nowrap}',
             '.nek-output-name{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:flex-start;row-gap:2px}',
             // 受阻条目、摘要和材料不足提示使用同一色值。
-            '.nek-research-insufficient{color:#FF4B88;font-weight:700}'
+            '.nek-research-insufficient{color:#FF4B88;font-weight:700}',
+            '.nek-research-avail-insufficient{color:rgb(255,48,33)!important;font-weight:700}'
         ].join('\n');
         doc.head.appendChild(el);
     }
@@ -715,14 +807,11 @@ function createNekEnhancements(env) {
         const title = doc.createElement('div'); title.className = 'section-title'; title.textContent = '研究队列';
         const hint = doc.createElement('div'); hint.className = 'nek-research-head-hint';
         const body = doc.createElement('div'); body.className = 'nek-research-body'; body.id = 'nek-research-queue-body';
-        const options = doc.createElement('div'); options.className = 'setting-list';
-        toggle('队列自动开研', 'researchQueue', options);
-        toggle('自动领取已完成研究', 'researchFinish', options);
-        const help = doc.createElement('div'); help.textContent = '加入队列仅预留材料；轮到开研时才扣除。移出队列不会取消正在进行的研究。';
+        const help = doc.createElement('div'); help.textContent = '加入队列仅预留材料；轮到开研时才扣除。移出队列不会取消正在进行的研究。开关见设置页。';
         const status = doc.createElement('div'); status.className = 'nek-research-status';
         const entries = doc.createElement('div'); entries.className = 'nek-research-entries';
         const total = doc.createElement('div'); total.className = 'nek-research-total';
-        body.append(options, help, status, entries, total);
+        body.append(help, status, entries, total);
 
         let atStickyTop = false, signature;
         function applyCollapse() {
@@ -793,7 +882,7 @@ function createNekEnhancements(env) {
                         label.textContent = (i + 1) + '. ' + name + ' Lv.' + e.level + ' → Lv.' + e.targetLevel +
                             (e.entry.submitted ? '（开研确认中）' : '') + '\n' + detail;
                         label.classList.toggle('nek-research-insufficient', !!e.issue);
-                        const remove = button('移出', 'research-task-finish', () => { core.remove(e.entry.key); decorate(); });
+                        const remove = button('移出', 'research-task-finish', () => { if (core.remove(e.entry.key)) refreshResearchRows(); decorate(); });
                         remove.disabled = queueLocked;
                         if (queueLocked) remove.classList.add('disabled');
                         row.append(label, remove); entries.appendChild(row);

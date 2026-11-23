@@ -68,12 +68,14 @@ test('入队只保存成本与预留，不发请求、不扣背包', () => {
     assert.deepEqual(view.queue.totals, { 9610: 500, 1101: 100 });
     assert.equal(view.queue.entries[0].entry.record.targetLevel, 1);
 });
-test('共享材料预留不足时拒绝后续入队', () => {
+test('共享材料预留不足时仍可入队，仅返回警告', () => {
     const h = harness(); h.quantities[9610] = 999;
     assert.equal(h.core.enqueue(11).ok, true);
-    assert.equal(h.core.enqueue(12).ok, false);
-    assert.equal(h.core.view().queue.entries.length, 1);
-    assert.equal(h.quantities[9610], 999);
+    const second = h.core.enqueue(12);
+    assert.equal(second.ok, true); assert.equal(second.warn, true);
+    assert.match(second.message, /材料不足/);
+    assert.equal(h.core.view().queue.entries.length, 2);
+    assert.equal(h.quantities[9610], 999);   // 入队不扣材料
 });
 test('重复项目按将来的等级累加成本', () => {
     const h = harness(); h.core.enqueue(11); h.core.enqueue(11); h.core.enqueue(12);
