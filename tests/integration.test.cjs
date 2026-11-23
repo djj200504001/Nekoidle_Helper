@@ -65,7 +65,7 @@ function setup() {
     const store = new Map(), listeners = {};
     const storage = { getItem: k => store.get(k) || null, setItem: (k, v) => store.set(k, v), removeItem: k => store.delete(k) };
     let enabled = true, narrow = true;   // 默认手机端（吸顶折叠模式），setNarrow 可切换 PC 模式
-    const sandbox = { module: { exports: {} }, console, setInterval: fn => { intervals.push(fn); return 1; } };
+    const sandbox = { module: { exports: {} }, console, setInterval: fn => { intervals.push(fn); return 1; }, getComputedStyle: () => ({ borderTopWidth: '0px', paddingTop: '0px' }) };
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/enhancements.js'), 'utf8'), sandbox);
     const feature = sandbox.module.exports.createNekEnhancements({ document, window: { addEventListener: (type, fn) => { listeners[type] = fn; }, matchMedia: q => ({ matches: narrow, media: q }) },
         storage, game: () => game, ui: () => ui, msg: () => msg, data: () => data,

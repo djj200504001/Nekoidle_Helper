@@ -671,11 +671,17 @@ function createNekEnhancements(env) {
             };
             head.addEventListener('click', e => { e.stopPropagation(); panel._nekManual = !panel.classList.contains('nek-collapsed'); panel._nekApply(); });
             host.insertBefore(panel, host.firstElementChild);
-            // 滚动检测：面板顶部贴住容器顶即折叠吸顶，离开即展开。
-            // 不用 IntersectionObserver——沙盒环境中 IO 回调不触发（实测），scroll + 几何判定跨环境可靠
+            // 滚动检测：面板顶部贴住容器可视区顶即折叠吸顶，离开即展开。
+            // 不用 IntersectionObserver——沙盒环境中 IO 回调不触发（实测），scroll + 几何判定跨环境可靠。
+            // 阈值须计入容器 padding/border：sticky top:0 贴的是 content 区顶，而非 border-box 顶
             panel._nekSync = function () {
                 if (!panel.isConnected || !host.isConnected) return;
-                const over = panel.getBoundingClientRect().top <= host.getBoundingClientRect().top + 1;
+                let over = false;
+                try {
+                    const cs = getComputedStyle(host);
+                    const top = host.getBoundingClientRect().top + (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.paddingTop) || 0);
+                    over = panel.getBoundingClientRect().top <= top + 1;
+                } catch (e) { return; }
                 if (over !== !!panel._nekAutoOver) { panel._nekAutoOver = over; panel._nekManual = null; panel._nekApply(); }
             };
             host.addEventListener('scroll', panel._nekSync, { passive: true });
