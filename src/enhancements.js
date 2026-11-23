@@ -766,6 +766,13 @@ function createNekEnhancements(env) {
             '.nek-research-queue.nek-collapsed .nek-research-head-arrow{transform:rotate(-90deg)}',
             '.nek-research-queue .setting-item{grid-template-columns:auto 1fr auto}',
             '.nek-research-entries,.nek-research-total{max-height:min(24vh,14rem);overflow:auto}',
+            '.nek-research-queue{font-size:13px}',
+            // 游戏的进度底色 .research-task-progress-inner 是 absolute 定位，但父级 .research-task 是 static，
+            // 会以最近定位祖先 .research-task-host（含本队列面板）为基准铺满整个 host；
+            // 让 .research-task 自己成为定位基准，进度背景就限制在「正在研究」块内（task-top + task-actions）
+            '.research-task{position:relative}',
+            '.nek-research-heading{display:flex;align-items:center;justify-content:space-between}',
+            '.nek-research-queue .icon-help{flex-shrink:0}',
             '.nek-research-entry{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0}',
             '.nek-research-entry span,.nek-research-total{white-space:pre-line}',
             '.nek-research-queue .btn{flex-shrink:0}',
@@ -779,6 +786,19 @@ function createNekEnhancements(env) {
             '.nek-research-avail-insufficient{color:rgb(255,48,33)!important;font-weight:700}'
         ].join('\n');
         doc.head.appendChild(el);
+    }
+    // 面板右上角帮助问号：样式复用游戏原生 .icon-help（种植页/市场页同款圆形问号），
+    // 点击走游戏原生 showHelpModal 弹窗（无此 API 时降级为顶部通知）
+    function researchHelpBadge() {
+        const h = doc.createElement('div'); h.className = 'icon-help nek-research-help'; h.textContent = '?';
+        h.addEventListener('click', e => {
+            e.stopPropagation();
+            const tip = '加入队列仅预留材料；轮到开研时才扣除。移出队列不会取消正在进行的研究。开关见设置页。';
+            const u = env.ui();
+            if (u?.showHelpModal) u.showHelpModal('研究队列帮助', tip);
+            else u?.notifier?.show?.(tip, 'tip', 5000);
+        });
+        return h;
     }
     function decorateResearch(v) {
         const ui = env.ui();
@@ -800,13 +820,11 @@ function createNekEnhancements(env) {
             const title = doc.createElement('div'); title.className = 'section-title'; title.textContent = '研究队列';
             const hint = doc.createElement('div'); hint.className = 'nek-research-head-hint';
             const arrow = doc.createElement('div'); arrow.className = 'nek-research-head-arrow'; arrow.textContent = '▾';
-            head.append(title, hint, arrow);
+            head.append(title, hint, researchHelpBadge(), arrow);
             panel.appendChild(head);
             const body = doc.createElement('div'); body.className = 'nek-research-body';
-            // v1.42.0 面板内不再放「队列自动开研/自动领取已完成研究」开关——设置页已有同款，
-            // 这里只保留说明、状态与条目列表
-            const help = doc.createElement('div'); help.textContent = '加入队列仅预留材料；轮到开研时才扣除。移出队列不会取消正在进行的研究。开关见设置页。'; body.appendChild(help);
-            const status = doc.createElement('div'); status.className = 'nek-research-status'; body.appendChild(status);
+            // v1.42.1 面板只显示队列条目与材料预留/背包/可用；说明移入右上角「?」弹窗，
+            // 研究状态不再整行显示（折叠标题摘要仅在缺材料时出现）
             const entries = doc.createElement('div'); entries.className = 'nek-research-entries'; body.appendChild(entries);
             const total = doc.createElement('div'); total.className = 'nek-research-total'; body.appendChild(total);
             panel.appendChild(body);
@@ -827,9 +845,12 @@ function createNekEnhancements(env) {
                 }
                 arrow.textContent = collapsed ? '▸' : '▾';
                 try {
+                    // v1.42.1 折叠摘要仅在缺材料时显示（红色）；「等待当前研究完成」等常驻状态一律不显示
                     const v2 = core.view();
-                    text(hint, collapsed ? v2.researchStatus : '');
-                    hint.classList.toggle('nek-research-insufficient', collapsed && String(v2.researchStatus).includes('材料不足'));
+                    const st = String(v2.researchStatus || '');
+                    const warn = collapsed && st.includes('材料不足');
+                    text(hint, warn ? st : '');
+                    hint.classList.toggle('nek-research-insufficient', warn);
                 } catch (e) { /* 忽略 */ }
             };
             head.addEventListener('click', e => { e.stopPropagation(); panel._nekManual = !panel.classList.contains('nek-collapsed'); panel._nekApply(); });
@@ -852,21 +873,22 @@ function createNekEnhancements(env) {
         } else if (!panel) {
             panel = doc.createElement('div'); panel.className = 'neon-section nek-research-queue';
             panel._nekNarrow = false;
-            const heading = doc.createElement('div'); heading.className = 'section-title'; heading.textContent = '研究队列'; panel.appendChild(heading);
-            // v1.42.0 面板内不再放「队列自动开研/自动领取已完成研究」开关——设置页已有同款
-            const help = doc.createElement('div'); help.textContent = '加入队列仅预留材料；轮到开研时才扣除。移出队列不会取消正在进行的研究。开关见设置页。'; panel.appendChild(help);
-            const status = doc.createElement('div'); status.className = 'nek-research-status'; panel.appendChild(status);
+            // v1.42.1 标题行右侧放帮助问号（种植页 .icon-help 同款），说明移入弹窗
+            const heading = doc.createElement('div'); heading.className = 'section-title nek-research-heading';
+            const titleSpan = doc.createElement('span'); titleSpan.textContent = '研究队列';
+            heading.append(titleSpan, researchHelpBadge()); panel.appendChild(heading);
             const entries = doc.createElement('div'); entries.className = 'nek-research-entries'; panel.appendChild(entries);
             const total = doc.createElement('div'); total.className = 'nek-research-total'; panel.appendChild(total);
             host.appendChild(panel);
         }
-        const statusEl = panel.querySelector('.nek-research-status');
-        text(statusEl, v.researchStatus);
+        // v1.42.1 状态行已删：面板仅显示队列条目与材料预留/背包/可用；
+        // 折叠标题摘要仅在缺材料时出现（红色），「等待当前研究完成」等常驻状态不显示
         const headHint = panel.querySelector('.nek-research-head-hint');
         if (headHint) {
-            const collapsed = panel.classList.contains('nek-collapsed');
-            text(headHint, collapsed ? v.researchStatus : '');
-            headHint.classList.toggle('nek-research-insufficient', collapsed && String(v.researchStatus).includes('材料不足'));
+            const st = String(v.researchStatus || '');
+            const warn = panel.classList.contains('nek-collapsed') && st.includes('材料不足');
+            text(headHint, warn ? st : '');
+            headHint.classList.toggle('nek-research-insufficient', warn);
         }
         const signature = JSON.stringify(v.queue.entries.map(e => [e.entry.key, e.entry.projectId, e.targetLevel, e.materials, e.error, !!e.entry.submitted]));
         if (panel._nekQueueSignature !== signature) {
@@ -896,10 +918,7 @@ function createNekEnhancements(env) {
         }).join('\n');
         const totalEl = panel.querySelector('.nek-research-total'); text(totalEl, totals);
         totalEl.classList.toggle('nek-research-insufficient', insufficient);
-        // 缺少材料提醒统一红色：状态行（如「队首材料不足，等待补充」）与折叠标题摘要
-        const lack = insufficient || String(v.researchStatus).includes('材料不足');
-        statusEl.classList.toggle('nek-research-insufficient', lack);
-        if (headHint) headHint.classList.toggle('nek-research-insufficient', lack && panel.classList.contains('nek-collapsed'));
+        // 缺少材料提醒统一红色：材料汇总行 + 折叠标题摘要（红色 warn 已在上面的 headHint 块处理）
     }
     function decorateSettings(v) {
         const section = doc.querySelector('.nek-assist-section .setting-list');

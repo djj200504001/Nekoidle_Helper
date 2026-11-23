@@ -6,7 +6,7 @@ const vm = require('node:vm');
 const { Document } = require('./helpers/dom.cjs');
 
 function setup() {
-    const document = new Document(), intervals = [], sent = [], notifications = [], popups = [], calls = [];
+    const document = new Document(), intervals = [], sent = [], notifications = [], popups = [], calls = [], helpModals = [];
     const data = { items: { 10: { id: 10, name: '绒毛' }, 20: { id: 20, name: '果实' }, 30: { id: 30, name: '成品' }, 40: { id: 40, name: '料理' }, 9610: { id: 9610, name: '分析数据' }, 1101: { id: 1101, name: '地元素水晶' } }, quests: {},
         research: { facilities: [{ name: '梳毛研究所', reportItem: 9610, elementBase: 1101, projects: [{ id: 11, name: '绒毛解析', maxLevel: 30, basePct: 1000 }] }] } };
     const quantities = { '10-0': 12345, '20-0': 200, '30-3': 12, '40-0': 0, '9610-0': 10000, '1101-0': 10000 };
@@ -54,6 +54,7 @@ function setup() {
         createItemElement(def, options) { calls.push(['item', this, def, options]); return node('item', null); },
         showItem(el, def, options) { calls.push(['showItem', this, def, options]); el.className = 'item'; },
         showQuestRewardModal(rewards) { popups.push(rewards); return 'modal-result'; },
+        showHelpModal(title, content) { helpModals.push([title, content]); return 'help-modal'; },
         renderResearchPage() { this.researchTaskHost.replaceChildren(); }
     };
     const msg = { ws: { readyState: 1 }, send(type, data) { assert.equal(this, msg); sent.push({ type, data }); return true; }, handlers: {} };
@@ -109,7 +110,7 @@ function setup() {
         if (!options.fallback) iconHolder.appendChild(icon);
         return { root, row, name, icon, section };
     }
-    return { feature, ui, msg, game, data, quantities, sent, notifications, popups, calls, document, node, output, intervals, listeners, enable: v => { enabled = v; }, setNarrow: v => { narrow = v; } };
+    return { feature, ui, msg, game, data, quantities, sent, notifications, popups, calls, helpModals, document, node, output, intervals, listeners, enable: v => { enabled = v; }, setNarrow: v => { narrow = v; } };
 }
 
 test('研究开始按钮旁加入队列按钮，点击展示记录与材料预留，保持背包不变', () => {
@@ -127,7 +128,14 @@ test('研究开始按钮旁加入队列按钮，点击展示记录与材料预�
     // v1.42.0 面板内不再放开关（设置页已有同款），只保留说明/状态/条目/汇总
     assert.equal(panel.querySelectorAll('.setting-item .slider-container .toggle-switch .toggle-slider').length, 0);
     assert.match(panel.textContent, /绒毛解析 Lv\.0 → Lv\.1/); assert.match(panel.textContent, /预留 500 \/ 背包 10000/);
-    assert.match(panel.textContent, /开研时才扣除/);
+    // v1.42.1 状态行已删、说明移入右上角「?」：点击弹游戏原生帮助弹窗
+    assert.equal(panel.querySelector('.nek-research-status'), null);
+    assert.ok(panel.querySelector('.nek-research-head .icon-help'), '手机端标题条右侧有帮助问号');
+    panel.querySelector('.icon-help').fire('click');
+    assert.equal(h.helpModals.length, 1);
+    assert.equal(h.helpModals[0][0], '研究队列帮助');
+    assert.match(h.helpModals[0][1], /加入队列仅预留材料/);
+    assert.match(h.helpModals[0][1], /开研时才扣除/);
     panel.querySelector('.nek-research-entry .btn').fire('click');
     assert.equal(h.feature.core.view().queue.entries.length, 0);
 });
@@ -229,7 +237,8 @@ test('材料不足仍可加入研究队列：仅提示不拦截，提示以 erro
 });
 test('研究队列面板嵌入列表滚动流并支持点击标题折叠吸顶', () => {
     const h = setup(), facility = h.data.research.facilities[0];
-    h.ui.createResearchProjectRow(facility, { id: 11, level: 0, maxLevel: 30, locked: false });
+    const row0 = h.ui.createResearchProjectRow(facility, { id: 11, level: 0, maxLevel: 30, locked: false });
+    row0.querySelector('.nek-research-add').fire('click');   // 入队一条，供折叠缺料摘要用例使用
     // 手机端：面板插入在 researchRoot（项目列表滚动容器）开头，而非固定 taskHost
     const panel = h.ui.researchRoot.querySelector('.nek-research-queue');
     assert.ok(panel && h.ui.researchRoot.firstElementChild === panel);
@@ -243,7 +252,8 @@ test('研究队列面板嵌入列表滚动流并支持点击标题折叠吸顶',
     head.fire('click');
     assert.ok(panel.classList.contains('nek-collapsed'));
     assert.match(panel.querySelector('.nek-research-head-arrow').textContent, /▸/);
-    assert.match(panel.querySelector('.nek-research-head-hint').textContent, /研究/);   // 折叠时标题条显示状态摘要
+    // v1.42.1 折叠摘要仅缺材料时显示；无缺料时折叠标题条不显示常驻状态（如「等待当前研究完成」）
+    assert.equal(panel.querySelector('.nek-research-head-hint').textContent, '');
     head.fire('click');
     assert.ok(!panel.classList.contains('nek-collapsed'));
     assert.match(panel.querySelector('.nek-research-head-arrow').textContent, /▾/);
@@ -255,6 +265,14 @@ test('研究队列面板嵌入列表滚动流并支持点击标题折叠吸顶',
     panel._rectTop = 189;
     panel._nekSync();
     assert.ok(!panel.classList.contains('nek-collapsed'), '滚回原位自动展开');
+    // 折叠标题条红色缺料摘要：队首材料不足时折叠才显示（含「材料不足」的 researchStatus）
+    h.quantities['9610-0'] = 100;                      // 低于预留合计 500 → 队首等待材料补充
+    h.feature.core.tick();
+    h.feature.decorate();
+    panel._rectTop = -10;
+    panel._nekSync();
+    assert.ok(panel.classList.contains('nek-collapsed'), '贴顶自动折叠');
+    assert.match(panel.querySelector('.nek-research-head-hint').textContent, /材料不足/);
 });
 test('PC 宽屏保留 v1.40 固定面板样式（无吸顶折叠结构）', () => {
     const h = setup(); h.setNarrow(false);
@@ -265,6 +283,7 @@ test('PC 宽屏保留 v1.40 固定面板样式（无吸顶折叠结构）', () =
     assert.ok(panel, '面板挂在固定 taskHost');
     assert.ok(!panel.classList.contains('nek-float'), '无吸顶样式');
     assert.equal(panel.querySelector('.nek-research-head'), null, '无折叠头');
+    assert.ok(panel.querySelector('.nek-research-heading .icon-help'), 'PC 标题行右侧有帮助问号');
     assert.equal(h.ui.researchRoot.querySelector('.nek-research-queue'), null, '列表滚动流内无面板');
     // 跨断点切换：恢复窄屏后旧面板清理并重建为吸顶结构
     h.setNarrow(true); h.feature.decorate();
