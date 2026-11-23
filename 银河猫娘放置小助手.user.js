@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.41.4
-// @description  v1.41.4：研究队列（记录并预留材料、开研时扣除，队列条目显示计划起止等级与对应消耗；待加入卡片按计划执行等级显示——进行中的研究占一级、队列条目逐条推进，入队/移出后卡片实时刷新到下一计划等级的数据，材料行显示扣除队列预留后的可用数量、不足时数值显示红色且仅提示不拦截入队）与自动结算研究，自动接受任务/领取奖励，研究队列面板按端适配——PC 保留固定面板样式，手机端嵌入研究列表滚动流内并吸顶折叠（滚过列表顶自动收起为标题条、滚回自动展开，点击标题可手动折叠/展开），缺少材料提醒显示红色，梳毛/采集/生产/烹饪产出物显示背包库存和队列预计产出。主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口与炼金界面（原子/神秘/量子炼金执行区）经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色；炼金期望按成功率折算）并快捷填入升级所需执行次数，炼金执行区另有「背包可执行次数」按钮（按当前点金/分解/研究/提纯/还原/转换/量子配方逐项折算材料持有量）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知；跳过地块改用游戏原生「地块锁」（🔒），锁定地块的自动收获与手动单块收获均在客户端拦截（服务端批量收获跳过锁定地块，但单块收获不校验，故加客户端兜底），自动收菜开关按钮以背景进度条显示检测进度（60 秒往返循环：前 30 秒收获绿覆盖黄底、后 30 秒黄底覆盖绿色，rAF 每帧重算丝滑无跳秒，进度锚定实际检测时钟、按钮中途出现也显示真实进度，不另起独立计时）；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）；九、检查更新——每次加载游戏时检测 GitHub 最新版本（发现新版本且距上次提醒超过 60 分钟时，顶部通知引导在 Tampermonkey 中更新）；设置区标题旁显示当前版本号；十、v1116 生活装备适配——自绘生产/采集详情材料需求按巨匠省料率折算（两位小数、加工倍数与执行校验同口径），额外奖励几率乘装备幸运（研究幸运/10+装备幸运/100），行动窗口「背包可执行次数」按钮按省料后需求折算，经验效率经 game.getEfficiency 自动含面罩最终效率乘区；自绘生产/采集详情「额外奖励」补显示 v1116 宝箱掉落（梳毛/采集/生产宝箱，几率含幸运加成、数量不随加工倍数放大，复用原生 getActionChestPreview）；修复检查更新因 window.UI 引用错误（UI 为顶层词法绑定不在 window 上）导致检测从未执行的问题；十一、定时钓鱼——已订阅天气预报的钓场，钓鱼页「天气预报」时段条目可点击预约：预约时读取当前所选鱼饵（未选鱼饵二次确认后以无鱼饵预约），到点每 5 秒检查并自动以 ∞ 次立即开钓（mold start 替换当前行动，开钓快照原队列，服务端 update_queue 后 diff 补回）；预约时队列已满直接拒绝（不删除已有队列），开钓时队列仍满则等待并低频提醒；相邻时段预约自动衔接换钓（可跨钓场，不停钓），链条最后一个时段结束自动停钓并恢复原队列；自动开钓后用户手动取消/更换钓鱼不作处理（本时段预约自然失效，未来时段保留），时段结束时队头不是预约钓场的钓鱼同样不作处理；状态条逐条显示预约倒计时与独立取消入口；支持旧版单预约自动迁移；设置-「其他」标签页「定时钓鱼」开关，受总开关联动控制；十二、v1.36.0 修复——①满级用户生产/采集/烹饪详情两个按钮（升下一级次数/背包可执行次数）与经验效率模块整体消失：满级分支不再提前 return，「背包可执行次数」与「经验效率」照常显示（目标等级计算行满级时隐藏），可执行按钮在无升级按钮时改以 ∞ 档为锚点；②生产详情选多倍率后持有数值恒红：持有数文字带千分位逗号，parseInt 在逗号处截断（12,000→12）导致恒判不足，修复为先去逗号再解析；十三、v1.37.0 定时钓鱼状态按钮——当前行动「取消」左侧新增钓鱼状态按钮（与「自动收菜」开关并列）：未预约显示「未预约钓鱼」（金色底灰字，底色 v1.37.7 改用自动收菜同款金色 var(--c-warning)），已预约显示「天气·钓场名·鱼饵」，背景以开钓时刻前 4 小时为起点由米色向湖水青渐变覆盖、开钓时刻覆盖完成（进度锚定时段真实时间戳，按钮中途出现即显示正确进度），钓鱼中改为原色从左往右渐变覆盖回青色上、时段结束刚好完全回色（v1.37.6，连续预约按方案A每段独立回色，段末衔接瞬间跳回满青），无下一次预约自动回到未预约状态；点击按钮可取消显示中的预约（钓鱼中取消会停钓并按快照恢复原队列）；预约状态展示从天气预报状态条迁移至该按钮，预报条目「已预约/钓鱼中」角标与点击预约保留；v1.37.1 修复钓鱼按钮复用收菜类名导致出现两个「自动收菜」；v1.37.2/3 预报区提示栏改常态文本并接入 DOM 装饰链同步出现（含防 MutationObserver 自激循环的零写缓存）；十四、v1.37.4 市场行情修复——部分物品永远显示「获取市场数据中……」：市场无行情数据的物品（新物品/从未上架/特定强化等级），服务端不响应 market_cache 单物品请求（10 秒超时返回 null），且全量快照中无该条目时占位符无终止机制；现全量缓存就绪且未过期仍查不到时判定为确定无行情，显示「暂无市场行情」终止等待，后续全量重拉若数据出现自动恢复；单物品强刷返回快照但缺该强化等级时同样终止等待；十五、v1.37.5 修复生产行动弹窗/详情面板高级装备无按钮——原生经验行经 Utils.formatNumber 渲染（游戏默认开启万进制），单次经验 ≥ 1 万时显示「1.2万」等缩写，而小助手解析「xx经验值 N 点」的正则只认纯数字/千分位，匹配失败导致整段装饰（升下一级次数/背包可执行次数按钮与经验效率模块）被跳过——低级装备经验小于 1 万故正常；现正则支持小数与 万/亿/兆/京/K/M/B/T 单位（新增 mkParseNumUnit 解析），并识别到动作时改用游戏同款 calcExpWithBonus 精确覆盖文本解析值（消除缩写舍入误差，烹饪因口径不同保持文本解析）；十六、v1.38.0 自动收菜补种提醒——自动收获发送时记录开启了原生「自动播种」的地块及其作物（crop_id 即种子物品 id），收获响应落定后地块变回空地而背包已无该种子 → 判定种子不足未能补种，按作物聚合提醒「种子不足，N 块地未补种——作物×N」（同一作物 10 分钟节流；背包仍有种子时不误报；观察表只记录本次收获发送的地块，判定后即清除）。
+// @version      1.42.0
+// @description  v1.42.0：自动收菜/定时钓鱼/研究队列三个快捷按钮迁至游戏队列进度条下方一行（自动收菜与定时钓鱼从当前行动「取消」左侧迁出，研究队列按钮显示无研究队列或研究所类别·研究名称·当前研究等级、点击进入研究中心，按钮底色同另外两个按钮并提升到扫描线蒙版之上，研究进行中淡紫色随进度从左向右覆盖金底、完成时完全覆盖，开始下一个研究整键回金底重新覆盖）；修复取消钓鱼预约后按钮悬停提示残留，未预约钓鱼按钮点击改为进入钓鱼界面；研究队列面板剔除「队列自动开研/自动领取已完成研究」开关（设置页保留同款）。其余同 v1.41.4——研究队列（记录并预留材料、开研时扣除，队列条目显示计划起止等级与对应消耗；待加入卡片按计划执行等级显示——进行中的研究占一级、队列条目逐条推进，入队/移出后卡片实时刷新到下一计划等级的数据，材料行显示扣除队列预留后的可用数量、不足时数值显示红色且仅提示不拦截入队）与自动结算研究，自动接受任务/领取奖励，研究队列面板按端适配——PC 保留固定面板样式，手机端嵌入研究列表滚动流内并吸顶折叠（滚过列表顶自动收起为标题条、滚回自动展开，点击标题可手动折叠/展开），缺少材料提醒显示红色，梳毛/采集/生产/烹饪产出物显示背包库存和队列预计产出。其余同 v1.41.4——研究队列（记录并预留材料、开研时扣除，队列条目显示计划起止等级与对应消耗；待加入卡片按计划执行等级显示——进行中的研究占一级、队列条目逐条推进，入队/移出后卡片实时刷新到下一计划等级的数据，材料行显示扣除队列预留后的可用数量、不足时数值显示红色且仅提示不拦截入队）与自动结算研究，自动接受任务/领取奖励，研究队列面板按端适配——PC 保留固定面板样式，手机端嵌入研究列表滚动流内并吸顶折叠（滚过列表顶自动收起为标题条、滚回自动展开，点击标题可手动折叠/展开），缺少材料提醒显示红色，梳毛/采集/生产/烹饪产出物显示背包库存和队列预计产出。其余同 v1.41.4——研究队列（记录并预留材料、开研时扣除，队列条目显示计划起止等级与对应消耗；待加入卡片按计划执行等级显示——进行中的研究占一级、队列条目逐条推进，入队/移出后卡片实时刷新到下一计划等级的数据，材料行显示扣除队列预留后的可用数量、不足时数值显示红色且仅提示不拦截入队）与自动结算研究，自动接受任务/领取奖励，研究队列面板按端适配——PC 保留固定面板样式，手机端嵌入研究列表滚动流内并吸顶折叠（滚过列表顶自动收起为标题条、滚回自动展开，点击标题可手动折叠/展开），缺少材料提醒显示红色，梳毛/采集/生产/烹饪产出物显示背包库存和队列预计产出。主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口与炼金界面（原子/神秘/量子炼金执行区）经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色；炼金期望按成功率折算）并快捷填入升级所需执行次数，炼金执行区另有「背包可执行次数」按钮（按当前点金/分解/研究/提纯/还原/转换/量子配方逐项折算材料持有量）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知；跳过地块改用游戏原生「地块锁」（🔒），锁定地块的自动收获与手动单块收获均在客户端拦截（服务端批量收获跳过锁定地块，但单块收获不校验，故加客户端兜底），自动收菜开关按钮以背景进度条显示检测进度（60 秒往返循环：前 30 秒收获绿覆盖黄底、后 30 秒黄底覆盖绿色，rAF 每帧重算丝滑无跳秒，进度锚定实际检测时钟、按钮中途出现也显示真实进度，不另起独立计时）；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）；九、检查更新——每次加载游戏时检测 GitHub 最新版本（发现新版本且距上次提醒超过 60 分钟时，顶部通知引导在 Tampermonkey 中更新）；设置区标题旁显示当前版本号；十、v1116 生活装备适配——自绘生产/采集详情材料需求按巨匠省料率折算（两位小数、加工倍数与执行校验同口径），额外奖励几率乘装备幸运（研究幸运/10+装备幸运/100），行动窗口「背包可执行次数」按钮按省料后需求折算，经验效率经 game.getEfficiency 自动含面罩最终效率乘区；自绘生产/采集详情「额外奖励」补显示 v1116 宝箱掉落（梳毛/采集/生产宝箱，几率含幸运加成、数量不随加工倍数放大，复用原生 getActionChestPreview）；修复检查更新因 window.UI 引用错误（UI 为顶层词法绑定不在 window 上）导致检测从未执行的问题；十一、定时钓鱼——已订阅天气预报的钓场，钓鱼页「天气预报」时段条目可点击预约：预约时读取当前所选鱼饵（未选鱼饵二次确认后以无鱼饵预约），到点每 5 秒检查并自动以 ∞ 次立即开钓（mold start 替换当前行动，开钓快照原队列，服务端 update_queue 后 diff 补回）；预约时队列已满直接拒绝（不删除已有队列），开钓时队列仍满则等待并低频提醒；相邻时段预约自动衔接换钓（可跨钓场，不停钓），链条最后一个时段结束自动停钓并恢复原队列；自动开钓后用户手动取消/更换钓鱼不作处理（本时段预约自然失效，未来时段保留），时段结束时队头不是预约钓场的钓鱼同样不作处理；状态条逐条显示预约倒计时与独立取消入口；支持旧版单预约自动迁移；设置-「其他」标签页「定时钓鱼」开关，受总开关联动控制；十二、v1.36.0 修复——①满级用户生产/采集/烹饪详情两个按钮（升下一级次数/背包可执行次数）与经验效率模块整体消失：满级分支不再提前 return，「背包可执行次数」与「经验效率」照常显示（目标等级计算行满级时隐藏），可执行按钮在无升级按钮时改以 ∞ 档为锚点；②生产详情选多倍率后持有数值恒红：持有数文字带千分位逗号，parseInt 在逗号处截断（12,000→12）导致恒判不足，修复为先去逗号再解析；十三、v1.37.0 定时钓鱼状态按钮——当前行动「取消」左侧新增钓鱼状态按钮（与「自动收菜」开关并列）：未预约显示「未预约钓鱼」（金色底灰字，底色 v1.37.7 改用自动收菜同款金色 var(--c-warning)），已预约显示「天气·钓场名·鱼饵」，背景以开钓时刻前 4 小时为起点由米色向湖水青渐变覆盖、开钓时刻覆盖完成（进度锚定时段真实时间戳，按钮中途出现即显示正确进度），钓鱼中改为原色从左往右渐变覆盖回青色上、时段结束刚好完全回色（v1.37.6，连续预约按方案A每段独立回色，段末衔接瞬间跳回满青），无下一次预约自动回到未预约状态；点击按钮可取消显示中的预约（钓鱼中取消会停钓并按快照恢复原队列）；预约状态展示从天气预报状态条迁移至该按钮，预报条目「已预约/钓鱼中」角标与点击预约保留；v1.37.1 修复钓鱼按钮复用收菜类名导致出现两个「自动收菜」；v1.37.2/3 预报区提示栏改常态文本并接入 DOM 装饰链同步出现（含防 MutationObserver 自激循环的零写缓存）；十四、v1.37.4 市场行情修复——部分物品永远显示「获取市场数据中……」：市场无行情数据的物品（新物品/从未上架/特定强化等级），服务端不响应 market_cache 单物品请求（10 秒超时返回 null），且全量快照中无该条目时占位符无终止机制；现全量缓存就绪且未过期仍查不到时判定为确定无行情，显示「暂无市场行情」终止等待，后续全量重拉若数据出现自动恢复；单物品强刷返回快照但缺该强化等级时同样终止等待；十五、v1.37.5 修复生产行动弹窗/详情面板高级装备无按钮——原生经验行经 Utils.formatNumber 渲染（游戏默认开启万进制），单次经验 ≥ 1 万时显示「1.2万」等缩写，而小助手解析「xx经验值 N 点」的正则只认纯数字/千分位，匹配失败导致整段装饰（升下一级次数/背包可执行次数按钮与经验效率模块）被跳过——低级装备经验小于 1 万故正常；现正则支持小数与 万/亿/兆/京/K/M/B/T 单位（新增 mkParseNumUnit 解析），并识别到动作时改用游戏同款 calcExpWithBonus 精确覆盖文本解析值（消除缩写舍入误差，烹饪因口径不同保持文本解析）；十六、v1.38.0 自动收菜补种提醒——自动收获发送时记录开启了原生「自动播种」的地块及其作物（crop_id 即种子物品 id），收获响应落定后地块变回空地而背包已无该种子 → 判定种子不足未能补种，按作物聚合提醒「种子不足，N 块地未补种——作物×N」（同一作物 10 分钟节流；背包仍有种子时不误报；观察表只记录本次收获发送的地块，判定后即清除）。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
 // @match        https://nekoidle.net/*
@@ -3715,9 +3715,9 @@
                     head.append(title, hint, arrow);
                     panel.appendChild(head);
                     const body = doc.createElement('div'); body.className = 'nek-research-body';
-                    const options = doc.createElement('div'); options.className = 'setting-list';
-                    toggle('队列自动开研', 'researchQueue', options); toggle('自动领取已完成研究', 'researchFinish', options); body.appendChild(options);
-                    const help = doc.createElement('div'); help.textContent = '加入队列仅预留材料；轮到开研时才扣除。移出队列不会取消正在进行的研究。'; body.appendChild(help);
+                    // v1.42.0 面板内不再放「队列自动开研/自动领取已完成研究」开关——设置页已有同款，
+                    // 这里只保留说明、状态与条目列表
+                    const help = doc.createElement('div'); help.textContent = '加入队列仅预留材料；轮到开研时才扣除。移出队列不会取消正在进行的研究。开关见设置页。'; body.appendChild(help);
                     const status = doc.createElement('div'); status.className = 'nek-research-status'; body.appendChild(status);
                     const entries = doc.createElement('div'); entries.className = 'nek-research-entries'; body.appendChild(entries);
                     const total = doc.createElement('div'); total.className = 'nek-research-total'; body.appendChild(total);
@@ -3765,9 +3765,8 @@
                     panel = doc.createElement('div'); panel.className = 'neon-section nek-research-queue';
                     panel._nekNarrow = false;
                     const heading = doc.createElement('div'); heading.className = 'section-title'; heading.textContent = '研究队列'; panel.appendChild(heading);
-                    const options = doc.createElement('div'); options.className = 'setting-list';
-                    toggle('队列自动开研', 'researchQueue', options); toggle('自动领取已完成研究', 'researchFinish', options); panel.appendChild(options);
-                    const help = doc.createElement('div'); help.textContent = '加入队列仅预留材料；轮到开研时才扣除。移出队列不会取消正在进行的研究。'; panel.appendChild(help);
+                    // v1.42.0 面板内不再放「队列自动开研/自动领取已完成研究」开关——设置页已有同款
+                    const help = doc.createElement('div'); help.textContent = '加入队列仅预留材料；轮到开研时才扣除。移出队列不会取消正在进行的研究。开关见设置页。'; panel.appendChild(help);
                     const status = doc.createElement('div'); status.className = 'nek-research-status'; panel.appendChild(status);
                     const entries = doc.createElement('div'); entries.className = 'nek-research-entries'; panel.appendChild(entries);
                     const total = doc.createElement('div'); total.className = 'nek-research-total'; panel.appendChild(total);
@@ -4303,7 +4302,47 @@
             } catch (e) { /* 忽略 */ }
         }
 
-        // ---- 队列位置快捷开关（当前行动「取消」按钮左侧，保留独立版原位置） ----
+        // ---- 队列进度条下方按钮行（自动收菜 / 定时钓鱼 / 研究队列快捷入口） ----
+        // v1.42.0 起快捷按钮从当前行动「取消」左侧迁移到游戏队列进度条（.active-container）
+        // 下方：header 是 flex column，在其末尾追加 .nek-queue-buttons 一行即可，
+        // 游戏重绘行动区不影响本行；按钮沿用原类名与样式（绘制/点击逻辑不变）。
+
+        function injectQueueRowStyle() {
+            if (document.getElementById('nek-queue-row-style')) return;
+            const s = document.createElement('style');
+            s.id = 'nek-queue-row-style';
+            s.textContent = [
+                // header 原为固定高度 + overflow:hidden，按钮行存在时放开高度让它自然增高
+                'header:has(> .nek-queue-buttons) { height: auto; min-height: 94px; }',
+                // header::before 是全 header 的扫描线蒙版（absolute，z-index:2），
+                // 按钮行需提升到蒙版之上，否则按钮上会蒙一层灰色横纹
+                '.nek-queue-buttons { position: relative; z-index: 3; display: flex;',
+                '  justify-content: flex-end; gap: 6px; align-items: center; height: 24px; }',
+                // 研究队列按钮：样式与另外两个按钮一致（金色底 + 黑边 + 加粗），off 态同灰米色
+                '.nek-research-queue-toggle { position: relative; padding: 0 8px; border-radius: 4px; color: #333;',
+                '  background: var(--c-warning, #ffd93b); text-align: center; cursor: pointer;',
+                '  transition: all .2s ease; font-weight: 700; font-family: system-ui; font-size: 12px;',
+                '  height: 20px; line-height: 20px; letter-spacing: 1px;',
+                '  border: 2px solid var(--c-black, #000); white-space: nowrap; }',
+                '.nek-research-queue-toggle:hover { filter: brightness(1.15); -webkit-filter: brightness(1.15); }',
+                '.nek-research-queue-toggle.off { background: #f3f3ca; color: #939393; }'
+            ].join('\n');
+            document.head.appendChild(s);
+        }
+
+        function ensureQueueButtonRow() {
+            const header = document.querySelector('header');
+            const active = document.querySelector('.active-container');
+            if (!header || !active) return null;
+            injectQueueRowStyle();
+            let row = header.querySelector(':scope > .nek-queue-buttons');
+            if (!row) {
+                row = document.createElement('div');
+                row.className = 'nek-queue-buttons';
+                header.appendChild(row);   // 紧跟 .active-container（进度条）之后
+            }
+            return row;
+        }
 
         function injectAutoStyle() {
             if (document.getElementById('nek-harvest-style')) return;
@@ -4352,20 +4391,18 @@
         function ensureToggleButton() {
             try {
                 injectAutoStyle();
-                const container = document.querySelector('.active-container');
-                if (!container) return;
-                const cancel = container.querySelector('.action-cancel-btn');
-                if (!cancel || !cancel.parentNode) return;
-                let btn = cancel.parentNode.querySelector('.nek-harvest-toggle');
+                const row = ensureQueueButtonRow();
+                if (!row) return;
+                let btn = row.querySelector('.nek-harvest-toggle');
                 if (!btn) {
                     btn = document.createElement('div');
                     btn.className = 'nek-harvest-toggle';
-                    cancel.parentNode.insertBefore(btn, cancel);
                     btn.addEventListener('click', function () {
                         setHarvestEnabled(!isHarvestEnabled());
                         applyHarvestState();   // 同步刷新设置页开关（若打开）
                         hlog('自动收菜已' + (isHarvestEnabled() ? '开启' : '关闭'));
                     });
+                    row.appendChild(btn);
                 }
                 paintToggleButton(btn);
             } catch (e) { /* 忽略 */ }
@@ -4399,7 +4436,9 @@
             installHarvestGuard();
             injectLockGuardStyle();
             ensureToggleButton();
+            ensureResearchQueueButton();
             setInterval(ensureToggleButton, 2000);      // 游戏重绘行动区后自动补挂开关按钮
+            setInterval(ensureResearchQueueButton, 1000);   // 研究队列按钮：每秒刷新文字/进度并自动补挂
             setInterval(protectLockedHarvestBtns, 1500); // 种植页重绘后重新置灰锁定地块的收获按钮
             setInterval(harvestTick, HARVEST_TICK_MS);
             setTimeout(harvestTick, 5000);
@@ -4958,7 +4997,7 @@
         // ---------------- 自动检查更新（GitHub raw 头部 @version 对比） ----------------
         // 注意：发布新版本时需同步修改 CURRENT_VERSION（与头部 @version 保持一致）。
         // 页面上下文无 GM_info（@grant none 且经 <script> 注入），只能内置当前版本号。
-        const CURRENT_VERSION = '1.41.4';
+        const CURRENT_VERSION = '1.42.0';
         const LS_UPD_KEY = 'nek_update_check_enabled';        // 检查更新开关，默认开
         const LS_UPD_REMIND = 'nek_update_remind_last';       // 上次提醒时间戳（提醒节流）
         const UPD_REMIND_INTERVAL = 60 * 60 * 1000;           // 提醒节流：距上次提醒超过 60 分钟才再次提醒
@@ -5171,8 +5210,8 @@
             ensureFishTimerUI();        // 预报区提示条即时同步（预约后立即隐藏）
         }
 
-        // ---- 队列位置钓鱼状态按钮（当前行动「取消」左侧，与「自动收菜」开关并列） ----
-        // 未预约：灰米色（同自动收菜 OFF 配色），文字「未预约钓鱼」；
+        // ---- 队列进度条下方钓鱼状态按钮（与「自动收菜」开关同排） ----
+        // 未预约：灰米色（同自动收菜 OFF 配色），文字「未预约钓鱼」，点击切换至钓鱼界面；
         // 已预约：文字「天气·钓场名·鱼饵」，背景自开钓前 4 小时起由米色渐变覆盖为湖水青，
         // 开钓时刻覆盖完成；时段钓鱼结束变回原色，无下一次预约自动回到未预约状态。
         // 进度锚定时段真实时间戳（period*4h），按钮中途出现也直接显示正确进度，无独立计时。
@@ -5207,6 +5246,9 @@
             if (!b) {
                 text = '未预约钓鱼';
                 cls = 'off';
+                // v1.42.0 修复：原逻辑仅在已预约分支写 title，取消预约后残留上一条预约的悬停提示；
+                // 未预约分支每秒重写，确保 tooltip 与按钮状态一致
+                btn.title = '未预约钓鱼，点击进入钓鱼界面';
             } else {
                 const start = b.period * FISH_PERIOD_SEC;
                 const now = Date.now() / 1000;
@@ -5255,21 +5297,20 @@
                     if (stale) stale.remove();
                     return;
                 }
-                const container = document.querySelector('.active-container');
-                if (!container) return;
-                const cancel = container.querySelector('.action-cancel-btn');
-                if (!cancel || !cancel.parentNode) return;
-                let btn = cancel.parentNode.querySelector('.nek-fish-toggle');
+                const row = ensureQueueButtonRow();
+                if (!row) return;
+                let btn = row.querySelector('.nek-fish-toggle');
                 if (!btn) {
                     btn = document.createElement('div');
                     btn.className = 'nek-fish-toggle';   // 独立类名：不能复用 nek-harvest-toggle，否则收菜按钮挂载逻辑会误匹配本按钮
-                    const harvestBtn = cancel.parentNode.querySelector('.nek-harvest-toggle');
-                    cancel.parentNode.insertBefore(btn, harvestBtn || cancel);   // 排在「自动收菜」左侧
+                    const harvestBtn = row.querySelector('.nek-harvest-toggle');
+                    row.insertBefore(btn, harvestBtn || null);   // 排在「自动收菜」左侧
                     btn.addEventListener('click', function () {
                         const st = loadFishState();
                         const b = fishDisplayBooking(st, currentFishPeriod());
                         if (!b) {
-                            UI.notifier.show('定时钓鱼：尚未预约，请在钓鱼页点击「天气预报」时段条目进行预约', 'tip', 4000);
+                            // v1.42.0 未预约时点击切换至钓鱼界面（预约入口在钓鱼页天气预报时段条目）
+                            UI.changeContent('actions', { id: 4 });
                             return;
                         }
                         const active = !!(st.chain && st.chain.currentPeriod === b.period && isFishingAt(b.pondId));
@@ -5283,6 +5324,91 @@
                     });
                 }
                 paintFishToggleButton(btn);
+            } catch (e) { /* 忽略 */ }
+        }
+
+        // ---- 队列进度条下方研究队列按钮（与「自动收菜」「定时钓鱼」同排） ----
+        // 无进行中研究且队列为空：灰米色「无研究队列」（同自动收菜 OFF 配色）；
+        // 有研究任务/队列：文字「研究所类别·研究名称·当前研究等级」（如 梳毛·绒毛解析·LV2），
+        // 底色金色（同另外两个按钮），淡紫色随研究进度从左向右覆盖、研究完成时完全覆盖，
+        // 开始下一个研究时整键回金底重新覆盖。点击进入研究中心。
+        const RESEARCH_BAR_COVER = '#c8a7f2';                      // 进度条覆盖色（淡紫色）
+        const LS_RESEARCH_QUEUE_PREFIX = 'nek_enhancements_v1:';   // 与研究队列增强模块共用存储
+
+        function researchQueueEntries() {
+            try {
+                const uid = game.character && game.character.uid;
+                const saved = JSON.parse(localStorage.getItem(LS_RESEARCH_QUEUE_PREFIX + uid) || '{}');
+                return Array.isArray(saved.queue) ? saved.queue : [];
+            } catch (e) { return []; }
+        }
+
+        function findResearchProject(projectId) {
+            for (const f of Data.research.facilities) {
+                const p = (f.projects || []).find(p => +p.id === +projectId);
+                if (p) return { facility: f, project: p };
+            }
+            return null;
+        }
+
+        function paintResearchQueueButton(btn) {
+            const info = UI.researchInfo || {};
+            const task = info.task, levels = info.levels || {};
+            const queue = researchQueueEntries();
+            let text = '', cls = 'off', bg = '', tip = '';
+            const describe = function (projectId, lv) {
+                const fp = findResearchProject(projectId);
+                if (!fp) return false;
+                text = (fp.facility.name || '').replace('研究所', '') + '·' + fp.project.name + '·LV' + lv;
+                return true;
+            };
+            if (task && task.finishTime > task.startTime && describe(task.projectId, levels[task.projectId] || 0)) {
+                cls = 'active';
+                const dur = task.finishTime - task.startTime;
+                const pct = Math.min(100, Math.max(0, (Date.now() / 1000 - task.startTime) / dur * 100));
+                // 淡紫色从左向右覆盖金底，研究完成时完全覆盖（进度锚定任务真实时间戳）
+                bg = 'linear-gradient(90deg, ' + RESEARCH_BAR_COVER + ' 0 ' + pct + '%, ' + FISH_BAR_BASE + ' ' + pct + '% 100%)';
+                tip = '研究进行中：进度 ' + pct.toFixed(1) + '%，剩余 ' + fmtFishDur(Math.max(0, task.finishTime - Date.now() / 1000)) +
+                    (queue.length ? '；队列另有 ' + queue.length + ' 条待研究' : '') + ' · 点击进入研究中心';
+            } else if (queue.length) {
+                // 无进行中研究：显示队首条目的当前等级（开研时的起点等级）
+                const head = queue[0];
+                if (describe(head.projectId, levels[head.projectId] || 0)) {
+                    cls = 'active';
+                    tip = '队列 ' + queue.length + ' 条待研究 · 点击进入研究中心';
+                }
+            }
+            if (!text) {
+                text = '无研究队列';
+                cls = 'off';
+                tip = '暂无研究任务与队列 · 点击进入研究中心';
+            }
+            // DOM 写缓存：秒内值不变零写入
+            if (btn._nekResBg !== bg) { btn._nekResBg = bg; btn.style.background = bg; }
+            if (btn.textContent !== text) btn.textContent = text;
+            btn.classList.toggle('off', cls === 'off');
+            btn.title = tip;
+        }
+
+        function ensureResearchQueueButton() {
+            try {
+                if (!isEnabled()) {
+                    const stale = document.querySelector('.nek-research-queue-toggle');
+                    if (stale) stale.remove();
+                    return;
+                }
+                const row = ensureQueueButtonRow();
+                if (!row) return;
+                let btn = row.querySelector('.nek-research-queue-toggle');
+                if (!btn) {
+                    btn = document.createElement('div');
+                    btn.className = 'nek-research-queue-toggle';   // 独立类名：避免被收菜/钓鱼按钮的挂载逻辑误匹配
+                    btn.addEventListener('click', function () {
+                        UI.changeContent('research');   // 切换至研究中心界面
+                    });
+                    row.appendChild(btn);   // 排在「定时钓鱼」「自动收菜」右侧
+                }
+                paintResearchQueueButton(btn);
             } catch (e) { /* 忽略 */ }
         }
 

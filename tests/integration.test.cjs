@@ -121,7 +121,8 @@ test('研究开始按钮旁加入队列按钮，点击展示记录与材料预�
     assert.deepEqual(h.quantities, before); assert.equal(h.sent.length, 0);
     const panel = h.ui.researchRoot.querySelector('.nek-research-queue');
     assert.ok(panel.classList.contains('neon-section'));
-    assert.equal(panel.querySelectorAll('.setting-item .slider-container .toggle-switch .toggle-slider').length, 2);
+    // v1.42.0 面板内不再放开关（设置页已有同款），只保留说明/状态/条目/汇总
+    assert.equal(panel.querySelectorAll('.setting-item .slider-container .toggle-switch .toggle-slider').length, 0);
     assert.match(panel.textContent, /绒毛解析 Lv\.0 → Lv\.1/); assert.match(panel.textContent, /预留 500 \/ 背包 10000/);
     assert.match(panel.textContent, /开研时才扣除/);
     panel.querySelector('.nek-research-entry .btn').fire('click');
@@ -276,7 +277,8 @@ test('已有研究时原生不带开始区也可加入队列，锁定与满级�
     const running = h.ui.createResearchProjectRow(facility, { id: 11, level: 0, maxLevel: 30, running: true });
     assert.ok(running.querySelector('.research-project-action .nek-research-add'));
     assert.equal(running.querySelectorAll('.research-project-action .btn').length, 1);
-    assert.equal(h.document.querySelectorAll('[data-nek-option]').length, 7);
+    // v1.42.0 面板开关剔除后，仅设置页保留 5 个开关（研究队列 2 + 任务 2 + 产出 1）
+    assert.equal(h.document.querySelectorAll('[data-nek-option]').length, 5);
 });
 test('四类行动输出及额外奖励显示实时库存，强化按同等级，输入与其他行动不显示', () => {
     const h = setup();

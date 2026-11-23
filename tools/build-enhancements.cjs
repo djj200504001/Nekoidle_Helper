@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const file = path.join(root, '银河猫娘放置小助手.user.js');
-const version = '1.41.4';
+const version = '1.42.0';
 const original = fs.readFileSync(file, 'utf8');
 const newline = original.includes('\r\n') ? '\r\n' : '\n';
 let script = original.replace(/\r\n/g, '\n');
@@ -28,7 +28,7 @@ if (!script.includes('        nekEnhancements.init();')) script = script.replace
 script = script.replace(/(\/\/ @version\s+)\S+/, (_, prefix) => prefix + version)
     .replace(/const CURRENT_VERSION = '[^']+';/, "const CURRENT_VERSION = '" + version + "';")
     .replace(/(\/\/ @description\s+)(?:v1\.\d+\.\d+：[^。]*。)?/, (_, prefix) =>
-        prefix + 'v' + version + '：研究队列（记录并预留材料、开研时扣除，队列条目显示计划起止等级与对应消耗；待加入卡片按计划执行等级显示——进行中的研究占一级、队列条目逐条推进，入队/移出后卡片实时刷新到下一计划等级的数据，材料行显示扣除队列预留后的可用数量、不足时数值显示红色且仅提示不拦截入队）与自动结算研究，自动接受任务/领取奖励，研究队列面板按端适配——PC 保留固定面板样式，手机端嵌入研究列表滚动流内并吸顶折叠（滚过列表顶自动收起为标题条、滚回自动展开，点击标题可手动折叠/展开），缺少材料提醒显示红色，梳毛/采集/生产/烹饪产出物显示背包库存和队列预计产出。');
+        prefix + 'v' + version + '：自动收菜/定时钓鱼/研究队列三个快捷按钮迁至游戏队列进度条下方一行（自动收菜与定时钓鱼从当前行动「取消」左侧迁出，研究队列按钮显示无研究队列或研究所类别·研究名称·当前研究等级、点击进入研究中心，按钮底色同另外两个按钮并提升到扫描线蒙版之上，研究进行中淡紫色随进度从左向右覆盖金底、完成时完全覆盖，开始下一个研究整键回金底重新覆盖）；修复取消钓鱼预约后按钮悬停提示残留，未预约钓鱼按钮点击改为进入钓鱼界面；研究队列面板剔除「队列自动开研/自动领取已完成研究」开关（设置页保留同款）。其余同 v1.41.4——研究队列（记录并预留材料、开研时扣除，队列条目显示计划起止等级与对应消耗；待加入卡片按计划执行等级显示——进行中的研究占一级、队列条目逐条推进，入队/移出后卡片实时刷新到下一计划等级的数据，材料行显示扣除队列预留后的可用数量、不足时数值显示红色且仅提示不拦截入队）与自动结算研究，自动接受任务/领取奖励，研究队列面板按端适配——PC 保留固定面板样式，手机端嵌入研究列表滚动流内并吸顶折叠（滚过列表顶自动收起为标题条、滚回自动展开，点击标题可手动折叠/展开），缺少材料提醒显示红色，梳毛/采集/生产/烹饪产出物显示背包库存和队列预计产出。');
 new (require('node:vm').Script)(script, { filename: file });
 if (!script.includes(block) || !script.includes('        nekEnhancements.init();') || !script.includes('function () { nekEnhancements.decorate(); }')) {
     throw new Error('Userscript integration anchors changed; build aborted.');

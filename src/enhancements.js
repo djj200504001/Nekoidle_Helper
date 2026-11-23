@@ -733,9 +733,9 @@ function createNekEnhancements(env) {
             head.append(title, hint, arrow);
             panel.appendChild(head);
             const body = doc.createElement('div'); body.className = 'nek-research-body';
-            const options = doc.createElement('div'); options.className = 'setting-list';
-            toggle('队列自动开研', 'researchQueue', options); toggle('自动领取已完成研究', 'researchFinish', options); body.appendChild(options);
-            const help = doc.createElement('div'); help.textContent = '加入队列仅预留材料；轮到开研时才扣除。移出队列不会取消正在进行的研究。'; body.appendChild(help);
+            // v1.42.0 面板内不再放「队列自动开研/自动领取已完成研究」开关——设置页已有同款，
+            // 这里只保留说明、状态与条目列表
+            const help = doc.createElement('div'); help.textContent = '加入队列仅预留材料；轮到开研时才扣除。移出队列不会取消正在进行的研究。开关见设置页。'; body.appendChild(help);
             const status = doc.createElement('div'); status.className = 'nek-research-status'; body.appendChild(status);
             const entries = doc.createElement('div'); entries.className = 'nek-research-entries'; body.appendChild(entries);
             const total = doc.createElement('div'); total.className = 'nek-research-total'; body.appendChild(total);
@@ -783,9 +783,8 @@ function createNekEnhancements(env) {
             panel = doc.createElement('div'); panel.className = 'neon-section nek-research-queue';
             panel._nekNarrow = false;
             const heading = doc.createElement('div'); heading.className = 'section-title'; heading.textContent = '研究队列'; panel.appendChild(heading);
-            const options = doc.createElement('div'); options.className = 'setting-list';
-            toggle('队列自动开研', 'researchQueue', options); toggle('自动领取已完成研究', 'researchFinish', options); panel.appendChild(options);
-            const help = doc.createElement('div'); help.textContent = '加入队列仅预留材料；轮到开研时才扣除。移出队列不会取消正在进行的研究。'; panel.appendChild(help);
+            // v1.42.0 面板内不再放「队列自动开研/自动领取已完成研究」开关——设置页已有同款
+            const help = doc.createElement('div'); help.textContent = '加入队列仅预留材料；轮到开研时才扣除。移出队列不会取消正在进行的研究。开关见设置页。'; panel.appendChild(help);
             const status = doc.createElement('div'); status.className = 'nek-research-status'; panel.appendChild(status);
             const entries = doc.createElement('div'); entries.className = 'nek-research-entries'; panel.appendChild(entries);
             const total = doc.createElement('div'); total.className = 'nek-research-total'; panel.appendChild(total);
