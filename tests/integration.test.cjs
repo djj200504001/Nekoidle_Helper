@@ -1,0 +1,181 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const { Document } = require('./helpers/dom.cjs');
+
+function setup() {
+    const document = new Document(), intervals = [], sent = [], notifications = [], popups = [], calls = [];
+    const data = { items: { 10: { id: 10, name: '绒毛' }, 20: { id: 20, name: '果实' }, 30: { id: 30, name: '成品' }, 40: { id: 40, name: '料理' } }, quests: {},
+        research: { facilities: [{ name: '梳毛研究所', reportItem: 9610, elementBase: 1101, projects: [{ id: 11, name: '绒毛解析', maxLevel: 30, basePct: 1000 }] }] } };
+    const quantities = { '10-0': 12345, '20-0': 200, '30-3': 12, '40-0': 0, '9610-0': 10000, '1101-0': 10000 };
+    const game = { character: { uid: 123, level: 1, quest_max: 0 }, quests: { main: [], work: [] },
+        getItem: id => data.items[id], getItemQuantity: (id, enhancement = 0) => quantities[id + '-' + enhancement] || 0,
+        getQuest: id => data.quests[id] };
+    const node = (cls, parent = document.body, text) => {
+        const el = document.createElement('div'); el.className = cls;
+        if (text) el.textContent = text; parent?.appendChild(el); return el;
+    };
+    const ui = {
+        researchInfo: { task: null, levels: {} }, researchOffset: 0,
+        notifier: { show: (...args) => notifications.push(args) },
+        getResearchCost: () => ({ reportItem: 9610, reports: 500, elementItem: 1101, elementQuantity: 100 }),
+        createResearchProjectRow(facility, project) {
+            calls.push(['row', this, facility, project]);
+            const row = node('research-project', null);
+            if (!project.running) node('research-start-btn', node('research-project-action', row), '开始研究');
+            return row;
+        },
+        createItemElement(def, options) { calls.push(['item', this, def, options]); return node('item', null); },
+        showItem(el, def, options) { calls.push(['showItem', this, def, options]); el.className = 'item'; },
+        showQuestRewardModal(rewards) { popups.push(rewards); return 'modal-result'; },
+        renderResearchPage() { this.researchTaskHost.replaceChildren(); }
+    };
+    const msg = { ws: { readyState: 1 }, send(type, data) { assert.equal(this, msg); sent.push({ type, data }); return true; }, handlers: {} };
+    for (const type of ['research_info', 'research_started', 'research_finished']) {
+        msg.handlers[type] = function (message) {
+            calls.push([type, this, message]); Object.assign(ui.researchInfo, message.content); return 'response-result';
+        };
+    }
+    msg.handlers.quest_reward_claimed = function (message) {
+        calls.push(['reward', this, message]);
+        game.quests.main.find(q => q.id === message.content.id).status = 1;
+        ui.showQuestRewardModal(message.content.rewards); return 'reward-result';
+    };
+    msg.handlers.init_character_data = function (message) {
+        game.inventory = message.content.inventory;
+        calls.push(['snapshot-holdings', game.getItemQuantity(20)]);
+        return 'snapshot-result';
+    };
+    ui.researchTaskHost = node('task-host'); ui.researchRoot = node('research-root');
+    const setting = node('nek-assist-section'); node('setting-list', setting);
+    const store = new Map(), listeners = {};
+    const storage = { getItem: k => store.get(k) || null, setItem: (k, v) => store.set(k, v), removeItem: k => store.delete(k) };
+    let enabled = true;
+    const sandbox = { module: { exports: {} }, console, setInterval: fn => { intervals.push(fn); return 1; } };
+    vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/enhancements.js'), 'utf8'), sandbox);
+    const feature = sandbox.module.exports.createNekEnhancements({ document, window: { addEventListener: (type, fn) => { listeners[type] = fn; } },
+        storage, game: () => game, ui: () => ui, msg: () => msg, data: () => data,
+        enabled: () => enabled, identifyAction: el => ({ action: el.actionType }) });
+    feature.init(); feature.core.setting('questAccept', false); feature.core.setting('questReward', false);
+    msg.handlers.research_info.call(msg, { content: { task: null, levels: {} } });
+    sent.length = 0; calls.length = 0;
+    function output(rootClass, id, options = {}) {
+        let parent = document.body;
+        if (rootClass === 'cooking-detail') parent = node('cooking-page');
+        const root = node(rootClass, parent); root.actionType = options.actionType || 1;
+        const section = node(options.native ? 'modal-box-item' : 'cooking-detail-section', root);
+        node('modal-container-title', section, options.title || '获得');
+        const row = node('action-item-container', section), iconHolder = node('action-item-container-icon', row);
+        const info = node('action-item-container-info', row), name = node('action-item-container-text', info);
+        const label = document.createElement('span'); label.textContent = data.items[id].name; name.appendChild(label);
+        const icon = options.fallback ? node('item', iconHolder) : ui.createItemElement(data.items[id], { enhancement: options.enhancement || 0 });
+        if (!options.fallback) iconHolder.appendChild(icon);
+        return { root, row, name, icon, section };
+    }
+    return { feature, ui, msg, game, data, quantities, sent, notifications, popups, calls, document, node, output, intervals, listeners, enable: v => { enabled = v; } };
+}
+
+test('研究开始按钮旁加入队列按钮，点击展示记录与材料预留，保持背包不变', () => {
+    const h = setup(), facility = h.data.research.facilities[0];
+    const row = h.ui.createResearchProjectRow(facility, { id: 11, level: 0, maxLevel: 30, locked: false });
+    h.document.body.appendChild(row);
+    const action = row.querySelector('.research-project-action');
+    assert.equal(action.children.length, 2); assert.equal(action.children[1].textContent, '加入研究队列');
+    assert.equal(h.calls[0][1], h.ui);
+    const before = { ...h.quantities }; action.children[1].fire('click');
+    assert.deepEqual(h.quantities, before); assert.equal(h.sent.length, 0);
+    const panel = h.ui.researchTaskHost.querySelector('.nek-research-queue');
+    assert.match(panel.textContent, /绒毛解析 → Lv.1/); assert.match(panel.textContent, /预留 500 \/ 背包 10000/);
+    assert.match(panel.textContent, /开研时才扣除/);
+    panel.querySelector('.nek-research-entry .btn').fire('click');
+    assert.equal(h.feature.core.view().queue.entries.length, 0);
+});
+test('已有研究时原生不带开始区也可加入队列，锁定与满级项目不增加按钮', () => {
+    const h = setup(), facility = h.data.research.facilities[0];
+    for (const project of [{ id: 11, level: 30, maxLevel: 30 }, { id: 11, level: 0, maxLevel: 30, locked: true }]) {
+        const row = h.ui.createResearchProjectRow(facility, project); assert.equal(row.querySelector('.nek-research-add'), null);
+    }
+    const running = h.ui.createResearchProjectRow(facility, { id: 11, level: 0, maxLevel: 30, running: true });
+    assert.ok(running.querySelector('.research-project-action .nek-research-add'));
+    assert.equal(running.querySelector('.research-start-btn'), null);
+    assert.equal(h.document.querySelectorAll('[data-nek-option]').length, 7);
+});
+test('四类行动输出及额外奖励显示实时库存，强化按同等级，输入与其他行动不显示', () => {
+    const h = setup();
+    const comb = h.output('action-modal-content', 10, { native: true, actionType: 1 });
+    const pick = h.output('nek-pick-detail', 20, { fallback: true });
+    const prod = h.output('nek-prod-detail', 30, { enhancement: 3 });
+    const cook = h.output('cooking-detail', 40, { title: '产出' });
+    const extra = h.output('action-modal-content', 20, { native: true, actionType: 2, title: '额外奖励' });
+    const input = h.output('nek-prod-detail', 20, { title: '消耗' });
+    const unrelated = h.output('action-modal-content', 20, { native: true, actionType: 3 });
+    h.feature.decorate();
+    assert.equal(comb.name.querySelector('.nek-output-holding').textContent, '背包：12,345');
+    assert.equal(pick.name.querySelector('.nek-output-holding').textContent, '背包：200');
+    assert.equal(prod.name.querySelector('.nek-output-holding').textContent, '背包：12');
+    assert.equal(cook.name.querySelector('.nek-output-holding').textContent, '背包：0');
+    assert.ok(extra.name.querySelector('.nek-output-holding'));
+    assert.equal(input.name.querySelector('.nek-output-holding'), null); assert.equal(unrelated.name.querySelector('.nek-output-holding'), null);
+    h.quantities['10-0'] = 22222; h.feature.decorate();
+    assert.equal(comb.name.querySelector('.nek-output-holding').textContent, '背包：22,222');
+    h.feature.core.setting('holdings', false); h.feature.decorate();
+    assert.equal(h.document.querySelectorAll('.nek-output-holding').length, 0);
+    assert.equal(h.document.querySelectorAll('.nek-output-name').length, 0);
+});
+test('showItem 原生返回值不变且绑定真实 ID，静止装饰不产生 DOM 写循环', () => {
+    const h = setup(), row = h.output('nek-prod-detail', 30, { fallback: true });
+    assert.equal(h.ui.showItem(row.icon, h.data.items[30], { enhancement: 3 }), undefined);
+    h.feature.decorate(); assert.equal(row.name.querySelector('.nek-output-holding').textContent, '背包：12');
+    const facility = h.data.research.facilities[0]; h.document.body.appendChild(h.ui.createResearchProjectRow(facility, { id: 11, level: 0, maxLevel: 30 }));
+    h.feature.decorate(); h.document.mutations = 0; h.feature.decorate();
+    assert.equal(h.document.mutations, 0);
+    assert.equal(h.intervals.length, 1); h.feature.init(); assert.equal(h.intervals.length, 1);
+});
+test('角色快照替换背包前清空数量缓存，产出和原生渲染都读取更新后的库存', () => {
+    const h = setup(), row = h.output('nek-prod-detail', 20);
+    h.game.inventory = [{ item: 20, quantity: 200 }];
+    h.game.itemQuantityCache = new Map();
+    h.game.getItemQuantity = id => {
+        if (!h.game.itemQuantityCache.has(id)) {
+            h.game.itemQuantityCache.set(id, h.game.inventory.find(item => item.item === id)?.quantity || 0);
+        }
+        return h.game.itemQuantityCache.get(id);
+    };
+    h.feature.decorate();
+    assert.equal(row.name.querySelector('.nek-output-holding').textContent, '背包：200');
+    assert.equal(h.msg.handlers.init_character_data({ content: { inventory: [{ item: 20, quantity: 5 }] } }), 'snapshot-result');
+    assert.deepEqual(h.calls.at(-1), ['snapshot-holdings', 5]);
+    h.feature.decorate();
+    assert.equal(row.name.querySelector('.nek-output-holding').textContent, '背包：5');
+});
+test('注入前已经打开的产出面板应读取原生图标上的强化等级', () => {
+    const h = setup(), row = h.output('nek-prod-detail', 30, { fallback: true });
+    h.node('item-enhancement enhancement-1', row.icon, '+3');
+    h.feature.decorate();
+    assert.equal(row.name.querySelector('.nek-output-holding').textContent, '背包：12');
+});
+test('自动领奖只隐藏对应弹窗，原生消息 this、参数、返回值和手工弹窗保留', () => {
+    const h = setup(); h.feature.core.setting('researchQueue', false); h.feature.core.setting('researchFinish', false);
+    h.feature.core.setting('questReward', true);
+    h.data.quests[1] = { id: 1, objectives: [{ type: 'action', count: 1 }] };
+    h.game.quests.main.push({ id: 1, status: 0, progress: [1] });
+    h.feature.core.tick(); assert.equal(h.sent[0].type, 'quest_reward');
+    const response = { content: { type: 'main', id: 1, rewards: [{ item: 10, quantity: 1 }] } };
+    assert.equal(h.msg.handlers.quest_reward_claimed.call(h.msg, response), 'reward-result');
+    assert.equal(h.popups.length, 0); assert.equal(h.game.quests.main[0].status, 1);
+    const call = h.calls.find(c => c[0] === 'reward'); assert.equal(call[1], h.msg); assert.equal(call[2], response);
+    assert.match(h.notifications.at(-1)[0], /已领取任务奖励/);
+    assert.equal(h.ui.showQuestRewardModal(['manual']), 'modal-result'); assert.equal(h.popups.length, 1);
+    h.msg.send('quest_reward', { type: 'main', id: 1 });
+    h.msg.handlers.quest_reward_claimed.call(h.msg, response); assert.equal(h.popups.length, 2);
+});
+test('总开关关闭清除队列面板和库存装饰，隐藏新增按钮', () => {
+    const h = setup(), facility = h.data.research.facilities[0];
+    h.output('nek-prod-detail', 30); h.document.body.appendChild(h.ui.createResearchProjectRow(facility, { id: 11, level: 0, maxLevel: 30 }));
+    h.feature.decorate(); h.enable(false); h.feature.decorate();
+    assert.equal(h.document.querySelector('.nek-research-queue'), null);
+    assert.equal(h.document.querySelector('.nek-output-holding'), null);
+    assert.equal(h.document.querySelector('.nek-research-add').hidden, true);
+});
