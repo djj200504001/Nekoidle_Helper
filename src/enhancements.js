@@ -390,22 +390,30 @@ function createNekController(env) {
     return { tick, enqueue, remove, setting, view, plannedLevel, message, observeSend, isAutomaticReward, workAvailable, claimable, release };
 }
 
+function* queuedBatches(game, metadata) {
+    for (const entry of game.queue || []) {
+        if (!entry) continue;
+        const state = metadata.get(entry);
+        const remaining = Number(state?.remaining ?? entry.remaining ?? entry.count);
+        if (remaining !== -1 && (!Number.isSafeInteger(remaining) || remaining <= 0)) continue;
+        const multiplier = Number(state?.multiplier ?? entry.multiplier ?? entry.item?.multiplier);
+        const batch = Number.isSafeInteger(multiplier) && multiplier > 0 ? multiplier : 1;
+        yield { entry, remaining, batch };
+    }
+}
+
 // 按已排定的剩余次数估算毛产出，使用当前等级、研究、祝福与装备。
 function estimateQueueOutputs(game, ui, data, metadata, cookingChestDivisor) {
     const totals = new Map();
-    for (const entry of game.queue || []) {
-        if (!entry || !['action', 'cooking'].includes(entry.type)) continue;
+    for (const { entry, remaining, batch: multiplier } of queuedBatches(game, metadata)) {
+        if (!['action', 'cooking'].includes(entry.type)) continue;
         const cooking = entry.type === 'cooking';
         const action = cooking ? data?.cookingRecipes?.[entry.id] : game.getAction(entry.id);
         const skill = cooking ? 7 : Number(action?.action);
         if (!action || ![1, 2, 6, 7].includes(skill)) continue;
-        const state = metadata.get(entry);
-        const remaining = Number(state?.remaining ?? entry.remaining ?? entry.count);
-        if (remaining !== -1 && (!Number.isSafeInteger(remaining) || remaining <= 0)) continue;
         const success = (cooking ? ui.getCookingLevelState(action) : ui.getActionLevelState(action)).successRate / 100;
         if (!(success > 0)) continue;
-        const queuedMultiplier = Number(state?.multiplier ?? entry.multiplier ?? entry.item?.multiplier);
-        const batch = (cooking || skill === 6) && Number.isSafeInteger(queuedMultiplier) && queuedMultiplier > 0 ? queuedMultiplier : 1;
+        const batch = cooking || skill === 6 ? multiplier : 1;
         const facility = cooking ? 12 : game.getResearchFacilityIdForAction(action);
         const productBonus = Math.max(0, Number(game.getResearchEffectPct(facility, 'product')) || 0);
         const researchLuck = Math.max(0, Number(game.getResearchEffectPct(facility, 'lucky')) || 0);
@@ -445,6 +453,67 @@ function estimateQueueOutputs(game, ui, data, metadata, cookingChestDivisor) {
         add(action.rewards, false);
         add(action.extraRewards, true);
         add(chests, true);
+    }
+    return totals;
+}
+
+function queueIngredient(game, data, ingredient, choice, batch, saveRate) {
+    let itemId = ingredient.itemId;
+    // 与游戏的烹饪材料计算一致：先按份数及省料取整，再换算替代食材。
+    let quantity = Math.floor(ingredient.quantity * batch * (1 - saveRate));
+    if (choice && Number(itemId) !== Number(choice)) {
+        const original = game.getItem(Number(itemId)), substitute = game.getItem(Number(choice));
+        const group = original?.substitute_group;
+        const loss = Number(data?.food?.[group]);
+        if (group && group !== 'processed' && substitute?.substitute_group === group && loss > 0
+            && original.substitute_value > 0 && substitute.substitute_value > 0) {
+            itemId = choice;
+            quantity = Math.ceil(quantity * original.substitute_value * (1 + loss) / substitute.substitute_value);
+        }
+    }
+    return { itemId, quantity };
+}
+
+function estimateQueueMaterials(game, data, metadata) {
+    const totals = new Map();
+    const saving = type => Math.max(0, Math.min(1, Number(game.getLifeMasterRate?.(type)) || 0));
+    for (const { entry, remaining, batch } of queuedBatches(game, metadata)) {
+        const add = (itemId, quantity, enhancement = 0) => {
+            const id = Number(itemId), level = Number(enhancement);
+            if (!Number.isInteger(id) || id <= 0 || !Number.isInteger(level) || !Number.isFinite(quantity) || quantity <= 0) return;
+            const key = id + ':' + level;
+            totals.set(key, remaining === -1 ? Infinity : (totals.get(key) || 0) + quantity * remaining);
+        };
+        if (entry.type === 'action') {
+            const action = game.getAction(entry.id);
+            const production = Number(action?.action) === 6;
+            const scale = production ? batch * (1 - saving(game.getLifeBonusActionType(6))) : 1;
+            for (const ingredient of action?.requirements || []) add(ingredient.itemId, ingredient.quantity * scale);
+        } else if (entry.type === 'cooking') {
+            const ingredients = data?.cookingRecipes?.[entry.id]?.ingredients || [];
+            const saveRate = saving(9);
+            ingredients.forEach((ingredient, index) => {
+                const { itemId, quantity } = queueIngredient(game, data, ingredient, entry.item?.choices?.[index], batch, saveRate);
+                add(itemId, quantity);
+            });
+        } else if (entry.type === 'alchemy') {
+            const { primaryItem, secondaryItem, enhancement } = entry.item || {};
+            const recipe = Number(entry.id);
+            const occult = { 3: 'up', 4: 'down', 5: 'change' }[recipe];
+            if (recipe === 9) {
+                const upgrade = data?.alchemyQuantum?.[primaryItem]?.find(row => Number(row.secondary) === Number(secondaryItem));
+                if (!upgrade) continue;
+                add(primaryItem, 1, enhancement);
+                add(secondaryItem, Number(upgrade.quantity));
+            } else if (occult) {
+                add(primaryItem, Number(data?.alchemyOccultism?.[primaryItem]?.[occult]?.quantity ?? 1), enhancement);
+            } else if (recipe === 1 || recipe === 2 || recipe === 6) {
+                const quantity = recipe === 1 ? Number(game.getItem(Number(primaryItem))?.auri || 1) : 1;
+                add(primaryItem, quantity, enhancement);
+            }
+        } else if (entry.type === 'fishing') {
+            add(entry.item?.primaryItem, 1);
+        }
     }
     return totals;
 }
@@ -702,6 +771,7 @@ function createNekEnhancements(env) {
             '.nek-research-queue .btn{flex-shrink:0}',
             '.research-project-action.nek-research-actions{flex-wrap:wrap;gap:6px}',
             '.nek-output-holding,.nek-output-queue{white-space:nowrap}',
+            '.nek-material-available{white-space:nowrap}',
             '.nek-output-name{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:flex-start;row-gap:2px}',
             // 缺少材料提醒：红色加粗（含状态行与材料明细行）
             '.nek-research-insufficient{color:#FF4B88;font-weight:700}',
@@ -839,40 +909,92 @@ function createNekEnhancements(env) {
             block = doc.createElement('div'); block.className = 'nek-auto-settings';
             toggle('队列自动开研', 'researchQueue', block); toggle('自动领取已完成研究', 'researchFinish', block);
             toggle('自动接受任务', 'questAccept', block); toggle('自动领取任务奖励', 'questReward', block);
-            toggle('产出物显示背包和队列产出', 'holdings', block);
+            toggle('显示产出库存、队列产出和生产材料可用量', 'holdings', block);
             const status = doc.createElement('div'); status.className = 'nek-quest-status stat-sub'; block.appendChild(status); section.appendChild(block);
         }
         text(block.querySelector('.nek-quest-status'), v.questStatus);
     }
+    function resolveInventoryItem(row, name) {
+        const icon = row.querySelector('.action-item-container-icon .item');
+        if (!icon) return null;
+        const known = itemInfo.get(icon);
+        if (known) return known;
+        // 注入前已经渲染的面板按完整物品名唯一匹配，不把贴图编号当物品 ID。
+        const label = name.firstElementChild?.textContent.trim();
+        const matches = Object.values(env.data()?.items || {}).filter(d => d.name === label);
+        const enhancement = Number(icon.querySelector('.item-enhancement')?.textContent.trim() || 0);
+        return matches.length === 1 && Number.isInteger(enhancement) ? { id: Number(matches[0].id), enhancement } : null;
+    }
     function decorateHoldings(v) {
         if (!env.enabled() || !v.settings.holdings) {
-            doc.querySelectorAll('.nek-output-holding, .nek-output-queue').forEach(el => el.remove());
+            doc.querySelectorAll('.nek-output-holding, .nek-output-queue, .nek-material-available').forEach(el => el.remove());
             doc.querySelectorAll('.nek-output-name').forEach(el => el.classList.remove('nek-output-name')); return;
         }
         const g = env.game(); if (!g?.character?.uid) return;
-        let projection;
-        const decorated = new Set();
+        let projection, reservations;
+        const decorated = new Set(), materialLabels = new Set(), queueLabels = new Set();
+        function decorateQueueOutput(holder, item, material = false) {
+            projection ??= estimateQueueOutputs(g, env.ui(), env.data(), queueMetadata, env.cookingChestDivisor);
+            const total = projection.get(item.id + ':' + item.enhancement);
+            let label = holder.querySelector('.nek-output-queue');
+            if (!label) {
+                label = doc.createElement(material ? 'div' : 'span');
+                label.className = (material ? 'action-item-container-text ' : '') + 'stat-sub nek-output-queue';
+                label.title = '当前行动及待执行队列的计划毛产出，按当前加成估算，假设材料足够。随机掉落按期望值计算，不限次行动单独标出。';
+                holder.appendChild(label);
+            }
+            queueLabels.add(label);
+            const amount = total?.amount || 0;
+            const finite = amount > 0 && amount < 0.01 ? '<0.01' : (total?.approximate ? '约 ' : '') +
+                amount.toLocaleString('zh-CN', { maximumFractionDigits: 2 });
+            const display = total?.unlimited ? (amount > 0 ? finite + ' + 不限次' : '不限次') : finite;
+            text(label, '队列产出：' + display);
+        }
+        const decorateMaterial = row => {
+            const info = row.querySelector('.action-item-container-info');
+            const name = info?.querySelector('.action-item-container-text');
+            const item = name && resolveInventoryItem(row, name);
+            if (!item) return;
+            reservations ??= estimateQueueMaterials(g, env.data(), queueMetadata);
+            const have = Number(g.getItemQuantity(item.id, item.enhancement) || 0);
+            const reserved = reservations.get(item.id + ':' + item.enhancement) || 0;
+            let label = info.querySelector('.nek-material-available');
+            if (!label) {
+                label = doc.createElement('div');
+                label.className = 'action-item-container-text stat-sub nek-material-available';
+                info.appendChild(label);
+            }
+            materialLabels.add(label);
+            const available = Math.max(0, have - reserved);
+            text(label, '剩余可用：' + available.toLocaleString('zh-CN', { maximumFractionDigits: 2 }));
+            const hint = reserved === Infinity ? '不限次行动已预留该材料' :
+                '当前背包数量减去进行中和待执行行动的计划用量，按当前加成估算。';
+            if (label.title !== hint) label.title = hint;
+            decorateQueueOutput(info, item, true);
+        };
         doc.querySelectorAll('.cooking-page .cooking-detail, .nek-prod-detail, .nek-pick-detail, .action-modal-content').forEach(root => {
+            let production = root.matches('.nek-prod-detail');
             if (root.matches('.action-modal-content')) {
                 const action = env.identifyAction(root);
                 if (!action || ![1, 2, 6, 7].includes(Number(action.action))) return;
+                production = Number(action.action) === 6;
             }
             root.querySelectorAll('.cooking-detail-section, .modal-box-item').forEach(section => {
-                const title = section.querySelector('.modal-container-title')?.textContent.trim();
+                const titles = section.querySelectorAll('.modal-container-title');
+                if (production) {
+                    titles.forEach(heading => {
+                        if (heading.textContent.trim() !== '消耗') return;
+                        // 原生弹窗将「基本信息」和「消耗」放在同一 section，各自有材料/信息列表。
+                        const list = heading.nextElementSibling;
+                        if (list?.matches('.action-item-container-list')) list.querySelectorAll('.action-item-container').forEach(decorateMaterial);
+                        else if (titles.length === 1) section.querySelectorAll('.action-item-container').forEach(decorateMaterial);
+                    });
+                }
+                const title = titles[0]?.textContent.trim();
                 if (!['获得', '产出', '额外奖励'].includes(title)) return;
                 section.querySelectorAll('.action-item-container').forEach(row => {
-                    const icon = row.querySelector('.action-item-container-icon .item');
-                    const info = row.querySelector('.action-item-container-info');
-                    const name = info?.querySelector('.action-item-container-text');
-                    if (!icon || !name) return; // 经验行和材料区不装饰。
-                    let item = itemInfo.get(icon);
-                    if (!item) {
-                        // 注入前已经渲染的面板：用完整物品名唯一匹配，不把贴图编号当物品 ID。
-                        const label = name.firstElementChild?.textContent.trim();
-                        const matches = Object.values(env.data()?.items || {}).filter(d => d.name === label);
-                        const enhancement = Number(icon.querySelector('.item-enhancement')?.textContent.trim() || 0);
-                        if (matches.length === 1 && Number.isInteger(enhancement)) item = { id: Number(matches[0].id), enhancement };
-                    }
+                    const name = row.querySelector('.action-item-container-info .action-item-container-text');
+                    const item = name && resolveInventoryItem(row, name);
                     if (!item) return;
                     decorated.add(name);
                     let tag = name.querySelector('.nek-output-holding');
@@ -882,27 +1004,17 @@ function createNekEnhancements(env) {
                         name.classList.add('nek-output-name'); name.appendChild(tag);
                     }
                     text(tag, '背包：' + Number(g.getItemQuantity(item.id, item.enhancement) || 0).toLocaleString('zh-CN'));
-                    projection ??= estimateQueueOutputs(g, env.ui(), env.data(), queueMetadata, env.cookingChestDivisor);
-                    const total = projection.get(item.id + ':' + item.enhancement);
-                    let queueTag = name.querySelector('.nek-output-queue');
-                    if (!queueTag) {
-                        queueTag = doc.createElement('span'); queueTag.className = 'stat-sub nek-output-queue';
-                        queueTag.title = '当前行动及待执行队列的计划毛产出，按当前加成估算，假设材料足够。随机掉落按期望值计算，不限次行动单独标出。';
-                        name.appendChild(queueTag);
-                    }
-                    const amount = total?.amount || 0;
-                    const finite = (amount > 0 && amount < 0.01 ? '<0.01' : (total?.approximate ? '约 ' : '') +
-                        amount.toLocaleString('zh-CN', { maximumFractionDigits: 2 }));
-                    const display = total?.unlimited ? (amount > 0 ? finite + ' + 不限次' : '不限次') : finite;
-                    text(queueTag, '队列产出：' + display);
+                    decorateQueueOutput(name, item);
                 });
             });
         });
         doc.querySelectorAll('.nek-output-name').forEach(name => {
             if (decorated.has(name)) return;
-            name.querySelectorAll('.nek-output-holding, .nek-output-queue').forEach(el => el.remove());
+            name.querySelectorAll('.nek-output-holding').forEach(el => el.remove());
             name.classList.remove('nek-output-name');
         });
+        doc.querySelectorAll('.nek-output-queue').forEach(label => { if (!queueLabels.has(label)) label.remove(); });
+        doc.querySelectorAll('.nek-material-available').forEach(label => { if (!materialLabels.has(label)) label.remove(); });
     }
     function decorate() {
         const v = core.view();
