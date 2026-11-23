@@ -10,15 +10,19 @@ function setup() {
     const data = { items: { 10: { id: 10, name: '绒毛' }, 20: { id: 20, name: '果实' }, 30: { id: 30, name: '成品' }, 40: { id: 40, name: '料理' } }, quests: {},
         research: { facilities: [{ name: '梳毛研究所', reportItem: 9610, elementBase: 1101, projects: [{ id: 11, name: '绒毛解析', maxLevel: 30, basePct: 1000 }] }] } };
     const quantities = { '10-0': 12345, '20-0': 200, '30-3': 12, '40-0': 0, '9610-0': 10000, '1101-0': 10000 };
-    const game = { character: { uid: 123, level: 1, quest_max: 0 }, quests: { main: [], work: [] },
+    const game = { character: { uid: 123, level: 1, quest_max: 0 }, quests: { main: [], work: [] }, queue: [],
         getItem: id => data.items[id], getItemQuantity: (id, enhancement = 0) => quantities[id + '-' + enhancement] || 0,
-        getQuest: id => data.quests[id] };
+        getQuest: id => data.quests[id], getAction: id => data.actions?.[id], getLifeBonusActionType: skill => skill,
+        getResearchFacilityIdForAction: action => action.action,
+        getResearchEffectPct: () => 0, getOverLevelProductMultiplier: () => 1 };
     const node = (cls, parent = document.body, text) => {
         const el = document.createElement('div'); el.className = cls;
         if (text) el.textContent = text; parent?.appendChild(el); return el;
     };
     const ui = {
         researchInfo: { task: null, levels: {} }, researchOffset: 0,
+        getActionLevelState: () => ({ successRate: 100 }), getCookingLevelState: () => ({ successRate: 100 }),
+        getRewardBonusEffect: () => 0, getActionChestPreview: () => [],
         notifier: { show: (...args) => notifications.push(args) },
         getResearchCost: () => ({ reportItem: 9610, reports: 500, elementItem: 1101, elementQuantity: 100 }),
         createResearchProjectRow(facility, project) {
@@ -48,6 +52,14 @@ function setup() {
         calls.push(['snapshot-holdings', game.getItemQuantity(20)]);
         return 'snapshot-result';
     };
+    msg.handlers.action_added = ({ content }) => {
+        const { type, id, remaining, count, item } = content;
+        game.queue.splice(content.mold === 'before' ? 1 : game.queue.length, 0, { type, id, remaining, count, item });
+    };
+    msg.handlers.update_queue = ({ content }) => { game.queue = content; };
+    msg.handlers.action_update = () => {};
+    msg.handlers.action_complete = () => 'completed';
+    msg.handlers.action_canceled = () => {};
     ui.researchTaskHost = node('task-host'); ui.researchRoot = node('research-root');
     const setting = node('nek-assist-section'); node('setting-list', setting);
     const store = new Map(), listeners = {};
@@ -57,7 +69,7 @@ function setup() {
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/enhancements.js'), 'utf8'), sandbox);
     const feature = sandbox.module.exports.createNekEnhancements({ document, window: { addEventListener: (type, fn) => { listeners[type] = fn; } },
         storage, game: () => game, ui: () => ui, msg: () => msg, data: () => data,
-        enabled: () => enabled, identifyAction: el => ({ action: el.actionType }) });
+        enabled: () => enabled, identifyAction: el => ({ action: el.actionType }), cookingChestDivisor: 21600 });
     feature.init(); feature.core.setting('questAccept', false); feature.core.setting('questReward', false);
     msg.handlers.research_info.call(msg, { content: { task: null, levels: {} } });
     sent.length = 0; calls.length = 0;
@@ -83,10 +95,13 @@ test('研究开始按钮旁加入队列按钮，点击展示记录与材料预�
     h.document.body.appendChild(row);
     const action = row.querySelector('.research-project-action');
     assert.equal(action.children.length, 2); assert.equal(action.children[1].textContent, '加入研究队列');
+    assert.ok(action.children[1].classList.contains('research-start-btn'));
     assert.equal(h.calls[0][1], h.ui);
     const before = { ...h.quantities }; action.children[1].fire('click');
     assert.deepEqual(h.quantities, before); assert.equal(h.sent.length, 0);
     const panel = h.ui.researchTaskHost.querySelector('.nek-research-queue');
+    assert.ok(panel.classList.contains('neon-section'));
+    assert.equal(panel.querySelectorAll('.setting-item .slider-container .toggle-switch .toggle-slider').length, 2);
     assert.match(panel.textContent, /绒毛解析 → Lv.1/); assert.match(panel.textContent, /预留 500 \/ 背包 10000/);
     assert.match(panel.textContent, /开研时才扣除/);
     panel.querySelector('.nek-research-entry .btn').fire('click');
@@ -99,7 +114,7 @@ test('已有研究时原生不带开始区也可加入队列，锁定与满级�
     }
     const running = h.ui.createResearchProjectRow(facility, { id: 11, level: 0, maxLevel: 30, running: true });
     assert.ok(running.querySelector('.research-project-action .nek-research-add'));
-    assert.equal(running.querySelector('.research-start-btn'), null);
+    assert.equal(running.querySelectorAll('.research-project-action .btn').length, 1);
     assert.equal(h.document.querySelectorAll('[data-nek-option]').length, 7);
 });
 test('四类行动输出及额外奖励显示实时库存，强化按同等级，输入与其他行动不显示', () => {
@@ -155,6 +170,75 @@ test('注入前已经打开的产出面板应读取原生图标上的强化等�
     h.node('item-enhancement enhancement-1', row.icon, '+3');
     h.feature.decorate();
     assert.equal(row.name.querySelector('.nek-output-holding').textContent, '背包：12');
+});
+test('跨行动合计同一物品，使用待执行的实际倍数和服务端剩余次数', () => {
+    const h = setup(), row = h.output('nek-prod-detail', 20);
+    const drop = { itemId: 20, num: 2, chance: 100 };
+    h.data.actions = { 50: { action: 6, rewards: [drop] }, 66: { action: 2, rewards: [drop] } };
+    h.msg.handlers.update_queue({ content: [{ type: 'action', id: 66, token: 10, remaining: 5, count: 200 }] });
+    h.msg.handlers.action_added({ content: { type: 'action', id: 50, remaining: 4, count: 80, multiplier: 3, mold: 'after' } });
+    const read = () => { h.feature.decorate(); return row.name.querySelector('.nek-output-queue').textContent; };
+    assert.equal(read(), '队列产出：34');
+    assert.equal(h.msg.handlers.action_complete({ content: { type: 'action', id: 66, token: 10, remaining: 4 } }), 'completed');
+    assert.equal(read(), '队列产出：32');
+    h.msg.handlers.action_update({ content: { type: 'action', id: 66, token: 9, remaining: 900 } });
+    assert.equal(read(), '队列产出：32');
+    h.msg.handlers.action_canceled({});
+    assert.equal(read(), '队列产出：24');
+    h.msg.handlers.update_queue({ content: [{ type: 'action', id: 50, remaining: 3, multiplier: 2 }] });
+    assert.equal(read(), '队列产出：12');
+    h.msg.handlers.action_complete({ content: { type: 'action', id: 50, remaining: 2 } });
+    assert.equal(read(), '队列产出：8');
+    h.msg.handlers.update_queue({ content: [] });
+    assert.equal(read(), '队列产出：0');
+});
+test('队列期望计入等级成功率、幸运、研究和熟练度，料理宝箱不乘批次', () => {
+    const h = setup(), fruit = h.output('nek-pick-detail', 20), wool = h.output('nek-pick-detail', 10, { title: '额外奖励' });
+    h.data.items[9816] = { id: 9816, name: '料理箱' };
+    const chest = h.output('cooking-detail', 9816, { title: '额外奖励' });
+    const dish = h.output('cooking-detail', 40, { title: '产出' });
+    h.data.actions = { 5: { action: 2, rewards: [{ itemId: 20, min: 1, max: 3, chance: 50 }],
+        extraRewards: [{ itemId: 10, num: 3, chance: 20, proficiency: 10 }] } };
+    h.data.cookingRecipes = { 9: { time: 21600, rewards: [{ itemId: 40, num: 2, chance: 100 }] } };
+    h.game.getResearchEffectPct = (facility, kind) => kind === 'product' ? 100 : 5;
+    h.game.getOverLevelProductMultiplier = () => 2;
+    h.game.lifeBonus = { 2: { luck: 50 }, 7: { luck: 50 } };
+    h.ui.getRewardBonusEffect = () => 50;
+    h.ui.getActionLevelState = h.ui.getCookingLevelState = () => ({ successRate: 50 });
+    h.game.queue = [{ type: 'action', id: 5, remaining: 10 }, { type: 'cooking', id: 9, count: 100, remaining: 10, item: { multiplier: 3 } }];
+    h.feature.decorate();
+    const value = row => row.name.querySelector('.nek-output-queue').textContent;
+    assert.equal(value(fruit), '队列产出：约 25');
+    assert.equal(value(wool), '队列产出：0');
+    assert.equal(value(chest), '队列产出：约 0.1');
+    assert.equal(value(dish), '队列产出：约 60');
+    h.game.proficiency = { action: { 5: 10 } }; h.feature.decorate();
+    assert.equal(value(wool), '队列产出：约 15');
+});
+test('取消响应在队列刷新后到达时保留同种行动的新队首', () => {
+    const h = setup(), row = h.output('nek-pick-detail', 20);
+    h.data.actions = { 5: { action: 2, rewards: [{ itemId: 20, num: 2, chance: 100 }] } };
+    h.game.queue = [{ type: 'action', id: 5, token: 1, remaining: 10 }];
+    h.msg.send('queue', { type: 'cancel' });
+    h.msg.handlers.update_queue({ content: [{ type: 'action', id: 5, token: 2, remaining: 3 }] });
+    h.msg.handlers.action_canceled({});
+    h.feature.decorate();
+    assert.equal(row.name.querySelector('.nek-output-queue').textContent, '队列产出：6');
+});
+test('同物品的有限和不限次产出分别显示，强化产出独立统计', () => {
+    const h = setup(), row = h.output('nek-prod-detail', 30, { enhancement: 3 });
+    const base = h.output('nek-prod-detail', 30);
+    h.data.actions = {
+        5: { action: 6, rewards: [{ itemId: 30, enhancement: 3, num: 2, chance: 100 }] },
+        6: { action: 2, rewards: [{ itemId: 30, num: 1, chance: 0 }] }
+    };
+    h.game.queue = [{ type: 'action', id: 5, remaining: 2 }, { type: 'action', id: 5, remaining: '-1' },
+        { type: 'action', id: 6, remaining: -1 }];
+    h.feature.decorate();
+    assert.equal(row.name.querySelector('.nek-output-queue').textContent, '队列产出：4 + 不限次');
+    assert.equal(base.name.querySelector('.nek-output-queue').textContent, '队列产出：0');
+    h.feature.core.setting('holdings', false); h.feature.decorate();
+    assert.equal(h.document.querySelector('.nek-output-queue'), null);
 });
 test('自动领奖只隐藏对应弹窗，原生消息 this、参数、返回值和手工弹窗保留', () => {
     const h = setup(); h.feature.core.setting('researchQueue', false); h.feature.core.setting('researchFinish', false);
