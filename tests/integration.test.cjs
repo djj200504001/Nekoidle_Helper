@@ -107,6 +107,44 @@ test('研究开始按钮旁加入队列按钮，点击展示记录与材料预�
     panel.querySelector('.nek-research-entry .btn').fire('click');
     assert.equal(h.feature.core.view().queue.entries.length, 0);
 });
+test('待加入卡片按计划执行等级显示：进行中的研究占一级，入队后推进到下一级', () => {
+    const h = setup(), facility = h.data.research.facilities[0];
+    // 研究中：项目 11 已完成 11 级，任务正在冲 12 级 → 待加入卡片应显示 Lv.12（下一跑）数据
+    h.msg.handlers.research_info.call(h.msg, { content: { task: { projectId: 11, facilityId: 1, startTime: 0, finishTime: 0 }, levels: { 11: 11 } } });
+    const view = { id: 11, name: '绒毛解析', level: 11, maxLevel: 30, locked: false, basePct: 1000, growthPct: 60, direction: 1, effect: 16, nextEffect: 16.6, cost: { reportItem: 9610, reports: 7693, elementItem: 1101, elementQuantity: 115 } };
+    const row = h.ui.createResearchProjectRow(facility, view);
+    h.document.body.appendChild(row);
+    const passed = h.calls.find(c => c[0] === 'row')[3];
+    assert.equal(passed.level, 12);                          // 任务占一级
+    assert.equal(passed.effect, 16.6);                       // (1000+60×11)/100
+    assert.equal(passed.nextEffect, 17.2);                   // (1000+60×12)/100
+    const action = row.querySelector('.research-project-action');
+    const addBtn = [...action.children].find(c => c.textContent === '加入研究队列');
+    assert.ok(addBtn);
+    // 入队成功后重渲染页面（卡片随计划等级推进），队列条目为 Lv.12 → Lv.13
+    let rendered = 0; const origRender = h.ui.renderResearchPage;
+    h.ui.renderResearchPage = function () { rendered++; return origRender.apply(this, arguments); };
+    addBtn.fire('click');
+    assert.ok(rendered >= 1, '入队后应重绘研究页');
+    assert.match(h.ui.researchRoot.querySelector('.nek-research-queue').textContent, /绒毛解析 Lv\.12 → Lv\.13/);
+    // 再次渲染行：队列占一级 → 计划等级 13
+    h.calls.length = 0;
+    h.ui.createResearchProjectRow(facility, Object.assign({}, view));
+    assert.equal(h.calls[0][3].level, 13);
+    assert.equal(h.calls[0][3].effect, 17.2);
+    // 移出队列后计划等级回到 12
+    const panel = h.ui.researchRoot.querySelector('.nek-research-queue');
+    panel.querySelector('.nek-research-entry .btn').fire('click');
+    h.calls.length = 0;
+    h.ui.createResearchProjectRow(facility, Object.assign({}, view));
+    assert.equal(h.calls[0][3].level, 12);
+    // 无任务无队列：视图原样透传（不合成副本）
+    h.msg.handlers.research_info.call(h.msg, { content: { task: null, levels: {} } });
+    h.calls.length = 0;
+    const plain = Object.assign({}, view, { level: 0, effect: 10, nextEffect: 10.6 });
+    h.ui.createResearchProjectRow(facility, plain);
+    assert.equal(h.calls[0][3], plain);
+});
 test('研究队列面板嵌入列表滚动流并支持点击标题折叠吸顶', () => {
     const h = setup(), facility = h.data.research.facilities[0];
     h.ui.createResearchProjectRow(facility, { id: 11, level: 0, maxLevel: 30, locked: false });

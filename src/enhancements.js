@@ -371,7 +371,21 @@ function createNekController(env) {
         const c = context(), state = read();
         return { account, settings: state.settings, queue: plan(state, c), researchStatus, questStatus };
     }
-    return { tick, enqueue, remove, setting, view, message, observeSend, isAutomaticReward, workAvailable, claimable, release };
+    // 某研究项目的「计划执行等级」：已完成等级 + 进行中任务(+1) + 队列中同项目条目数。
+    // 与 plan() 的计费口径一致——队列条目与待加入卡片都按该等级显示消耗。
+    // 本地存储不可用时返回 null，调用方按原生视图渲染。
+    function plannedLevel(projectId) {
+        const state = read();
+        if (!state.readable) return null;
+        const c = context();
+        const levels = Object.assign({}, c?.levels || {});
+        const active = c?.task;
+        if (active) levels[active.projectId] = (Number(levels[active.projectId]) || 0) + 1;
+        let planned = Number(levels[Number(projectId)]) || 0;
+        state.queue.forEach(e => { if (Number(e.projectId) === Number(projectId)) planned += 1; });
+        return planned;
+    }
+    return { tick, enqueue, remove, setting, view, plannedLevel, message, observeSend, isAutomaticReward, workAvailable, claimable, release };
 }
 
 // 按已排定的剩余次数估算毛产出，使用当前等级、研究、祝福与装备。
@@ -484,6 +498,12 @@ function createNekEnhancements(env) {
         input.addEventListener('change', () => { core.setting(name, input.checked); decorate(); });
         control.append(input, slider); wrap.appendChild(control); row.append(title, spacer, wrap); holder.appendChild(row);
     }
+    // 重绘研究页：入队/移出后计划等级变化，待加入卡片须按新计划等级重新渲染
+    function refreshResearchRows() {
+        const u = env.ui();
+        try { if (u && typeof u.renderResearchPage === 'function') u.renderResearchPage(); }
+        catch (e) { /* 研究页未就绪时忽略，下次 research_info 刷新会重绘 */ }
+    }
     function observeQueue(type, content) {
         const queue = env.game()?.queue;
         if (!Array.isArray(queue)) return;
@@ -559,11 +579,42 @@ function createNekEnhancements(env) {
         if (typeof ui.createResearchProjectRow === 'function') {
             const original = ui.createResearchProjectRow;
             ui.createResearchProjectRow = function (facility, project) {
-                const row = original.apply(this, arguments);
-                if (row && !project.locked && project.level < project.maxLevel) {
+                // v1.41.2 待加入卡片按「计划执行等级」显示：进行中的研究占掉一级（Lv.11 研究中
+                // 时入队的是 Lv.12→Lv.13 那次），队列中同项目条目再逐条推进。合成调整后的项目
+                // 视图（等级/效果/下一级/消耗）交给原生渲染，点击入队后卡片随之显示下一计划
+                // 等级的数据。数据不可用时按原生视图渲染。
+                let view = project;
+                if (!project.locked) {
+                    try {
+                        // 计划等级只上不下：以行内当前等级为底，叠加任务与队列偏移。
+                        // plannedLevel 基于全局等级快照，行内视图等级更新（或不可用时）以行内为准。
+                        const stored = core.plannedLevel(project.id);
+                        const base = Number(project.level) || 0;
+                        const planned = stored == null ? base : Math.max(base, stored);
+                        const maxLevel = Number(project.maxLevel) || 30;
+                        if (planned != null && planned !== Number(project.level)) {
+                            const shown = Math.min(planned, maxLevel);
+                            const basePct = Number(project.basePct) || 0;
+                            const growthPct = Number(project.growthPct) || 0;
+                            const direction = Number(project.direction) || 0;
+                            const eff = lv => direction === 5 ? lv
+                                : (basePct + growthPct * (Math.max(0, Math.min(lv, maxLevel)) - 1)) / 100;
+                            view = Object.assign({}, project, {
+                                level: shown,
+                                effect: eff(shown),
+                                nextEffect: shown < maxLevel ? eff(shown + 1) : null,
+                                cost: shown >= maxLevel ? null : (env.ui()?.getResearchCost(facility, shown) || null)
+                            });
+                        }
+                    } catch (e) { /* 计划等级不可用时按原生视图渲染 */ }
+                }
+                const row = original.apply(this, [facility, view]);
+                if (row && !view.locked && view.level < view.maxLevel) {
                     const control = button('加入研究队列', 'research-start-btn nek-research-add', () => {
                         const r = core.enqueue(project.id);
-                        ui.notifier?.show(r.message, r.ok ? 'success' : 'error', 5000); decorate();
+                        ui.notifier?.show(r.message, r.ok ? 'success' : 'error', 5000);
+                        if (r.ok) refreshResearchRows();
+                        decorate();
                     });
                     control.dataset.projectId = project.id;
                     let actions = row.querySelector('.research-project-action');
@@ -719,7 +770,7 @@ function createNekEnhancements(env) {
                 // 显示起止等级：消耗对应「从当前计划等级升到目标等级」的那次研究，便于核对
                 label.textContent = (i + 1) + '. ' + name + ' Lv.' + e.level + ' → Lv.' + e.targetLevel +
                     (e.entry.submitted ? '（开研确认中）' : '') + '\n' + (e.error || '预留：' + (cost || '无'));
-                const remove = button('移出', 'research-task-finish', () => { core.remove(e.entry.key); decorate(); });
+                const remove = button('移出', 'research-task-finish', () => { if (core.remove(e.entry.key)) refreshResearchRows(); decorate(); });
                 remove.disabled = queueLocked;
                 if (remove.disabled) remove.classList.add('disabled');
                 row.append(label, remove); entries.appendChild(row);
