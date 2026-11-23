@@ -132,14 +132,16 @@ function createNekController(env) {
         const invalid = p.entries.find(e => e.error);
         if (invalid) return { ok: false, message: invalid.error + '，请先调整队列' };
         const lack = shortages(p.totals);
-        if (lack.length) {
-            return { ok: false, message: '加入失败：扣除已有队列预留后材料不足——' + lack.map(id => env.itemName(Number(id)) + ' 缺 ' + (p.totals[id] - env.quantity(Number(id)))).join('、') };
-        }
+        // 背包数量无法读取（非有限值）仍拦截；材料真实不足只提示、不拦截，
+        // 队列的等待机制（队首材料不足暂不开研）本身能兜底。
+        const unreadable = lack.filter(id => !Number.isFinite(Number(env.quantity(Number(id)))));
+        if (unreadable.length) return { ok: false, message: '无法核对背包数量（' + unreadable.map(id => env.itemName(Number(id))).join('、') + '），请稍后再试' };
         p.entries.forEach(e => { e.entry.record = { fromLevel: e.level, targetLevel: e.targetLevel, cost: e.cost }; });
         if (!save(state)) return { ok: false, message: '无法保存研究队列' };
         const last = p.entries[p.entries.length - 1];
-        return { ok: true, message: '已加入研究队列（' + (last.found ? last.found.project.name : '#' + last.entry.projectId) +
-            ' Lv.' + last.level + '→Lv.' + last.targetLevel + '）；预留 ' + materialText(last.materials) + '（开研时才扣除）' };
+        const warn = lack.length ? '；材料不足：' + lack.map(id => env.itemName(Number(id)) + ' 缺 ' + (p.totals[id] - env.quantity(Number(id)))).join('、') + '（开研时将等待材料补充）' : '';
+        return { ok: true, warn: lack.length > 0, message: '已加入研究队列（' + (last.found ? last.found.project.name : '#' + last.entry.projectId) +
+            ' Lv.' + last.level + '→Lv.' + last.targetLevel + '）；预留 ' + materialText(last.materials) + '（开研时才扣除）' + warn };
     }
     function remove(entryKey) {
         const c = context(), state = read();
@@ -601,7 +603,7 @@ function createNekEnhancements(env) {
                     const label = display.querySelector('span');
                     if (label) label.textContent = '可用';
                     value.textContent = available.toLocaleString('zh-CN');
-                    value.classList.toggle('nek-research-insufficient', available < need);
+                    value.classList.toggle('nek-research-avail-insufficient', available < need);
                     display.classList.toggle('disabled', available < need);
                 });
             }
@@ -640,7 +642,7 @@ function createNekEnhancements(env) {
                 if (row && !view.locked && view.level < view.maxLevel) {
                     const control = button('加入研究队列', 'research-start-btn nek-research-add', () => {
                         const r = core.enqueue(project.id);
-                        ui.notifier?.show(r.message, r.ok ? 'success' : 'error', 5000);
+                        ui.notifier?.show(r.message, r.ok && !r.warn ? 'success' : 'error', 5000);
                         if (r.ok) refreshResearchRows();
                         decorate();
                     });
@@ -702,7 +704,9 @@ function createNekEnhancements(env) {
             '.nek-output-holding,.nek-output-queue{white-space:nowrap}',
             '.nek-output-name{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:flex-start;row-gap:2px}',
             // 缺少材料提醒：红色加粗（含状态行与材料明细行）
-            '.nek-research-insufficient{color:#FF4B88;font-weight:700}'
+            '.nek-research-insufficient{color:#FF4B88;font-weight:700}',
+            // 待加入卡片「可用」数值不足：固定红色（与标签的提示色区分，压过原生 disabled 配色）
+            '.nek-research-avail-insufficient{color:rgb(255,48,33)!important;font-weight:700}'
         ].join('\n');
         doc.head.appendChild(el);
     }

@@ -182,7 +182,7 @@ test('待加入卡片材料行显示扣除队列预留后的可用数量，不�
     assert.equal(displays[0].querySelector('span').textContent, '可用');
     assert.equal(displays[0].querySelector('.quantity-value').textContent, '9,500');
     assert.equal(displays[1].querySelector('.quantity-value').textContent, '9,900');
-    assert.equal(displays[1].querySelector('.quantity-value').classList.contains('nek-research-insufficient'), false);
+    assert.equal(displays[1].querySelector('.quantity-value').classList.contains('nek-research-avail-insufficient'), false);
     // 库存降到可用不足：数值标红；库存恢复后被 refreshResearchCostHoldings 重写，需重新应用并解除红色
     h.quantities['1101-0'] = 72;
     row = h.ui.createResearchProjectRow(facility, Object.assign({}, view));
@@ -190,13 +190,13 @@ test('待加入卡片材料行显示扣除队列预留后的可用数量，不�
     displays = row.querySelectorAll('.quantity-display');
     assert.equal(displays[1].querySelector('span').textContent, '可用');
     assert.equal(displays[1].querySelector('.quantity-value').textContent, '-28');
-    assert.ok(displays[1].querySelector('.quantity-value').classList.contains('nek-research-insufficient'));
+    assert.ok(displays[1].querySelector('.quantity-value').classList.contains('nek-research-avail-insufficient'));
     // refreshResearchCostHoldings 原生会把数值重写回持有并去掉红色标记逻辑，包装层应重新应用「可用」
     h.ui.refreshResearchCostHoldings();
     displays = row.querySelectorAll('.quantity-display');
     assert.equal(displays[1].querySelector('span').textContent, '可用');
     assert.equal(displays[1].querySelector('.quantity-value').textContent, '-28');
-    assert.ok(displays[1].querySelector('.quantity-value').classList.contains('nek-research-insufficient'));
+    assert.ok(displays[1].querySelector('.quantity-value').classList.contains('nek-research-avail-insufficient'));
     // 移出队列后回到原生「持有」显示
     h.ui.researchRoot.querySelector('.nek-research-queue .nek-research-entry .btn').fire('click');
     row = h.ui.createResearchProjectRow(facility, Object.assign({}, view));
@@ -204,6 +204,24 @@ test('待加入卡片材料行显示扣除队列预留后的可用数量，不�
     displays = row.querySelectorAll('.quantity-display');
     assert.equal(displays[1].querySelector('span').textContent, '持有');
     assert.equal(displays[1].querySelector('.quantity-value').textContent, '72');
+});
+test('材料不足仍可加入研究队列：仅提示不拦截，提示以 error 样式展示', () => {
+    const h = setup(), facility = h.data.research.facilities[0];
+    // 分析数据只剩 100，低于队列预留合计（500）
+    h.quantities['9610-0'] = 100;
+    const view = { id: 11, name: '绒毛解析', level: 0, maxLevel: 30, locked: false, cost: { reportItem: 9610, reports: 500, elementItem: 1101, elementQuantity: 100 } };
+    const row = h.ui.createResearchProjectRow(facility, Object.assign({}, view));
+    h.document.body.appendChild(row);
+    row.querySelector('.nek-research-add').fire('click');
+    assert.equal(h.notifications.length, 1);
+    assert.equal(h.notifications[0][1], 'error');                 // 警示样式
+    assert.match(h.notifications[0][0], /材料不足/);
+    assert.match(h.notifications[0][0], /已加入研究队列/);          // 未拦截
+    assert.match(h.notifications[0][0], /等待材料补充/);
+    assert.equal(h.feature.core.view().queue.entries.length, 1);  // 条目实际入队
+    // 队首等待机制兜底：开研确认时材料不足保持等待
+    h.feature.core.tick();
+    assert.match(h.feature.core.view().researchStatus, /材料不足/);
 });
 test('研究队列面板嵌入列表滚动流并支持点击标题折叠吸顶', () => {
     const h = setup(), facility = h.data.research.facilities[0];
