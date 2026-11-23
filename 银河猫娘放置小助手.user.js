@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.40.0
-// @description  v1.40.0：研究队列（记录并预留材料、开研时扣除）与自动结算研究，自动接受任务/领取奖励，梳毛/采集/生产/烹饪产出物显示背包库存和队列预计产出。主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口与炼金界面（原子/神秘/量子炼金执行区）经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色；炼金期望按成功率折算）并快捷填入升级所需执行次数，炼金执行区另有「背包可执行次数」按钮（按当前点金/分解/研究/提纯/还原/转换/量子配方逐项折算材料持有量）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知；跳过地块改用游戏原生「地块锁」（🔒），锁定地块的自动收获与手动单块收获均在客户端拦截（服务端批量收获跳过锁定地块，但单块收获不校验，故加客户端兜底），自动收菜开关按钮以背景进度条显示检测进度（60 秒往返循环：前 30 秒收获绿覆盖黄底、后 30 秒黄底覆盖绿色，rAF 每帧重算丝滑无跳秒，进度锚定实际检测时钟、按钮中途出现也显示真实进度，不另起独立计时）；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）；九、检查更新——每次加载游戏时检测 GitHub 最新版本（发现新版本且距上次提醒超过 60 分钟时，顶部通知引导在 Tampermonkey 中更新）；设置区标题旁显示当前版本号；十、v1116 生活装备适配——自绘生产/采集详情材料需求按巨匠省料率折算（两位小数、加工倍数与执行校验同口径），额外奖励几率乘装备幸运（研究幸运/10+装备幸运/100），行动窗口「背包可执行次数」按钮按省料后需求折算，经验效率经 game.getEfficiency 自动含面罩最终效率乘区；自绘生产/采集详情「额外奖励」补显示 v1116 宝箱掉落（梳毛/采集/生产宝箱，几率含幸运加成、数量不随加工倍数放大，复用原生 getActionChestPreview）；修复检查更新因 window.UI 引用错误（UI 为顶层词法绑定不在 window 上）导致检测从未执行的问题；十一、定时钓鱼——已订阅天气预报的钓场，钓鱼页「天气预报」时段条目可点击预约：预约时读取当前所选鱼饵（未选鱼饵二次确认后以无鱼饵预约），到点每 5 秒检查并自动以 ∞ 次立即开钓（mold start 替换当前行动，开钓快照原队列，服务端 update_queue 后 diff 补回）；预约时队列已满直接拒绝（不删除已有队列），开钓时队列仍满则等待并低频提醒；相邻时段预约自动衔接换钓（可跨钓场，不停钓），链条最后一个时段结束自动停钓并恢复原队列；自动开钓后用户手动取消/更换钓鱼不作处理（本时段预约自然失效，未来时段保留），时段结束时队头不是预约钓场的钓鱼同样不作处理；状态条逐条显示预约倒计时与独立取消入口；支持旧版单预约自动迁移；设置-「其他」标签页「定时钓鱼」开关，受总开关联动控制；十二、v1.36.0 修复——①满级用户生产/采集/烹饪详情两个按钮（升下一级次数/背包可执行次数）与经验效率模块整体消失：满级分支不再提前 return，「背包可执行次数」与「经验效率」照常显示（目标等级计算行满级时隐藏），可执行按钮在无升级按钮时改以 ∞ 档为锚点；②生产详情选多倍率后持有数值恒红：持有数文字带千分位逗号，parseInt 在逗号处截断（12,000→12）导致恒判不足，修复为先去逗号再解析；十三、v1.37.0 定时钓鱼状态按钮——当前行动「取消」左侧新增钓鱼状态按钮（与「自动收菜」开关并列）：未预约显示「未预约钓鱼」（金色底灰字，底色 v1.37.7 改用自动收菜同款金色 var(--c-warning)），已预约显示「天气·钓场名·鱼饵」，背景以开钓时刻前 4 小时为起点由米色向湖水青渐变覆盖、开钓时刻覆盖完成（进度锚定时段真实时间戳，按钮中途出现即显示正确进度），钓鱼中改为原色从左往右渐变覆盖回青色上、时段结束刚好完全回色（v1.37.6，连续预约按方案A每段独立回色，段末衔接瞬间跳回满青），无下一次预约自动回到未预约状态；点击按钮可取消显示中的预约（钓鱼中取消会停钓并按快照恢复原队列）；预约状态展示从天气预报状态条迁移至该按钮，预报条目「已预约/钓鱼中」角标与点击预约保留；v1.37.1 修复钓鱼按钮复用收菜类名导致出现两个「自动收菜」；v1.37.2/3 预报区提示栏改常态文本并接入 DOM 装饰链同步出现（含防 MutationObserver 自激循环的零写缓存）；十四、v1.37.4 市场行情修复——部分物品永远显示「获取市场数据中……」：市场无行情数据的物品（新物品/从未上架/特定强化等级），服务端不响应 market_cache 单物品请求（10 秒超时返回 null），且全量快照中无该条目时占位符无终止机制；现全量缓存就绪且未过期仍查不到时判定为确定无行情，显示「暂无市场行情」终止等待，后续全量重拉若数据出现自动恢复；单物品强刷返回快照但缺该强化等级时同样终止等待；十五、v1.37.5 修复生产行动弹窗/详情面板高级装备无按钮——原生经验行经 Utils.formatNumber 渲染（游戏默认开启万进制），单次经验 ≥ 1 万时显示「1.2万」等缩写，而小助手解析「xx经验值 N 点」的正则只认纯数字/千分位，匹配失败导致整段装饰（升下一级次数/背包可执行次数按钮与经验效率模块）被跳过——低级装备经验小于 1 万故正常；现正则支持小数与 万/亿/兆/京/K/M/B/T 单位（新增 mkParseNumUnit 解析），并识别到动作时改用游戏同款 calcExpWithBonus 精确覆盖文本解析值（消除缩写舍入误差，烹饪因口径不同保持文本解析）；十六、v1.38.0 自动收菜补种提醒——自动收获发送时记录开启了原生「自动播种」的地块及其作物（crop_id 即种子物品 id），收获响应落定后地块变回空地而背包已无该种子 → 判定种子不足未能补种，按作物聚合提醒「种子不足，N 块地未补种——作物×N」（同一作物 10 分钟节流；背包仍有种子时不误报；观察表只记录本次收获发送的地块，判定后即清除）。
+// @version      1.41.0
+// @description  v1.41.0：研究队列（记录并预留材料、开研时扣除，队列条目显示计划起止等级与对应消耗）与自动结算研究，自动接受任务/领取奖励，研究队列面板嵌入研究列表滚动流内并吸顶折叠（滚过列表顶自动收起为标题条、滚回自动展开，点击标题可手动折叠/展开），缺少材料提醒显示红色，梳毛/采集/生产/烹饪产出物显示背包库存和队列预计产出。主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口与炼金界面（原子/神秘/量子炼金执行区）经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色；炼金期望按成功率折算）并快捷填入升级所需执行次数，炼金执行区另有「背包可执行次数」按钮（按当前点金/分解/研究/提纯/还原/转换/量子配方逐项折算材料持有量）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知；跳过地块改用游戏原生「地块锁」（🔒），锁定地块的自动收获与手动单块收获均在客户端拦截（服务端批量收获跳过锁定地块，但单块收获不校验，故加客户端兜底），自动收菜开关按钮以背景进度条显示检测进度（60 秒往返循环：前 30 秒收获绿覆盖黄底、后 30 秒黄底覆盖绿色，rAF 每帧重算丝滑无跳秒，进度锚定实际检测时钟、按钮中途出现也显示真实进度，不另起独立计时）；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）；九、检查更新——每次加载游戏时检测 GitHub 最新版本（发现新版本且距上次提醒超过 60 分钟时，顶部通知引导在 Tampermonkey 中更新）；设置区标题旁显示当前版本号；十、v1116 生活装备适配——自绘生产/采集详情材料需求按巨匠省料率折算（两位小数、加工倍数与执行校验同口径），额外奖励几率乘装备幸运（研究幸运/10+装备幸运/100），行动窗口「背包可执行次数」按钮按省料后需求折算，经验效率经 game.getEfficiency 自动含面罩最终效率乘区；自绘生产/采集详情「额外奖励」补显示 v1116 宝箱掉落（梳毛/采集/生产宝箱，几率含幸运加成、数量不随加工倍数放大，复用原生 getActionChestPreview）；修复检查更新因 window.UI 引用错误（UI 为顶层词法绑定不在 window 上）导致检测从未执行的问题；十一、定时钓鱼——已订阅天气预报的钓场，钓鱼页「天气预报」时段条目可点击预约：预约时读取当前所选鱼饵（未选鱼饵二次确认后以无鱼饵预约），到点每 5 秒检查并自动以 ∞ 次立即开钓（mold start 替换当前行动，开钓快照原队列，服务端 update_queue 后 diff 补回）；预约时队列已满直接拒绝（不删除已有队列），开钓时队列仍满则等待并低频提醒；相邻时段预约自动衔接换钓（可跨钓场，不停钓），链条最后一个时段结束自动停钓并恢复原队列；自动开钓后用户手动取消/更换钓鱼不作处理（本时段预约自然失效，未来时段保留），时段结束时队头不是预约钓场的钓鱼同样不作处理；状态条逐条显示预约倒计时与独立取消入口；支持旧版单预约自动迁移；设置-「其他」标签页「定时钓鱼」开关，受总开关联动控制；十二、v1.36.0 修复——①满级用户生产/采集/烹饪详情两个按钮（升下一级次数/背包可执行次数）与经验效率模块整体消失：满级分支不再提前 return，「背包可执行次数」与「经验效率」照常显示（目标等级计算行满级时隐藏），可执行按钮在无升级按钮时改以 ∞ 档为锚点；②生产详情选多倍率后持有数值恒红：持有数文字带千分位逗号，parseInt 在逗号处截断（12,000→12）导致恒判不足，修复为先去逗号再解析；十三、v1.37.0 定时钓鱼状态按钮——当前行动「取消」左侧新增钓鱼状态按钮（与「自动收菜」开关并列）：未预约显示「未预约钓鱼」（金色底灰字，底色 v1.37.7 改用自动收菜同款金色 var(--c-warning)），已预约显示「天气·钓场名·鱼饵」，背景以开钓时刻前 4 小时为起点由米色向湖水青渐变覆盖、开钓时刻覆盖完成（进度锚定时段真实时间戳，按钮中途出现即显示正确进度），钓鱼中改为原色从左往右渐变覆盖回青色上、时段结束刚好完全回色（v1.37.6，连续预约按方案A每段独立回色，段末衔接瞬间跳回满青），无下一次预约自动回到未预约状态；点击按钮可取消显示中的预约（钓鱼中取消会停钓并按快照恢复原队列）；预约状态展示从天气预报状态条迁移至该按钮，预报条目「已预约/钓鱼中」角标与点击预约保留；v1.37.1 修复钓鱼按钮复用收菜类名导致出现两个「自动收菜」；v1.37.2/3 预报区提示栏改常态文本并接入 DOM 装饰链同步出现（含防 MutationObserver 自激循环的零写缓存）；十四、v1.37.4 市场行情修复——部分物品永远显示「获取市场数据中……」：市场无行情数据的物品（新物品/从未上架/特定强化等级），服务端不响应 market_cache 单物品请求（10 秒超时返回 null），且全量快照中无该条目时占位符无终止机制；现全量缓存就绪且未过期仍查不到时判定为确定无行情，显示「暂无市场行情」终止等待，后续全量重拉若数据出现自动恢复；单物品强刷返回快照但缺该强化等级时同样终止等待；十五、v1.37.5 修复生产行动弹窗/详情面板高级装备无按钮——原生经验行经 Utils.formatNumber 渲染（游戏默认开启万进制），单次经验 ≥ 1 万时显示「1.2万」等缩写，而小助手解析「xx经验值 N 点」的正则只认纯数字/千分位，匹配失败导致整段装饰（升下一级次数/背包可执行次数按钮与经验效率模块）被跳过——低级装备经验小于 1 万故正常；现正则支持小数与 万/亿/兆/京/K/M/B/T 单位（新增 mkParseNumUnit 解析），并识别到动作时改用游戏同款 calcExpWithBonus 精确覆盖文本解析值（消除缩写舍入误差，烹饪因口径不同保持文本解析）；十六、v1.38.0 自动收菜补种提醒——自动收获发送时记录开启了原生「自动播种」的地块及其作物（crop_id 即种子物品 id），收获响应落定后地块变回空地而背包已无该种子 → 判定种子不足未能补种，按作物聚合提醒「种子不足，N 块地未补种——作物×N」（同一作物 10 分钟节流；背包仍有种子时不误报；观察表只记录本次收获发送的地块，判定后即清除）。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
 // @match        https://nekoidle.net/*
@@ -3075,8 +3075,10 @@
                         [[cost.reportItem, cost.reports], [cost.elementItem, cost.elementQuantity]].forEach(([id, qty]) => {
                             if (qty > 0) { materials[id] = (materials[id] || 0) + qty; totals[id] = (totals[id] || 0) + qty; }
                         });
-                        levels[entry.projectId] = targetLevel;
                     }
+                    // 出错条目同样推进计划等级：否则同一项目的前一条报错（如临时锁定）后，
+                    // 后续条目会重复用同一等级计费，显示的消耗与计划等级错位。
+                    levels[entry.projectId] = targetLevel;
                     return { entry, found, level, targetLevel, cost, materials, error };
                 });
                 return { entries, totals };
@@ -3117,7 +3119,9 @@
                 }
                 p.entries.forEach(e => { e.entry.record = { fromLevel: e.level, targetLevel: e.targetLevel, cost: e.cost }; });
                 if (!save(state)) return { ok: false, message: '无法保存研究队列' };
-                return { ok: true, message: '已加入研究队列；预留 ' + materialText(p.entries[p.entries.length - 1].materials) + '（开研时才扣除）' };
+                const last = p.entries[p.entries.length - 1];
+                return { ok: true, message: '已加入研究队列（' + (last.found ? last.found.project.name : '#' + last.entry.projectId) +
+                    ' Lv.' + last.level + '→Lv.' + last.targetLevel + '）；预留 ' + materialText(last.materials) + '（开研时才扣除）' };
             }
             function remove(entryKey) {
                 const c = context(), state = read();
@@ -3571,7 +3575,17 @@
                 if (doc.getElementById('nek-enhancements-style')) return;
                 const el = doc.createElement('style'); el.id = 'nek-enhancements-style';
                 el.textContent = [
-                    '.nek-research-queue{margin-top:8px}',
+                    // 吸顶折叠：面板嵌在研究列表滚动流内，滚过容器顶自动折叠成标题条并 sticky 吸顶
+                    '.nek-research-queue{position:sticky;top:0;z-index:20;margin-top:8px}',
+                    '.nek-research-queue.nek-collapsed{background:var(--c-bg,#092653);box-shadow:0 2px 6px rgba(0,0,0,.35)}',
+                    '.nek-research-queue.nek-collapsed > .nek-research-body{display:none}',
+                    '.nek-research-sentinel{height:0}',
+                    '.nek-research-queue .nek-research-head{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;-webkit-user-select:none}',
+                    '.nek-research-queue .nek-research-head .section-title{flex:0 0 auto;margin:0;cursor:pointer}',
+                    '.nek-research-queue .nek-research-head-hint{flex:1;min-width:0;font-size:12px;line-height:20px;color:var(--c-text-dim,#83c3c3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}',
+                    '.nek-research-queue .nek-research-head-hint.nek-research-insufficient{color:#FF4B88}',
+                    '.nek-research-queue .nek-research-head-arrow{flex:0 0 auto;font-size:12px;color:var(--color-mian,#74F9BC);transition:transform .2s ease}',
+                    '.nek-research-queue.nek-collapsed .nek-research-head-arrow{transform:rotate(-90deg)}',
                     '.nek-research-queue .setting-item{grid-template-columns:auto 1fr auto}',
                     '.nek-research-entries,.nek-research-total{max-height:min(24vh,14rem);overflow:auto}',
                     '.nek-research-entry{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0}',
@@ -3580,29 +3594,78 @@
                     '.research-project-action.nek-research-actions{flex-wrap:wrap;gap:6px}',
                     '.nek-output-holding,.nek-output-queue{white-space:nowrap}',
                     '.nek-output-name{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:flex-start;row-gap:2px}',
-                    '.nek-research-insufficient{color:var(--c-warning)}'
+                    // 缺少材料提醒：红色加粗（含状态行与材料明细行）
+                    '.nek-research-insufficient{color:#FF4B88;font-weight:700}'
                 ].join('\n');
                 doc.head.appendChild(el);
             }
             function decorateResearch(v) {
                 const ui = env.ui();
                 doc.querySelectorAll('.nek-research-add').forEach(b => { const hidden = !env.enabled(); if (b.hidden !== hidden) b.hidden = hidden; });
-                const host = ui?.researchTaskHost;
-                if (!host?.isConnected) return;
+                // 面板嵌入研究项目列表（researchRoot = .bipanel-main 滚动容器）开头，跟随内容滚动；
+                // 原先挂在 researchTaskHost（固定区）不随列表滚动，手机端长期占据大面积空间。
+                const host = ui?.researchRoot?.isConnected ? ui.researchRoot : null;
+                if (!host) return;
                 let panel = host.querySelector('.nek-research-queue');
                 if (!env.enabled() || !v.account) { if (panel) panel.remove(); return; }
                 if (!panel) {
+                    const sentinel = doc.createElement('div'); sentinel.className = 'nek-research-sentinel';
                     panel = doc.createElement('div'); panel.className = 'neon-section nek-research-queue';
-                    const heading = doc.createElement('div'); heading.className = 'section-title'; heading.textContent = '研究队列'; panel.appendChild(heading);
+                    const head = doc.createElement('div'); head.className = 'nek-research-head';
+                    const title = doc.createElement('div'); title.className = 'section-title'; title.textContent = '研究队列';
+                    const hint = doc.createElement('div'); hint.className = 'nek-research-head-hint';
+                    const arrow = doc.createElement('div'); arrow.className = 'nek-research-head-arrow'; arrow.textContent = '▾';
+                    head.append(title, hint, arrow);
+                    panel.appendChild(head);
+                    const body = doc.createElement('div'); body.className = 'nek-research-body';
                     const options = doc.createElement('div'); options.className = 'setting-list';
-                    toggle('队列自动开研', 'researchQueue', options); toggle('自动领取已完成研究', 'researchFinish', options); panel.appendChild(options);
-                    const help = doc.createElement('div'); help.textContent = '加入队列仅预留材料；轮到开研时才扣除。移出队列不会取消正在进行的研究。'; panel.appendChild(help);
-                    const status = doc.createElement('div'); status.className = 'nek-research-status'; panel.appendChild(status);
-                    const entries = doc.createElement('div'); entries.className = 'nek-research-entries'; panel.appendChild(entries);
-                    const total = doc.createElement('div'); total.className = 'nek-research-total'; panel.appendChild(total);
-                    host.appendChild(panel);
+                    toggle('队列自动开研', 'researchQueue', options); toggle('自动领取已完成研究', 'researchFinish', options); body.appendChild(options);
+                    const help = doc.createElement('div'); help.textContent = '加入队列仅预留材料；轮到开研时才扣除。移出队列不会取消正在进行的研究。'; body.appendChild(help);
+                    const status = doc.createElement('div'); status.className = 'nek-research-status'; body.appendChild(status);
+                    const entries = doc.createElement('div'); entries.className = 'nek-research-entries'; body.appendChild(entries);
+                    const total = doc.createElement('div'); total.className = 'nek-research-total'; body.appendChild(total);
+                    panel.appendChild(body);
+                    // 折叠状态应用（点击标题与自动折叠共用）；折叠瞬间补偿滚动位置，防止内容跳动；
+                    // IO 回调不产生 childList 变更（不会触发装饰链），标题摘要须在此处直接刷新
+                    panel._nekApply = function () {
+                        const collapsed = panel._nekManual !== undefined && panel._nekManual !== null
+                            ? panel._nekManual : !!panel._nekAutoOver;
+                        const was = panel.classList.contains('nek-collapsed');
+                        if (was !== collapsed) {
+                            if (collapsed) {
+                                const shrink = body.offsetHeight;
+                                panel.classList.add('nek-collapsed');
+                                try { if (shrink > 0 && host.scrollTop > 0) host.scrollTop = Math.max(0, host.scrollTop - shrink); } catch (e) { /* 忽略 */ }
+                            } else {
+                                panel.classList.remove('nek-collapsed');
+                            }
+                        }
+                        arrow.textContent = collapsed ? '▸' : '▾';
+                        try {
+                            const v2 = core.view();
+                            text(hint, collapsed ? v2.researchStatus : '');
+                            hint.classList.toggle('nek-research-insufficient', collapsed && String(v2.researchStatus).includes('材料不足'));
+                        } catch (e) { /* 忽略 */ }
+                    };
+                    head.addEventListener('click', e => { e.stopPropagation(); panel._nekManual = !panel.classList.contains('nek-collapsed'); panel._nekApply(); });
+                    host.insertBefore(sentinel, host.firstElementChild);
+                    host.insertBefore(panel, sentinel.nextSibling);
+                    // 哨兵滚过容器顶 → 自动折叠吸顶；滚回原位 → 自动展开（手动切换优先，越界状态翻转时重置）
+                    try {
+                        panel._nekObserver = new IntersectionObserver(entryList => {
+                            const item = entryList && entryList[entryList.length - 1];
+                            if (!item) return;
+                            const over = !item.isIntersecting && item.boundingClientRect.top < 0;
+                            if (over !== !!panel._nekAutoOver) { panel._nekAutoOver = over; panel._nekManual = null; panel._nekApply(); }
+                        }, { root: host.isConnected ? host : null, threshold: 0 });
+                        panel._nekObserver.observe(sentinel);
+                    } catch (e) { /* 无 IntersectionObserver（旧环境）：仅支持点击标题手动折叠 */ }
                 }
-                text(panel.querySelector('.nek-research-status'), v.researchStatus);
+                const statusEl = panel.querySelector('.nek-research-status');
+                text(statusEl, v.researchStatus);
+                const headHint = panel.querySelector('.nek-research-head-hint');
+                const collapsed = panel.classList.contains('nek-collapsed');
+                text(headHint, collapsed ? v.researchStatus : '');
                 const signature = JSON.stringify(v.queue.entries.map(e => [e.entry.key, e.entry.projectId, e.targetLevel, e.materials, e.error, !!e.entry.submitted]));
                 if (panel._nekQueueSignature !== signature) {
                     panel._nekQueueSignature = signature;
@@ -3613,7 +3676,9 @@
                         const label = doc.createElement('span');
                         const name = e.found ? e.found.facility.name + ' · ' + e.found.project.name : '#' + e.entry.projectId;
                         const cost = Object.keys(e.materials).map(id => (env.game().getItem(Number(id))?.name || '#' + id) + '×' + e.materials[id]).join('、');
-                        label.textContent = (i + 1) + '. ' + name + ' → Lv.' + e.targetLevel + (e.entry.submitted ? '（开研确认中）' : '') + '\n' + (e.error || '预留：' + (cost || '无'));
+                        // 显示起止等级：消耗对应「从当前计划等级升到目标等级」的那次研究，便于核对
+                        label.textContent = (i + 1) + '. ' + name + ' Lv.' + e.level + ' → Lv.' + e.targetLevel +
+                            (e.entry.submitted ? '（开研确认中）' : '') + '\n' + (e.error || '预留：' + (cost || '无'));
                         const remove = button('移出', 'research-task-finish', () => { core.remove(e.entry.key); decorate(); });
                         remove.disabled = queueLocked;
                         if (remove.disabled) remove.classList.add('disabled');
@@ -3629,6 +3694,10 @@
                 }).join('\n');
                 const totalEl = panel.querySelector('.nek-research-total'); text(totalEl, totals);
                 totalEl.classList.toggle('nek-research-insufficient', insufficient);
+                // 缺少材料提醒统一红色：状态行（如「队首材料不足，等待补充」）与折叠标题摘要
+                const lack = insufficient || String(v.researchStatus).includes('材料不足');
+                statusEl.classList.toggle('nek-research-insufficient', lack);
+                headHint.classList.toggle('nek-research-insufficient', lack && collapsed);
             }
             function decorateSettings(v) {
                 const section = doc.querySelector('.nek-assist-section .setting-list');
@@ -4774,7 +4843,7 @@
         // ---------------- 自动检查更新（GitHub raw 头部 @version 对比） ----------------
         // 注意：发布新版本时需同步修改 CURRENT_VERSION（与头部 @version 保持一致）。
         // 页面上下文无 GM_info（@grant none 且经 <script> 注入），只能内置当前版本号。
-        const CURRENT_VERSION = '1.40.0';
+        const CURRENT_VERSION = '1.41.0';
         const LS_UPD_KEY = 'nek_update_check_enabled';        // 检查更新开关，默认开
         const LS_UPD_REMIND = 'nek_update_remind_last';       // 上次提醒时间戳（提醒节流）
         const UPD_REMIND_INTERVAL = 60 * 60 * 1000;           // 提醒节流：距上次提醒超过 60 分钟才再次提醒

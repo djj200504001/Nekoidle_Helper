@@ -27,6 +27,11 @@ class Element {
     }
     get isConnected() { let e = this; while (e.parentNode) e = e.parentNode; return e.tagName === '#DOCUMENT'; }
     appendChild(child) { if (child.parentNode) child.remove(); child.parentNode = this; this.childNodes.push(child); this.mutate(); return child; }
+    insertBefore(node, ref) {
+        if (node.parentNode) node.remove();
+        if (!ref || ref.parentNode !== this) return this.appendChild(node);
+        this.childNodes.splice(this.childNodes.indexOf(ref), 0, node); node.parentNode = this; this.mutate(); return node;
+    }
     append(...children) { children.forEach(c => this.appendChild(typeof c === 'string' ? this.ownerDocument.createTextNode(c) : c)); }
     replaceChildren(...children) { this.textContent = ''; this.append(...children); }
     remove() { if (this.parentNode) { const parent = this.parentNode; parent.childNodes = parent.childNodes.filter(c => c !== this); this.parentNode = null; parent.mutate(); } }

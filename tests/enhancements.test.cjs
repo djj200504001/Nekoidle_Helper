@@ -105,6 +105,30 @@ test('成本不可用或背包数量无效时不入队', () => {
     const other = harness(); other.env.quantity = () => NaN;
     assert.equal(other.core.enqueue(11).ok, false);
 });
+test('研究进行中新增队列按下一等级计费（开始 Lv.1 后加入 Lv.2、Lv.3）', () => {
+    // 场景：完成等级 0、正在研究 0→1（task 存在）。加入的两条应分别是
+    // Lv.1→2（cost curve[1]=1072/170）与 Lv.2→3（curve[2]=1674/260），而非都按 Lv.1 计费。
+    const h = harness();
+    h.c.levels[11] = 0; h.c.task = { projectId: 11, finishTime: 9999999999 };
+    h.core.enqueue(11); h.core.enqueue(11);
+    const view = h.core.view();
+    assert.deepEqual(view.queue.entries.map(e => [e.level, e.targetLevel]), [[1, 2], [2, 3]]);
+    assert.deepEqual(view.queue.totals, { 9610: 1072 + 1674, 1101: 170 + 260 });
+    const last = view.queue.entries[1];
+    assert.equal(last.cost.reports, 1674); assert.equal(last.cost.elementQuantity, 260);
+});
+test('出错条目同样推进计划等级，后续条目不重复计费', () => {
+    // 两条已入队后项目 cost 对 level 0 不可用：第一条 error，第二条应推进到 level 1
+    // 正常计费（修复前 error 不递增，第二条会重复用 level 0 而同样报错）。
+    const h = harness(); h.c.levels[11] = 0;
+    h.core.enqueue(11); h.core.enqueue(11);
+    h.env.cost = (f, level) => level === 0 ? null : { reports: [500, 1072][level], reportItem: f.reportItem, elementItem: f.elementBase, elementQuantity: [100, 170][level], duration: 120 };
+    const view = h.core.view();
+    assert.ok(view.queue.entries[0].error);
+    assert.equal(view.queue.entries[1].level, 1); assert.equal(view.queue.entries[1].targetLevel, 2);
+    assert.ok(!view.queue.entries[1].error);
+    assert.deepEqual(view.queue.entries[1].materials, { 9610: 1072, 1101: 170 });
+});
 test('FIFO 开始请求只发一次，确认后移出，扣材料由原生响应负责', () => {
     const h = harness(); h.onlyResearch(); h.core.enqueue(11); h.core.enqueue(12); h.sync();
     h.core.tick(); h.core.tick();

@@ -99,13 +99,32 @@ test('研究开始按钮旁加入队列按钮，点击展示记录与材料预�
     assert.equal(h.calls[0][1], h.ui);
     const before = { ...h.quantities }; action.children[1].fire('click');
     assert.deepEqual(h.quantities, before); assert.equal(h.sent.length, 0);
-    const panel = h.ui.researchTaskHost.querySelector('.nek-research-queue');
+    const panel = h.ui.researchRoot.querySelector('.nek-research-queue');
     assert.ok(panel.classList.contains('neon-section'));
     assert.equal(panel.querySelectorAll('.setting-item .slider-container .toggle-switch .toggle-slider').length, 2);
-    assert.match(panel.textContent, /绒毛解析 → Lv.1/); assert.match(panel.textContent, /预留 500 \/ 背包 10000/);
+    assert.match(panel.textContent, /绒毛解析 Lv\.0 → Lv\.1/); assert.match(panel.textContent, /预留 500 \/ 背包 10000/);
     assert.match(panel.textContent, /开研时才扣除/);
     panel.querySelector('.nek-research-entry .btn').fire('click');
     assert.equal(h.feature.core.view().queue.entries.length, 0);
+});
+test('研究队列面板嵌入列表滚动流并支持点击标题折叠吸顶', () => {
+    const h = setup(), facility = h.data.research.facilities[0];
+    h.ui.createResearchProjectRow(facility, { id: 11, level: 0, maxLevel: 30, locked: false });
+    // 面板与哨兵插入在 researchRoot（项目列表滚动容器）开头，而非固定 taskHost
+    assert.equal(h.ui.researchRoot.firstElementChild.className, 'nek-research-sentinel');
+    const panel = h.ui.researchRoot.querySelector('.nek-research-queue');
+    assert.ok(panel && h.ui.researchRoot.childNodes[1] === panel);
+    assert.ok(panel.querySelector('.nek-research-head .section-title').textContent === '研究队列');
+    // mock 环境无 IntersectionObserver：点击标题手动折叠/展开（自动折叠在浏览器内生效）
+    const head = panel.querySelector('.nek-research-head');
+    head.fire('click');
+    assert.ok(panel.classList.contains('nek-collapsed'));
+    assert.match(panel.querySelector('.nek-research-head-arrow').textContent, /▸/);
+    assert.match(panel.querySelector('.nek-research-head-hint').textContent, /研究/);   // 折叠时标题条显示状态摘要
+    head.fire('click');
+    assert.ok(!panel.classList.contains('nek-collapsed'));
+    assert.match(panel.querySelector('.nek-research-head-arrow').textContent, /▾/);
+    assert.equal(panel.querySelector('.nek-research-head-hint').textContent, '');
 });
 test('已有研究时原生不带开始区也可加入队列，锁定与满级项目不增加按钮', () => {
     const h = setup(), facility = h.data.research.facilities[0];
