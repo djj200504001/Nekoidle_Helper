@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.43.3
-// @description  v1.43.3：云同步 uid 安全加固——覆盖/上传前实时校验当前游戏玩家 uid（pull 请求前后双闸、push 上传前后双闸、flush 检测账号切换丢弃旧状态），防止 A 回退登录页后 B 登录被 A 的云端配置串号覆盖。v1.43.2——云同步与脚本加载并行——4 个 init 立即执行不等网络，服务端不可达/挂起都不影响加载（单次请求 3 秒超时）；启动只 pull 不 push，拉取后与本地比对，一致不覆盖不通知，仅云端覆盖本地 / push 成功 / push 失败三类用通知栏反馈；回退登录页不 push、不 pull；未登录不同步、不等待 uid；设置页云同步开关，本地设置/研究队列/钓鱼预约变化时 2 秒节流自动上传；首次开启云端有数据则二选一，无数据静默启用；钓鱼预约新增 day 日期字段跨日不同步；队列条目去 submitted、本地租约不进 payload；明文 JSON + XOR/Base64 混淆传输。自动收菜按钮 60 秒往返进度 CSS keyframes 动画；研究队列（预留材料与自动结算）、自动接受任务/领奖、市场行情、采集/生产/烹饪详情优化、防呆设置、点金辅助、农业辅助（自动收菜+好友农场预览）、检查更新、定时钓鱼、炼金经验效率与越级计算等，详见脚本正文。
+// @version      1.43.7
+// @description  v1.43.7：修复刷新时误报「云端已覆盖本地」——开关按脚本真实语义归一化比对（null 或 1 都=开、0=关），null 与 1 不再判为不同；研究按钮缺料红框内发光改呼吸动画。v1.43.6——研究队列按钮缺料提示——队首材料确实不足（复用研究队列已有的 researchStatus 判定）时，快捷按钮红边框 + 红色内发光、字保持黑色，title 补注「队首材料不足，等待补充」。v1.43.5——pull 绑定到游戏主界面顶栏 toolbar-container——进入游戏（含刷新、回退登录页后重新进入）时各发一次 GET，同一节点只拉一次、回退清空以允许再拉；服务端 GET/GET 与 PUT/PUT 各自 2 秒限流、两者互不干扰。v1.43.4——修复刷新不发 pull：从 document-idle 延后到主界面就绪后再拉。v1.43.3——云同步 uid 安全加固——覆盖/上传前实时校验当前游戏玩家 uid（pull 请求前后双闸、push 上传前后双闸、flush 检测账号切换丢弃旧状态），防止 A 回退登录页后 B 登录被 A 的云端配置串号覆盖。v1.43.2——云同步与脚本加载并行——4 个 init 立即执行不等网络，服务端不可达/挂起都不影响加载（单次请求 3 秒超时）；启动只 pull 不 push，拉取后与本地比对，一致不覆盖不通知，仅云端覆盖本地 / push 成功 / push 失败三类用通知栏反馈；回退登录页不 push、不 pull；未登录不同步、不等待 uid；设置页云同步开关，本地设置/研究队列/钓鱼预约变化时 2 秒节流自动上传；首次开启云端有数据则二选一，无数据静默启用；钓鱼预约新增 day 日期字段跨日不同步；队列条目去 submitted、本地租约不进 payload；明文 JSON + XOR/Base64 混淆传输。自动收菜按钮 60 秒往返进度 CSS keyframes 动画；研究队列（预留材料与自动结算）、自动接受任务/领奖、市场行情、采集/生产/烹饪详情优化、防呆设置、点金辅助、农业辅助（自动收菜+好友农场预览）、检查更新、定时钓鱼、炼金经验效率与越级计算等，详见脚本正文。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
 // @match        https://nekoidle.net/*
@@ -4473,7 +4473,14 @@
                 '  height: 20px; line-height: 20px; letter-spacing: 1px;',
                 '  border: 2px solid var(--c-black, #000); white-space: nowrap; }',
                 '.nek-research-queue-toggle:hover { filter: brightness(1.15); -webkit-filter: brightness(1.15); }',
-                '.nek-research-queue-toggle.off { background: #f3f3ca; color: #939393; }'
+                '.nek-research-queue-toggle.off { background: #f3f3ca; color: #939393; }',
+                // 材料确实不足（队列自动开研等待补充）时：红边框 + 红色内发光呼吸，字保持黑色 #333
+                '@keyframes nek-research-lack-breathe {',
+                '  0%, 100% { box-shadow: inset 0 0 3px 0 rgba(255,48,33,0.45); border-color: rgba(255,48,33,0.65); }',
+                '  50% { box-shadow: inset 0 0 9px 2px rgba(255,48,33,0.95); border-color: rgb(255,48,33); }',
+                '}',
+                '.nek-research-queue-toggle.nek-research-lack { border-color: rgb(255,48,33);',
+                '  animation: nek-research-lack-breathe 1.6s ease-in-out infinite; }'
             ].join('\n');
             document.head.appendChild(s);
         }
@@ -5191,7 +5198,7 @@
         // ---------------- 自动检查更新（GitHub raw 头部 @version 对比） ----------------
         // 注意：发布新版本时需同步修改 CURRENT_VERSION（与头部 @version 保持一致）。
         // 页面上下文无 GM_info（@grant none 且经 <script> 注入），只能内置当前版本号。
-        const CURRENT_VERSION = '1.43.3';
+        const CURRENT_VERSION = '1.43.7';
         const LS_UPD_KEY = 'nek_update_check_enabled';        // 检查更新开关，默认开
         const LS_UPD_REMIND = 'nek_update_remind_last';       // 上次提醒时间戳（提醒节流）
         const UPD_REMIND_INTERVAL = 60 * 60 * 1000;           // 提醒节流：距上次提醒超过 60 分钟才再次提醒
@@ -5546,6 +5553,15 @@
             } catch (e) { return []; }
         }
 
+        // 队列材料不足状态：直接复用研究队列模块已有的 researchStatus 判定（与折叠摘要同源），
+        // 不另起一套游戏接口判断。研究队列模块在队首材料不足等待补充时会写入「材料不足」字样。
+        function researchQueueLacking() {
+            try {
+                const st = String(nekEnhancements.core.view().researchStatus || '');
+                return st.includes('材料不足');
+            } catch (e) { return false; }
+        }
+
         function findResearchProject(projectId) {
             for (const f of Data.research.facilities) {
                 const p = (f.projects || []).find(p => +p.id === +projectId);
@@ -5586,10 +5602,15 @@
                 cls = 'off';
                 tip = '暂无研究任务与队列 · 点击进入研究中心';
             }
+            // 材料确实不足（队列自动开研等待补充）：红边框 + 红色内发光提示，字保持黑色。
+            // 判定复用研究队列模块已有的 researchStatus，无队列时不提示。
+            const lack = cls !== 'off' && researchQueueLacking();
+            if (lack) tip += ' · 队首材料不足，等待补充';
             // DOM 写缓存：秒内值不变零写入
             if (btn._nekResBg !== bg) { btn._nekResBg = bg; btn.style.background = bg; }
             if (btn.textContent !== text) btn.textContent = text;
             btn.classList.toggle('off', cls === 'off');
+            btn.classList.toggle('nek-research-lack', lack);
             btn.title = tip;
         }
 
@@ -6098,8 +6119,22 @@
             return v;
         }
         function cloudPayloadBody(p) {
+            // 开关按脚本真实语义归一化：布尔开关的判定是 getItem(k) !== '0'，
+            // 即 null（从未写入）/ '1' 都表示「开」，只有 '0'（或 false）表示「关」。
+            // 云端可能存着 null、本地存着 '1'（曾被显式写入），二者语义等价，
+            // 直接 JSON.stringify 比对会误判为不同 → 刷新时误报「云端已覆盖本地」，
+            // 而 cloudApply 对 null 又跳过不覆盖，造成「通知说覆盖、实际没变」的矛盾。
+            const settings = cloudStable((p && p.settings) || {});
+            Object.keys(settings).forEach(k => {
+                if (k === 'alcsortMode') {   // 字符串枚举，按原值比（null 归一为默认空串）
+                    settings[k] = settings[k] == null ? '' : String(settings[k]);
+                } else if (Object.prototype.hasOwnProperty.call(CLOUD_SETTING_KEYS, k) ||
+                           CLOUD_ENH_SETTING_KEYS.indexOf(k) >= 0) {
+                    settings[k] = (settings[k] === '0' || settings[k] === false) ? '0' : '1';
+                }
+            });
             return cloudStable({
-                settings: (p && p.settings) || {},
+                settings: settings,
                 queue: (p && Array.isArray(p.queue) ? p.queue : []).map(e => { const o = Object.assign({}, e); delete o.submitted; return o; }),
                 bookings: (p && p.fish && Array.isArray(p.fish.bookings) ? p.fish.bookings : []).map(b => { const o = Object.assign({}, b); delete o.chain; return o; })
             });
@@ -6314,21 +6349,61 @@
             }
         }
 
-        // 启动顺序（4 个 init 与云同步并行，与原版加载路径一致）：
+        // 启动顺序（4 个 init 立即执行；云同步 pull 绑定到游戏主界面顶栏 toolbar-container）：
         // 1) 四个 init 立即同步执行，不等待任何网络——服务端不可达/挂起都不影响脚本加载，
-        //    与未加入云同步的原版完全相同；队列/设置若被云端覆盖，慢一拍在下一次读取生效。
-        // 2) 云同步 pull 放到后台并行：未登录无 uid / 回退登录页都同步跳过，不等待、不同步；
-        //    已登录只 pull 不 push，拉取后与本地比对，一致不覆盖不通知，仅覆盖才反馈。
-        // 3) booting 标志覆盖 pull 全程，确保拉取期间的任何写入都不会被回推云端；
-        //    在 finally 解除（成功 / 404 / 429 / 失败 / 超时 / 跳过都会解除），不留死角。
+        //    与未加入云同步的原版完全相同。
+        // 2) toolbar-container 只在进入游戏后创建，回退登录页移除、再进入又重建。
+        //    用 MutationObserver 监听它的出现/重建，每次进入游戏（含刷新首次加载、
+        //    回退登录页后重新进入）各发一次 GET；同一节点只拉一次，回退时重置以允许再拉。
+        // 3) bootPull 内部闸门负责未登录/登录页跳过、uid 实时校验防串号；
+        //    拉取后与本地比对，一致不覆盖不通知，仅覆盖才反馈。只 pull 不 push。
+        // 4) booting 标志覆盖拉取全程，期间禁止 push；finally 无条件解除，不留死角。
         nekEnhancements.init();
         initHarvest();   // 启动自动收菜（等待游戏就绪后挂载主循环与队列位置开关）
         initFishTimer();   // 启动定时钓鱼（天气预报时段自动开钓/停止/恢复队列）
         initUpdateCheck();   // 启动检查更新（等待游戏 UI 就绪后静默检测 GitHub 最新版本）
-        (async function bootWithCloud() {
-            try { await cloud.bootPull(); }
-            catch (e) { console.warn('[云同步] 启动拉取异常', e); }
-            finally { cloud.booting = false; }
+
+        let bootPullToken = null;   // 本次进入游戏已为哪个 toolbar 节点发过 pull
+        let bootPullBusy = false;   // 拉取进行中，防重复
+        function bootPullOnToolbar(delay) {
+            if (bootPullBusy) return;
+            const bar = document.querySelector('.toolbar-container');
+            if (!bar) return;                          // 未进入游戏（登录页无此节点）
+            if (bootPullToken === bar) return;         // 该次进入已拉过
+            if (!isCloudEnabled()) { cloud.booting = false; return; }
+            if (!readUidCloud()) return;               // uid 未就绪，等后续 DOM 变化重试
+            if (isLoginScreen()) return;               // 回退登录页：不 pull
+            bootPullToken = bar;
+            bootPullBusy = true;
+            cloud.booting = true;
+            setTimeout(async function () {
+                try { await cloud.bootPull(); }
+                catch (e) { console.warn('[云同步] 启动拉取异常', e); }
+                finally { bootPullBusy = false; cloud.booting = false; }
+            }, delay || 0);
+        }
+
+        // 主监听：toolbar-container 从无到有 / 重建 → 触发一次 pull；
+        // 消失（回退登录页）时清空 token，允许下次进入重新拉。
+        let seenToolbar = null;
+        new MutationObserver(function () {
+            const bar = document.querySelector('.toolbar-container');
+            if (bar !== seenToolbar) {
+                seenToolbar = bar;
+                if (!bar) bootPullToken = null;
+            }
+            bootPullOnToolbar(300);   // 稍延时等 uid/离线数据就绪；未就绪由后续 DOM 变化重试
+        }).observe(document.documentElement, { childList: true, subtree: true });
+
+        // 兜底：若 observer 未捕获（如脚本注入时主界面已存在），延时轮询拉一次。
+        (function bootWithCloud() {
+            let tries = 0;
+            function attempt() {
+                if (bootPullToken || bootPullBusy) return;
+                bootPullOnToolbar(0);
+                if (++tries <= 12) setTimeout(attempt, 150);
+            }
+            setTimeout(attempt, 600);
         })();
     };
 

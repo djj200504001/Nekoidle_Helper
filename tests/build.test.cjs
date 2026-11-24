@@ -14,9 +14,9 @@ test('安装文件与模块源码一致，入口、版本号和单次初始化�
     assert.equal((script.match(/\/\/ NEK_ENHANCEMENTS_END/g) || []).length, 1);
     assert.equal((script.match(/nekEnhancements\.init\(\);/g) || []).length, 1);
     assert.equal((script.match(/function \(\) \{ nekEnhancements\.decorate\(\); \}/g) || []).length, 1);
-    assert.match(script, /@version\s+1\.43\.3\n/);
-    assert.match(script, /@description\s+v1\.43\.3：/);
-    assert.match(script, /const CURRENT_VERSION = '1\.43\.3';/);
+    assert.match(script, /@version\s+1\.43\.7\n/);
+    assert.match(script, /@description\s+v1\.43\.7：/);
+    assert.match(script, /const CURRENT_VERSION = '1\.43\.7';/);
     assert.doesNotThrow(() => new vm.Script(script));
 });
 
@@ -47,6 +47,22 @@ test('任务侧栏合同满员角标逻辑已注入', () => {
     assert.match(script, /badge\.remove\(\)/);
 });
 
+test('研究队列按钮缺料提示：复用 researchStatus 判定 + 红框内发光样式', () => {
+    const script = fs.readFileSync(path.join(root, '银河猫娘放置小助手.user.js'), 'utf8');
+    // 复用脚本已有的 researchStatus「材料不足」判定，不另起游戏接口
+    assert.match(script, /function researchQueueLacking\(\)/);
+    assert.match(script, /nekEnhancements\.core\.view\(\)\.researchStatus/);
+    assert.match(script, /st\.includes\('材料不足'\)/);
+    // 样式：红边框 + 红色内发光呼吸动画，字保持黑色（无 color 覆盖）
+    assert.match(script, /@keyframes nek-research-lack-breathe/);
+    assert.match(script, /\.nek-research-queue-toggle\.nek-research-lack \{ border-color: rgb\(255,48,33\)/);
+    assert.match(script, /animation: nek-research-lack-breathe 1\.6s ease-in-out infinite/);
+    // 仅在有队列/任务时提示，无队列不误报；title 补注缺料说明
+    assert.match(script, /const lack = cls !== 'off' && researchQueueLacking\(\)/);
+    assert.match(script, /btn\.classList\.toggle\('nek-research-lack', lack\)/);
+    assert.match(script, /if \(lack\) tip \+= ' · 队首材料不足，等待补充'/);
+});
+
 test('云同步模块已注入：端点、限流、登录页停同步、二选一、通知反馈', () => {
     const script = fs.readFileSync(path.join(root, '银河猫娘放置小助手.user.js'), 'utf8');
     // 端点 / 限流
@@ -75,10 +91,19 @@ test('云同步模块已注入：端点、限流、登录页停同步、二选�
     assert.match(script, /p\.fish\.bookings\.some/);
     assert.match(script, /function fishLocalDay\(\)/);
     assert.match(script, /day: fishLocalDay\(\)/);
-    // 启动：4 个 init 在前立即执行，pull 后台并行、不阻塞加载
-    assert.match(script, /async function bootWithCloud\(\)/);
-    assert.match(script, /nekEnhancements\.init\(\);\s*initHarvest\(\);[\s\S]{0,400}await cloud\.bootPull\(\)/);
-    assert.match(script, /await cloud\.bootPull\(\);[\s\S]{0,120}finally \{ cloud\.booting = false; \}/);
+    // 启动：4 个 init 在前立即执行，pull 绑定 toolbar-container，不阻塞加载
+    assert.match(script, /function bootWithCloud\(\)/);
+    assert.match(script, /nekEnhancements\.init\(\);\s*initHarvest\(\);[\s\S]{0,1800}await cloud\.bootPull\(\)/);
+    assert.match(script, /await cloud\.bootPull\(\);[\s\S]{0,120}finally \{ bootPullBusy = false; cloud\.booting = false; \}/);
+    // pull 绑定 toolbar-container：出现/重建发一次 GET，同一节点只拉一次，回退清空 token
+    assert.match(script, /function bootPullOnToolbar\(delay\)/);
+    assert.match(script, /document\.querySelector\('\.toolbar-container'\)/);
+    assert.match(script, /if \(bootPullToken === bar\) return;/);
+    assert.match(script, /if \(!readUidCloud\(\)\) return;/);
+    assert.match(script, /new MutationObserver\(function \(\) \{[\s\S]{0,300}bootPullOnToolbar\(300\)/);
+    assert.match(script, /if \(!bar\) bootPullToken = null;/);
+    // 兜底轮询仍在
+    assert.match(script, /setTimeout\(attempt, 600\)/);
     // 设置页开关唯一
     assert.match(script, /nek-assist-cloud-toggle/);
     assert.match(script, /const CLOUD_LS_KEY = 'nek_cloud_enabled'/);
@@ -89,6 +114,9 @@ test('云同步加载顺序：启动只 pull 不 push，一致不覆盖不通知
     // 决策2：pull 后比对，一致 applied:false 不通知；仅覆盖时反馈
     assert.match(script, /function cloudSameAsLocal\(remote, uid\)/);
     assert.match(script, /if \(cloudSameAsLocal\(r\.data\.data, curUid\)\) return \{ found: true, applied: false \}/);
+    // 比对语义归一化：null/'1' 都=开、'0'=关，避免 null vs '1' 误判为不同导致误报覆盖
+    assert.match(script, /settings\[k\] = \(settings\[k\] === '0' \|\| settings\[k\] === false\) \? '0' : '1'/);
+    assert.match(script, /if \(k === 'alcsortMode'\) \{[^\n]*字符串枚举/);
     assert.match(script, /cloudApply\(r\.data\.data, curUid\);[\s\S]{0,160}云端数据已覆盖本地/);
     // uid 安全闸门：覆盖/上传前实时校验当前游戏玩家，防 A 回退登录页后 B 登录被串号覆盖
     assert.match(script, /const cloudUidGuard = \(uid\) =>/);
@@ -107,7 +135,7 @@ test('云同步加载顺序：启动只 pull 不 push，一致不覆盖不通知
     assert.match(script, /booting: true,/);
     assert.match(script, /markDirty\(\) \{[\s\S]{0,120}this\.booting/);
     assert.match(script, /async flush\(\) \{[\s\S]{0,120}this\.booting/);
-    assert.match(script, /catch \(e\) \{ console\.warn\('\[云同步\] 启动拉取异常', e\); \}\s*finally \{ cloud\.booting = false; \}/);
+    assert.match(script, /catch \(e\) \{ console\.warn\('\[云同步\] 启动拉取异常', e\); \}\s*finally \{ bootPullBusy = false; cloud\.booting = false; \}/);
     // 单次请求超时：服务端挂起也不阻塞启动 / 不永久封禁 push
     assert.match(script, /const CLOUD_REQ_TIMEOUT = 3000/);
     assert.match(script, /new AbortController\(\)/);
