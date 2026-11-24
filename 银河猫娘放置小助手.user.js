@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.44.1
-// @description  v1.44.1：toolbar「手动云同步」按钮改为与签到按钮同款青色发光样式（文字由「同步」改「手动云同步」）。v1.44.0——云同步新增市场「我的收藏」同步（localStorage.favorite 的 itemId 数组，归一化去重排序后入 payload；挂钩 Utils.setData 自动上传；云端覆盖前弹窗对比两端收藏数量由用户决定整份覆盖）+ toolbar 签到按钮旁新增「同步」按钮（仅上传本地到云端，不拉取）。v1.43.7——修复刷新时误报「云端已覆盖本地」——开关按脚本真实语义归一化比对（null 或 1 都=开、0=关），null 与 1 不再判为不同；研究按钮缺料红框内发光改呼吸动画。v1.43.6——研究队列按钮缺料提示——队首材料确实不足（复用研究队列已有的 researchStatus 判定）时，快捷按钮红边框 + 红色内发光、字保持黑色，title 补注「队首材料不足，等待补充」。v1.43.5——pull 绑定到游戏主界面顶栏 toolbar-container——进入游戏（含刷新、回退登录页后重新进入）时各发一次 GET，同一节点只拉一次、回退清空以允许再拉；服务端 GET/GET 与 PUT/PUT 各自 2 秒限流、两者互不干扰。v1.43.4——修复刷新不发 pull：从 document-idle 延后到主界面就绪后再拉。v1.43.3——云同步 uid 安全加固——覆盖/上传前实时校验当前游戏玩家 uid（pull 请求前后双闸、push 上传前后双闸、flush 检测账号切换丢弃旧状态），防止 A 回退登录页后 B 登录被 A 的云端配置串号覆盖。v1.43.2——云同步与脚本加载并行——4 个 init 立即执行不等网络，服务端不可达/挂起都不影响加载（单次请求 3 秒超时）；启动只 pull 不 push，拉取后与本地比对，一致不覆盖不通知，仅云端覆盖本地 / push 成功 / push 失败三类用通知栏反馈；回退登录页不 push、不 pull；未登录不同步、不等待 uid；设置页云同步开关，本地设置/研究队列/钓鱼预约变化时 2 秒节流自动上传；首次开启云端有数据则二选一，无数据静默启用；钓鱼预约新增 day 日期字段跨日不同步；队列条目去 submitted、本地租约不进 payload；明文 JSON + XOR/Base64 混淆传输。自动收菜按钮 60 秒往返进度 CSS keyframes 动画；研究队列（预留材料与自动结算）、自动接受任务/领奖、市场行情、采集/生产/烹饪详情优化、防呆设置、点金辅助、农业辅助（自动收菜+好友农场预览）、检查更新、定时钓鱼、炼金经验效率与越级计算等，详见脚本正文。
+// @version      1.44.2
+// @description  v1.44.2：修复研究队列云同步「已完成研究复活」竞态——云端旧队列覆盖本地时，按游戏实时等级过滤掉目标已达成的条目（与 plan()/settleSubmitted 同口径，含正在研究任务 +1），比对时同口径过滤避免每次刷新误报覆盖。v1.44.1——toolbar「手动云同步」按钮改为与签到按钮同款青色发光样式（文字由「同步」改「手动云同步」）。v1.44.0——云同步新增市场「我的收藏」同步（localStorage.favorite 的 itemId 数组，归一化去重排序后入 payload；挂钩 Utils.setData 自动上传；云端覆盖前弹窗对比两端收藏数量由用户决定整份覆盖）+ toolbar 签到按钮旁新增「同步」按钮（仅上传本地到云端，不拉取）。v1.43.7——修复刷新时误报「云端已覆盖本地」——开关按脚本真实语义归一化比对（null 或 1 都=开、0=关），null 与 1 不再判为不同；研究按钮缺料红框内发光改呼吸动画。v1.43.6——研究队列按钮缺料提示——队首材料确实不足（复用研究队列已有的 researchStatus 判定）时，快捷按钮红边框 + 红色内发光、字保持黑色，title 补注「队首材料不足，等待补充」。v1.43.5——pull 绑定到游戏主界面顶栏 toolbar-container——进入游戏（含刷新、回退登录页后重新进入）时各发一次 GET，同一节点只拉一次、回退清空以允许再拉；服务端 GET/GET 与 PUT/PUT 各自 2 秒限流、两者互不干扰。v1.43.4——修复刷新不发 pull：从 document-idle 延后到主界面就绪后再拉。v1.43.3——云同步 uid 安全加固——覆盖/上传前实时校验当前游戏玩家 uid（pull 请求前后双闸、push 上传前后双闸、flush 检测账号切换丢弃旧状态），防止 A 回退登录页后 B 登录被 A 的云端配置串号覆盖。v1.43.2——云同步与脚本加载并行——4 个 init 立即执行不等网络，服务端不可达/挂起都不影响加载（单次请求 3 秒超时）；启动只 pull 不 push，拉取后与本地比对，一致不覆盖不通知，仅云端覆盖本地 / push 成功 / push 失败三类用通知栏反馈；回退登录页不 push、不 pull；未登录不同步、不等待 uid；设置页云同步开关，本地设置/研究队列/钓鱼预约变化时 2 秒节流自动上传；首次开启云端有数据则二选一，无数据静默启用；钓鱼预约新增 day 日期字段跨日不同步；队列条目去 submitted、本地租约不进 payload；明文 JSON + XOR/Base64 混淆传输。自动收菜按钮 60 秒往返进度 CSS keyframes 动画；研究队列（预留材料与自动结算）、自动接受任务/领奖、市场行情、采集/生产/烹饪详情优化、防呆设置、点金辅助、农业辅助（自动收菜+好友农场预览）、检查更新、定时钓鱼、炼金经验效率与越级计算等，详见脚本正文。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
 // @match        https://nekoidle.net/*
@@ -5198,7 +5198,7 @@
         // ---------------- 自动检查更新（GitHub raw 头部 @version 对比） ----------------
         // 注意：发布新版本时需同步修改 CURRENT_VERSION（与头部 @version 保持一致）。
         // 页面上下文无 GM_info（@grant none 且经 <script> 注入），只能内置当前版本号。
-        const CURRENT_VERSION = '1.44.1';
+        const CURRENT_VERSION = '1.44.2';
         const LS_UPD_KEY = 'nek_update_check_enabled';        // 检查更新开关，默认开
         const LS_UPD_REMIND = 'nek_update_remind_last';       // 上次提醒时间戳（提醒节流）
         const UPD_REMIND_INTERVAL = 60 * 60 * 1000;           // 提醒节流：距上次提醒超过 60 分钟才再次提醒
@@ -6093,6 +6093,37 @@
             try { return cloudNormalizeFavorites(JSON.parse(localStorage.getItem('favorite') || '[]')); }
             catch (e) { return []; }
         }
+        // 研究队列「已完成条目不复活」过滤。
+        // 权威等级取 UI.researchInfo.levels（回退 game.researchLevels），
+        // 并对正在研究的 task 项目 +1 ——与 enhancements.js 的 context()/plan()/settleSubmitted 同口径。
+        // 注意：game.character.levels 在游戏里是空对象，真实研究等级在 researchLevels / UI.researchInfo。
+        // 云端旧队列若含「目标等级 ≤ 当前有效等级」的条目，说明该级已完成，
+        // 覆盖时直接丢弃——否则 plan() 会用完成后的等级重算成 N+1 并自动开研，多升一级。
+        // 研究数据未就绪时原样返回（保守：宁可保留，也不误删未研究的项目）。
+        function cloudQueueAlive(queue) {
+            if (!Array.isArray(queue)) return [];
+            let levels = null, active = null;
+            try {
+                const ui = (typeof UI !== 'undefined' && UI) ? UI : null;
+                const g = (typeof game !== 'undefined' && game) ? game : null;
+                const info = ui && ui.researchInfo;
+                levels = (info && info.levels) || (g && g.researchLevels) || null;
+                active = (info && info.task) || null;
+            } catch (e) { /* 忽略 */ }
+            if (!levels || typeof levels !== 'object') return queue.slice();   // 研究数据未就绪：不过滤
+            const snapshot = Object.assign({}, levels);
+            if (active && active.projectId != null) {
+                const pid = active.projectId;
+                snapshot[pid] = (Number(snapshot[pid]) || 0) + 1;
+            }
+            return queue.filter(function (e) {
+                if (!e || typeof e !== 'object') return true;
+                const target = e.record && Number(e.record.targetLevel);
+                if (!Number.isInteger(target) || target <= 0) return true;   // 旧条目无 record：保守保留
+                const lv = Number(snapshot[e.projectId]) || 0;
+                return lv < target;   // 目标已达成 → 丢弃，不让已完成的等级复活
+            });
+        }
         // 组装 payload：设置 + 研究队列（去 submitted）+ 钓鱼预约（带 day）+ 市场收藏
         function cloudBuildPayload(uid) {
             const settings = {};
@@ -6124,8 +6155,8 @@
             return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
         }
         // 决策2：页面加载后把云端与本地数据比对，一致则不覆盖、不通知。
-        // 只比 settings/queue/fish.bookings 三类同步内容，忽略 ts/schema 等元数据；
-        // queue 去 submitted、bookings 去 chain，与 cloudBuildPayload 口径一致。
+        // 只比 settings/queue/fish.bookings/favorites 四类同步内容，忽略 ts/schema 等元数据；
+        // queue 去 submitted 且按实时等级丢弃已完成项、bookings 去 chain，与覆盖口径一致。
         function cloudStable(v) {
             if (Array.isArray(v)) return v.map(cloudStable);
             if (v && typeof v === 'object') {
@@ -6155,7 +6186,8 @@
             const favorites = cloudNormalizeFavorites(p && p.favorites);
             return cloudStable({
                 settings: settings,
-                queue: (p && Array.isArray(p.queue) ? p.queue : []).map(e => { const o = Object.assign({}, e); delete o.submitted; return o; }),
+                // 两端都按实时等级丢弃已完成项：避免云端旧队列反复被判为「不同」而每次刷新都提示覆盖
+                queue: cloudQueueAlive((p && Array.isArray(p.queue) ? p.queue : []).map(e => { const o = Object.assign({}, e); delete o.submitted; return o; })),
                 bookings: (p && p.fish && Array.isArray(p.fish.bookings) ? p.fish.bookings : []).map(b => { const o = Object.assign({}, b); delete o.chain; return o; }),
                 favorites: favorites.slice(0, 500)
             });
@@ -6180,7 +6212,7 @@
                 p.favorites.some(x => !Number.isInteger(Number(x)) || Number(x) <= 0))) return false;
             return true;
         }
-        // 应用云端 payload 到本地：queue 去 submitted、钓鱼预约按 day 过滤跨日
+        // 应用云端 payload 到本地：queue 去 submitted 且丢弃已完成项、钓鱼预约按 day 过滤跨日
         function cloudApply(p, uid) {
             if (!cloudValidate(p)) throw new Error('bad_payload');
             cloudUidGuard(uid);   // 覆盖前确认目标 uid 仍是当前游戏玩家（防异步期间切换账号串配置）
@@ -6194,7 +6226,7 @@
             try { enh = JSON.parse(localStorage.getItem('nek_enhancements_v1:' + uid) || '{}') || {}; } catch (e) { /* 忽略 */ }
             enh.settings = enh.settings || {};
             CLOUD_ENH_SETTING_KEYS.forEach(k => { enh.settings[k] = !!p.settings[k]; });
-            enh.queue = (p.queue || []).map(e => { const o = Object.assign({}, e); delete o.submitted; return o; });
+            enh.queue = cloudQueueAlive((p.queue || []).map(e => { const o = Object.assign({}, e); delete o.submitted; return o; }));
             try { localStorage.setItem('nek_enhancements_v1:' + uid, JSON.stringify(enh)); } catch (e) { /* 忽略 */ }
             const today = todayLocal();
             const bookings = (p.fish.bookings || []).map(b => {

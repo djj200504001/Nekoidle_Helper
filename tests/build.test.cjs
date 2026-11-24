@@ -14,9 +14,9 @@ test('安装文件与模块源码一致，入口、版本号和单次初始化�
     assert.equal((script.match(/\/\/ NEK_ENHANCEMENTS_END/g) || []).length, 1);
     assert.equal((script.match(/nekEnhancements\.init\(\);/g) || []).length, 1);
     assert.equal((script.match(/function \(\) \{ nekEnhancements\.decorate\(\); \}/g) || []).length, 1);
-    assert.match(script, /@version\s+1\.44\.1\n/);
-    assert.match(script, /@description\s+v1\.44\.1：/);
-    assert.match(script, /const CURRENT_VERSION = '1\.44\.1';/);
+    assert.match(script, /@version\s+1\.44\.2\n/);
+    assert.match(script, /@description\s+v1\.44\.2：/);
+    assert.match(script, /const CURRENT_VERSION = '1\.44\.2';/);
     assert.doesNotThrow(() => new vm.Script(script));
 });
 
@@ -201,4 +201,42 @@ test('toolbar 手动同步按钮：签到按钮旁仅上传本地，不拉取', 
     assert.match(script, /await this\.flush\(true\)/);
     assert.match(script, /async flush\(force\)/);
     assert.match(script, /if \(\(!force && this\.booting\) \|\| !isCloudEnabled\(\)/);
+});
+
+test('云同步研究队列：覆盖与比对均按实时等级丢弃已完成项，避免复活多研一级', () => {
+    const script = fs.readFileSync(path.join(root, '银河猫娘放置小助手.user.js'), 'utf8').replace(/\r\n/g, '\n');
+    // 覆盖与比对共用同一过滤口径
+    assert.match(script, /function cloudQueueAlive\(queue\)/);
+    assert.match(script, /enh\.queue = cloudQueueAlive\(/);
+    assert.match(script, /queue: cloudQueueAlive\(/);
+    // 权威等级口径与 context() 一致：UI.researchInfo.levels → game.researchLevels
+    assert.match(script, /info\.levels\) \|\| \(g && g\.researchLevels\)/);
+    assert.match(script, /snapshot\[pid\] = \(Number\(snapshot\[pid\]\) \|\| 0\) \+ 1/);
+    assert.match(script, /return lv < target;/);
+
+    // 真正执行过滤函数验证行为（不依赖游戏页面）
+    const start = script.indexOf('        function cloudQueueAlive(queue) {');
+    const end = script.indexOf('        // 组装 payload', start);
+    assert.ok(start > 0 && end > start);
+    const body = script.slice(start, end);
+    const load = (ctx) => vm.runInNewContext(body + '\ncloudQueueAlive;', Object.assign({ Number, Object, Array }, ctx));
+
+    const q = [
+        { key: 'done', projectId: 11, record: { fromLevel: 1, targetLevel: 2 } },
+        { key: 'next', projectId: 11, record: { fromLevel: 2, targetLevel: 3 } },
+        { key: 'other', projectId: 12, record: { fromLevel: 1, targetLevel: 2 } },
+        { key: 'legacy', projectId: 13 }
+    ];
+    const alive = (ctx) => load(ctx)(q).map(e => e.key);
+    // UI.researchInfo 权威：项目 11 已到 2 级 → done 丢弃，其余保留
+    assert.deepEqual(alive({ UI: { researchInfo: { levels: { 11: 2, 12: 1 }, task: null } }, game: {} }), ['next', 'other', 'legacy']);
+    // 正在研究 1→2（task 使有效等级=2）：done 同样丢弃
+    assert.deepEqual(alive({ UI: { researchInfo: { levels: { 11: 1, 12: 1 }, task: { projectId: 11 } } }, game: {} }), ['next', 'other', 'legacy']);
+    // 等级到 3：done 与 next 均达成
+    assert.deepEqual(alive({ UI: { researchInfo: { levels: { 11: 3, 12: 1 }, task: null } }, game: {} }), ['other', 'legacy']);
+    // UI 无研究信息 → 回退 game.researchLevels
+    assert.deepEqual(alive({ UI: {}, game: { researchLevels: { 11: 2, 12: 1 } } }), ['next', 'other', 'legacy']);
+    // 研究数据未就绪：原样保留，绝不误删
+    assert.deepEqual(alive({}), ['done', 'next', 'other', 'legacy']);
+    assert.deepEqual(alive({ UI: { researchInfo: null }, game: null }), ['done', 'next', 'other', 'legacy']);
 });
