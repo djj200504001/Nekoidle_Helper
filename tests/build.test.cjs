@@ -14,9 +14,9 @@ test('安装文件与模块源码一致，入口、版本号和单次初始化�
     assert.equal((script.match(/\/\/ NEK_ENHANCEMENTS_END/g) || []).length, 1);
     assert.equal((script.match(/nekEnhancements\.init\(\);/g) || []).length, 1);
     assert.equal((script.match(/function \(\) \{ nekEnhancements\.decorate\(\); \}/g) || []).length, 1);
-    assert.match(script, /@version\s+1\.43\.7\n/);
-    assert.match(script, /@description\s+v1\.43\.7：/);
-    assert.match(script, /const CURRENT_VERSION = '1\.43\.7';/);
+    assert.match(script, /@version\s+1\.44\.1\n/);
+    assert.match(script, /@description\s+v1\.44\.1：/);
+    assert.match(script, /const CURRENT_VERSION = '1\.44\.1';/);
     assert.doesNotThrow(() => new vm.Script(script));
 });
 
@@ -134,7 +134,7 @@ test('云同步加载顺序：启动只 pull 不 push，一致不覆盖不通知
     // 启动阶段 booting 封禁 push；pull 结束（finally）才解除，覆盖所有路径
     assert.match(script, /booting: true,/);
     assert.match(script, /markDirty\(\) \{[\s\S]{0,120}this\.booting/);
-    assert.match(script, /async flush\(\) \{[\s\S]{0,120}this\.booting/);
+    assert.match(script, /async flush\(force\) \{[\s\S]{0,140}this\.booting/);
     assert.match(script, /catch \(e\) \{ console\.warn\('\[云同步\] 启动拉取异常', e\); \}\s*finally \{ bootPullBusy = false; cloud\.booting = false; \}/);
     // 单次请求超时：服务端挂起也不阻塞启动 / 不永久封禁 push
     assert.match(script, /const CLOUD_REQ_TIMEOUT = 3000/);
@@ -148,4 +148,57 @@ test('云同步加载顺序：启动只 pull 不 push，一致不覆盖不通知
     assert.match(script, /已上传配置/);
     assert.match(script, /上传失败（/);
     assert.match(script, /云端数据已覆盖本地/);
+});
+
+test('云同步市场收藏：payload 纳入 favorites、归一化比对、覆盖前确认、挂钩自动上传', () => {
+    const script = fs.readFileSync(path.join(root, '银河猫娘放置小助手.user.js'), 'utf8');
+    // 游戏收藏存 localStorage.favorite（itemId 数字数组）
+    assert.match(script, /function cloudNormalizeFavorites\(v\)/);
+    assert.match(script, /function cloudFavorites\(\)/);
+    assert.match(script, /localStorage\.getItem\('favorite'\)/);
+    assert.match(script, /!Number\.isInteger\(n\) \|\| n <= 0/);
+    // payload 纳入 favorites，schema 仍为 1
+    assert.match(script, /fish: \{ bookings \}, favorites: cloudFavorites\(\)/);
+    // 比对口径一致：cloudPayloadBody 用同一归一化函数，纳入 favorites
+    assert.match(script, /const favorites = cloudNormalizeFavorites\(p && p\.favorites\)/);
+    assert.match(script, /favorites: favorites\.slice\(0, 500\)/);
+    // 结构校验：旧 payload 无字段兼容
+    assert.match(script, /p\.favorites != null && \(!Array\.isArray\(p\.favorites\)/);
+    // 覆盖前弹窗对比两端数量，用户决定整份覆盖
+    assert.match(script, /function cloudConfirmFavorites\(p\)/);
+    assert.match(script, /云端收藏：' \+ remote\.length/);
+    assert.match(script, /本地收藏：' \+ local\.length/);
+    assert.match(script, /window\.confirm\(msg\)/);
+    assert.match(script, /if \(p\.favorites != null\) \{[\s\S]{0,200}cloudConfirmFavorites\(p\)/);
+    assert.match(script, /localStorage\.setItem\('favorite', JSON\.stringify\(cloudNormalizeFavorites\(p\.favorites\)\)\)/);
+    // 挂钩 Utils.setData('favorite') 自动上传，且只包一次；cloudApply 走 setItem 不回环
+    assert.match(script, /function hookFavoriteCloud\(tries\)/);
+    assert.match(script, /Utils\._nekCloudFavWrapped/);
+    assert.match(script, /if \(key === 'favorite'\) cloudMark\(\)/);
+    assert.match(script, /hookFavoriteCloud\(\);   \/\/ 装好收藏写入挂钩/);
+});
+
+test('toolbar 手动同步按钮：签到按钮旁仅上传本地，不拉取', () => {
+    const script = fs.readFileSync(path.join(root, '银河猫娘放置小助手.user.js'), 'utf8');
+    // 样式与挂载
+    assert.match(script, /function injectCloudSyncStyle\(\)/);
+    assert.match(script, /\.btn\.nek-cloud-sync-btn \{ opacity: 1; background: rgba\(75, 225, 216, 0\.5\)/);
+    assert.match(script, /color: var\(--color-mian\); box-shadow: rgba\(85, 84, 70, 0\.7\) 0 0 15px/);
+    assert.match(script, /function ensureCloudSyncButton\(\)/);
+    assert.match(script, /bar\.querySelector\('\.checkIn-btn'\)/);
+    assert.match(script, /btn\.className = 'btn nek-cloud-sync-btn'/);
+    assert.match(script, /btn\.textContent = '手动云同步'/);
+    assert.match(script, /const checkIn = entry\.querySelector\('\.checkIn-btn'\)/);
+    assert.match(script, /setInterval\(ensureCloudSyncButton, 1000\)/);
+    assert.match(script, /injectCloudSyncStyle\(\);/);
+    assert.match(script, /ensureCloudSyncButton\(\);/);
+    // 点击调用 pushNow（仅上传），带 busy 防抖
+    assert.match(script, /await cloud\.pushNow\(\)/);
+    assert.match(script, /btn\.classList\.add\('busy'\)[\s\S]{0,120}btn\.classList\.remove\('busy'\)/);
+    // pushNow：仅上传，忽略 booting（flush(true)），保留 uid/登录页闸门
+    assert.match(script, /async pushNow\(\)/);
+    assert.match(script, /手动同步按钮：仅上传本地（含收藏），不拉取/);
+    assert.match(script, /await this\.flush\(true\)/);
+    assert.match(script, /async flush\(force\)/);
+    assert.match(script, /if \(\(!force && this\.booting\) \|\| !isCloudEnabled\(\)/);
 });

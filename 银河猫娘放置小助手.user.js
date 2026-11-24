@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.43.7
-// @description  v1.43.7：修复刷新时误报「云端已覆盖本地」——开关按脚本真实语义归一化比对（null 或 1 都=开、0=关），null 与 1 不再判为不同；研究按钮缺料红框内发光改呼吸动画。v1.43.6——研究队列按钮缺料提示——队首材料确实不足（复用研究队列已有的 researchStatus 判定）时，快捷按钮红边框 + 红色内发光、字保持黑色，title 补注「队首材料不足，等待补充」。v1.43.5——pull 绑定到游戏主界面顶栏 toolbar-container——进入游戏（含刷新、回退登录页后重新进入）时各发一次 GET，同一节点只拉一次、回退清空以允许再拉；服务端 GET/GET 与 PUT/PUT 各自 2 秒限流、两者互不干扰。v1.43.4——修复刷新不发 pull：从 document-idle 延后到主界面就绪后再拉。v1.43.3——云同步 uid 安全加固——覆盖/上传前实时校验当前游戏玩家 uid（pull 请求前后双闸、push 上传前后双闸、flush 检测账号切换丢弃旧状态），防止 A 回退登录页后 B 登录被 A 的云端配置串号覆盖。v1.43.2——云同步与脚本加载并行——4 个 init 立即执行不等网络，服务端不可达/挂起都不影响加载（单次请求 3 秒超时）；启动只 pull 不 push，拉取后与本地比对，一致不覆盖不通知，仅云端覆盖本地 / push 成功 / push 失败三类用通知栏反馈；回退登录页不 push、不 pull；未登录不同步、不等待 uid；设置页云同步开关，本地设置/研究队列/钓鱼预约变化时 2 秒节流自动上传；首次开启云端有数据则二选一，无数据静默启用；钓鱼预约新增 day 日期字段跨日不同步；队列条目去 submitted、本地租约不进 payload；明文 JSON + XOR/Base64 混淆传输。自动收菜按钮 60 秒往返进度 CSS keyframes 动画；研究队列（预留材料与自动结算）、自动接受任务/领奖、市场行情、采集/生产/烹饪详情优化、防呆设置、点金辅助、农业辅助（自动收菜+好友农场预览）、检查更新、定时钓鱼、炼金经验效率与越级计算等，详见脚本正文。
+// @version      1.44.1
+// @description  v1.44.1：toolbar「手动云同步」按钮改为与签到按钮同款青色发光样式（文字由「同步」改「手动云同步」）。v1.44.0——云同步新增市场「我的收藏」同步（localStorage.favorite 的 itemId 数组，归一化去重排序后入 payload；挂钩 Utils.setData 自动上传；云端覆盖前弹窗对比两端收藏数量由用户决定整份覆盖）+ toolbar 签到按钮旁新增「同步」按钮（仅上传本地到云端，不拉取）。v1.43.7——修复刷新时误报「云端已覆盖本地」——开关按脚本真实语义归一化比对（null 或 1 都=开、0=关），null 与 1 不再判为不同；研究按钮缺料红框内发光改呼吸动画。v1.43.6——研究队列按钮缺料提示——队首材料确实不足（复用研究队列已有的 researchStatus 判定）时，快捷按钮红边框 + 红色内发光、字保持黑色，title 补注「队首材料不足，等待补充」。v1.43.5——pull 绑定到游戏主界面顶栏 toolbar-container——进入游戏（含刷新、回退登录页后重新进入）时各发一次 GET，同一节点只拉一次、回退清空以允许再拉；服务端 GET/GET 与 PUT/PUT 各自 2 秒限流、两者互不干扰。v1.43.4——修复刷新不发 pull：从 document-idle 延后到主界面就绪后再拉。v1.43.3——云同步 uid 安全加固——覆盖/上传前实时校验当前游戏玩家 uid（pull 请求前后双闸、push 上传前后双闸、flush 检测账号切换丢弃旧状态），防止 A 回退登录页后 B 登录被 A 的云端配置串号覆盖。v1.43.2——云同步与脚本加载并行——4 个 init 立即执行不等网络，服务端不可达/挂起都不影响加载（单次请求 3 秒超时）；启动只 pull 不 push，拉取后与本地比对，一致不覆盖不通知，仅云端覆盖本地 / push 成功 / push 失败三类用通知栏反馈；回退登录页不 push、不 pull；未登录不同步、不等待 uid；设置页云同步开关，本地设置/研究队列/钓鱼预约变化时 2 秒节流自动上传；首次开启云端有数据则二选一，无数据静默启用；钓鱼预约新增 day 日期字段跨日不同步；队列条目去 submitted、本地租约不进 payload；明文 JSON + XOR/Base64 混淆传输。自动收菜按钮 60 秒往返进度 CSS keyframes 动画；研究队列（预留材料与自动结算）、自动接受任务/领奖、市场行情、采集/生产/烹饪详情优化、防呆设置、点金辅助、农业辅助（自动收菜+好友农场预览）、检查更新、定时钓鱼、炼金经验效率与越级计算等，详见脚本正文。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
 // @match        https://nekoidle.net/*
@@ -5198,7 +5198,7 @@
         // ---------------- 自动检查更新（GitHub raw 头部 @version 对比） ----------------
         // 注意：发布新版本时需同步修改 CURRENT_VERSION（与头部 @version 保持一致）。
         // 页面上下文无 GM_info（@grant none 且经 <script> 注入），只能内置当前版本号。
-        const CURRENT_VERSION = '1.43.7';
+        const CURRENT_VERSION = '1.44.1';
         const LS_UPD_KEY = 'nek_update_check_enabled';        // 检查更新开关，默认开
         const LS_UPD_REMIND = 'nek_update_remind_last';       // 上次提醒时间戳（提醒节流）
         const UPD_REMIND_INTERVAL = 60 * 60 * 1000;           // 提醒节流：距上次提醒超过 60 分钟才再次提醒
@@ -6076,7 +6076,24 @@
             return JSON.parse(new TextDecoder().decode(raw));
         }
 
-        // 组装 payload：设置 + 研究队列（去 submitted）+ 钓鱼预约（带 day）
+        // 市场「我的收藏」：游戏存在 localStorage.favorite，值为 itemId 数字数组（Utils.setData('favorite', list)）。
+        // 读取时归一化为「去重 + 数值排序的正整数数组」，保证两端比对稳定、不受写入顺序影响。
+        function cloudNormalizeFavorites(v) {
+            if (!Array.isArray(v)) return [];
+            const seen = Object.create(null);
+            const out = [];
+            v.forEach(function (x) {
+                const n = Number(x);
+                if (!Number.isInteger(n) || n <= 0 || seen[n]) return;
+                seen[n] = 1; out.push(n);
+            });
+            return out.sort(function (a, b) { return a - b; }).slice(0, 500);
+        }
+        function cloudFavorites() {
+            try { return cloudNormalizeFavorites(JSON.parse(localStorage.getItem('favorite') || '[]')); }
+            catch (e) { return []; }
+        }
+        // 组装 payload：设置 + 研究队列（去 submitted）+ 钓鱼预约（带 day）+ 市场收藏
         function cloudBuildPayload(uid) {
             const settings = {};
             Object.keys(CLOUD_SETTING_KEYS).forEach(k => {
@@ -6099,7 +6116,7 @@
                     return o;
                 });
             } catch (e) { /* 忽略 */ }
-            return { schema: 1, uid: uid, ts: Date.now(), settings, queue, fish: { bookings } };
+            return { schema: 1, uid: uid, ts: Date.now(), settings, queue, fish: { bookings }, favorites: cloudFavorites() };
         }
         function todayLocal() {
             const d = new Date();
@@ -6133,10 +6150,14 @@
                     settings[k] = (settings[k] === '0' || settings[k] === false) ? '0' : '1';
                 }
             });
+            // 收藏归一化：与 cloudFavorites 同口径（正整数、去重、排序），
+            // 避免云端/本地写入顺序或字符串数字差异导致误判为不同。
+            const favorites = cloudNormalizeFavorites(p && p.favorites);
             return cloudStable({
                 settings: settings,
                 queue: (p && Array.isArray(p.queue) ? p.queue : []).map(e => { const o = Object.assign({}, e); delete o.submitted; return o; }),
-                bookings: (p && p.fish && Array.isArray(p.fish.bookings) ? p.fish.bookings : []).map(b => { const o = Object.assign({}, b); delete o.chain; return o; })
+                bookings: (p && p.fish && Array.isArray(p.fish.bookings) ? p.fish.bookings : []).map(b => { const o = Object.assign({}, b); delete o.chain; return o; }),
+                favorites: favorites.slice(0, 500)
             });
         }
         function cloudSameAsLocal(remote, uid) {
@@ -6154,6 +6175,9 @@
             if (p.queue.some(e => !e || typeof e.key !== 'string' || !Number.isInteger(e.projectId) || e.projectId <= 0)) return false;
             if (!p.fish || !Array.isArray(p.fish.bookings) || p.fish.bookings.length > 100) return false;
             if (p.fish.bookings.some(b => !b || b.pondId == null || !Number.isInteger(b.period))) return false;
+            // 收藏：旧 payload 无 favorites 字段时视为空（向后兼容）；有则必须是正整数且限量 500。
+            if (p.favorites != null && (!Array.isArray(p.favorites) || p.favorites.length > 500 ||
+                p.favorites.some(x => !Number.isInteger(Number(x)) || Number(x) <= 0))) return false;
             return true;
         }
         // 应用云端 payload 到本地：queue 去 submitted、钓鱼预约按 day 过滤跨日
@@ -6188,6 +6212,47 @@
                 if (!st.chain) localStorage.setItem(LS_FISH_STATE_KEY, JSON.stringify(st));
                 else if (bookings.length) localStorage.setItem(LS_FISH_STATE_KEY, JSON.stringify(st));
                 else localStorage.removeItem(LS_FISH_STATE_KEY);
+            } catch (e) { /* 忽略 */ }
+            // 市场收藏：整份覆盖，覆盖前弹窗对比两端数量由用户决定；旧 payload 无该字段则不动本地。
+            if (p.favorites != null) {
+                const applyFav = cloudConfirmFavorites(p);
+                if (applyFav) {
+                    try { localStorage.setItem('favorite', JSON.stringify(cloudNormalizeFavorites(p.favorites))); }
+                    catch (e) { /* 忽略 */ }
+                }
+            }
+        }
+
+        // 收藏整份覆盖前的确认：两端收藏不一致时弹窗对比数量，由用户决定是否用云端覆盖本地。
+        // 返回 true=允许覆盖收藏（含两端一致无需确认的情况），false=用户取消、保留本地收藏。
+        function cloudConfirmFavorites(p) {
+            const remote = cloudNormalizeFavorites(p && p.favorites);
+            const local = cloudFavorites();
+            if (JSON.stringify(remote) === JSON.stringify(local)) return true;   // 一致：无需打扰
+            const msg = '云同步：市场「我的收藏」两端不一致\n\n' +
+                '云端收藏：' + remote.length + ' 项\n' +
+                '本地收藏：' + local.length + ' 项\n\n' +
+                '【确定】用云端收藏整份覆盖本地\n' +
+                '【取消】保留本地收藏（其余设置仍按云端覆盖）';
+            return window.confirm(msg);
+        }
+
+        // 挂钩游戏 Utils.setData('favorite', …)：市场收藏变化时自动触发上传。
+        // cloudApply 覆盖收藏走的是原生 localStorage.setItem，不经过此挂钩，避免回环。
+        function hookFavoriteCloud(tries) {
+            try {
+                if (typeof Utils === 'undefined' || !Utils || typeof Utils.setData !== 'function') {
+                    if ((tries || 0) < 20) setTimeout(function () { hookFavoriteCloud((tries || 0) + 1); }, 300);
+                    return;
+                }
+                if (Utils._nekCloudFavWrapped) return;
+                const orig = Utils.setData;
+                Utils.setData = function (key, value) {
+                    const ret = orig.apply(this, arguments);
+                    if (key === 'favorite') cloudMark();
+                    return ret;
+                };
+                Utils._nekCloudFavWrapped = true;
             } catch (e) { /* 忽略 */ }
         }
 
@@ -6258,8 +6323,8 @@
                 this.dirty = true;
                 if (!this.running) this.flush();
             },
-            async flush() {
-                if (this.booting || !isCloudEnabled() || isLoginScreen()) { this.dirty = false; return; }
+            async flush(force) {
+                if ((!force && this.booting) || !isCloudEnabled() || isLoginScreen()) { this.dirty = false; return; }
                 if (this.running) return;
                 // 决策1：uid 同步读取，未登录直接跳过，不等待。
                 // 防串号：始终以「当前游戏玩家」为准；若与缓存 uid 不同（A 切到 B），
@@ -6310,6 +6375,19 @@
                 } catch (e) {
                     console.warn('[云同步] pull 失败，使用本地数据', e);
                 }
+            },
+            // 手动同步按钮：仅上传本地（含收藏），不拉取。忽略 booting 限制，但保留登录页/uid 闸门。
+            async pushNow() {
+                if (!isCloudEnabled()) { cloudNotify('云同步：请先开启云同步开关', 'tip', 2500); return; }
+                if (isLoginScreen()) { cloudNotify('云同步：请先进入游戏', 'error', 2500); return; }
+                const uid = readUidCloud();
+                if (!uid) { cloudNotify('云同步：未获取到账号', 'error', 2500); return; }
+                if (this.running) { cloudNotify('云同步：正在同步中，请稍候', 'tip', 2000); return; }
+                this.uid = uid;
+                // Reset lastPushAt 让手动按钮绕过客户端 2 秒节流（服务端 429 仍会兜底）。
+                this.lastPushAt = 0;
+                this.dirty = true;
+                await this.flush(true);
             }
         };
 
@@ -6348,6 +6426,50 @@
                 cloudNotify('云同步：已开启，正在上传本地数据', 'tip', 3000);
             }
         }
+
+        // ---------------- toolbar 手动同步按钮（签到按钮旁，仅上传本地） ----------------
+        function injectCloudSyncStyle() {
+            if (document.getElementById('nek-cloud-sync-style')) return;
+            const s = document.createElement('style');
+            s.id = 'nek-cloud-sync-style';
+            // 与签到按钮同款视觉（.btn.checkIn-btn.completed 青色发光态）；
+            // 用 .btn.nek-cloud-sync-btn 双类选择器压过 .btn 基础样式；宽度自适应「手动云同步」五字。
+            s.textContent = [
+                '.btn.nek-cloud-sync-btn { opacity: 1; background: rgba(75, 225, 216, 0.5);',
+                '  color: var(--color-mian); box-shadow: rgba(85, 84, 70, 0.7) 0 0 15px;',
+                '  font-size: 12px; border-radius: 4px; padding: 0 6px; width: auto;',
+                '  margin-left: 4px; line-height: 16px; white-space: nowrap; }',
+                '.btn.nek-cloud-sync-btn.busy { opacity: .55; cursor: wait; }'
+            ].join('\n');
+            document.head.appendChild(s);
+        }
+        function ensureCloudSyncButton() {
+            try {
+                const bar = document.querySelector('.toolbar-container');
+                if (!bar || !bar.querySelector('.checkIn-btn')) return;   // 未进入游戏
+                const entry = bar.querySelector('.left-entry') || bar;
+                let btn = entry.querySelector('.nek-cloud-sync-btn');
+                if (!btn) {
+                    btn = document.createElement('div');
+                    btn.className = 'btn nek-cloud-sync-btn';
+                    btn.textContent = '手动云同步';
+                    btn.title = '手动同步：仅上传本地设置、研究队列、钓鱼预约与市场收藏到云端';
+                    btn.addEventListener('click', async function () {
+                        if (btn.classList.contains('busy')) return;
+                        btn.classList.add('busy');
+                        try { await cloud.pushNow(); }
+                        finally { btn.classList.remove('busy'); }
+                    });
+                    const checkIn = entry.querySelector('.checkIn-btn');
+                    if (checkIn && checkIn.nextSibling) entry.insertBefore(btn, checkIn.nextSibling);
+                    else entry.appendChild(btn);
+                }
+            } catch (e) { /* 忽略 */ }
+        }
+        injectCloudSyncStyle();
+        hookFavoriteCloud();   // 装好收藏写入挂钩，市场收藏变化自动触发上传
+        setInterval(ensureCloudSyncButton, 1000);   // 与钓鱼按钮同策略：toolbar 重建后自动补挂
+        ensureCloudSyncButton();
 
         // 启动顺序（4 个 init 立即执行；云同步 pull 绑定到游戏主界面顶栏 toolbar-container）：
         // 1) 四个 init 立即同步执行，不等待任何网络——服务端不可达/挂起都不影响脚本加载，
