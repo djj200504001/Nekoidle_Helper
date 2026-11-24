@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const file = path.join(root, '银河猫娘放置小助手.user.js');
-const version = '1.42.6';
+const version = '1.43.3';
 const original = fs.readFileSync(file, 'utf8');
 const newline = original.includes('\r\n') ? '\r\n' : '\n';
 let script = original.replace(/\r\n/g, '\n');
@@ -17,20 +17,21 @@ const block = start + '\n' + source.split('\n').map(l => l.trim() ? '        ' +
             data: () => typeof Data !== 'undefined' ? Data : null,
             cookingChestDivisor: typeof CHEST_TIME_DIVISOR_COOKING !== 'undefined' ? CHEST_TIME_DIVISOR_COOKING : 21600,
             enabled: isEnabled, identifyAction, document, window,
-            storage: { getItem: k => localStorage.getItem(k), setItem: (k, v) => localStorage.setItem(k, v), removeItem: k => localStorage.removeItem(k) }
+            storage: { getItem: k => localStorage.getItem(k), setItem: (k, v) => { localStorage.setItem(k, v); if (k.indexOf('nek_enhancements_v1:') === 0 && k.indexOf(':lease') === -1) cloudMark(); }, removeItem: k => localStorage.removeItem(k) }
         });\n` + end;
 if (script.includes(start)) script = script.slice(0, script.indexOf(start)) + block + script.slice(script.indexOf(end) + end.length);
 else script = script.replace('        // ---------------- 设置页开关（游戏设置 → 其他） ----------------', block + '\n\n        // ---------------- 设置页开关（游戏设置 → 其他） ----------------');
 if (!script.includes('function () { nekEnhancements.decorate(); }')) {
     script = script.replace('function () { decorateMarketMarkers(); }', 'function () { decorateMarketMarkers(); },\n                    function () { nekEnhancements.decorate(); }');
 }
-if (!script.includes('        nekEnhancements.init();')) script = script.replace('        initHarvest();   // 启动自动收菜', '        nekEnhancements.init();\n        initHarvest();   // 启动自动收菜');
+if (!/nekEnhancements\.init\(\);/.test(script)) script = script.replace('        initHarvest();   // 启动自动收菜', '        nekEnhancements.init();\n        initHarvest();   // 启动自动收菜');
 script = script.replace(/(\/\/ @version\s+)\S+/, (_, prefix) => prefix + version)
     .replace(/const CURRENT_VERSION = '[^']+';/, "const CURRENT_VERSION = '" + version + "';")
-    .replace(/(\/\/ @description\s+)(?:v1\.\d+\.\d+：[^。]*。)?/, (_, prefix) =>
-        prefix + 'v' + version + '：自动收菜按钮 60 秒往返进度改 CSS keyframes 动画（仿游戏原生队列进度条——JS 仅在检测锚点重置/按钮重建/开关切换时写一次 animation-delay 对齐相位，不再 requestAnimationFrame 每帧写 background），视觉与时钟同步语义不变，消除每帧 DOM 样式重算开销。其余同 v1.42.5——任务侧栏「满」角标核对周期由每秒改为每 30 秒（满员显示/未满移除/display:block 兜底同周期执行）。其余同 v1.42.4——修复任务侧栏「满」角标离开任务页后被游戏原生 toggleSidebarDot 隐藏/改写的问题——角标改用独立类名 .tip.nek-quest-full（不再用 .tip-default），视觉与种植角标一致但不会被原生逻辑擦掉，每 30 秒核对并强制 display:block 兜底。其余同 v1.42.3——任务侧栏劳务派遣合同满员时显示黄色「满」字角标（复用种植侧栏 .tip-container > .tip.tip-default 样式，合同数 game.quests.work.length 对上限 game.character.quest_max，每 30 秒核对、未满自动移除）。其余同 v1.42.2——研究队列面板右上角新增帮助问号（种植页 .icon-help 同款圆形问号，点击弹游戏原生帮助弹窗说明材料预留机制），面板正文仅显示队列条目与材料预留/背包/可用——删除说明行与「等待当前研究完成」等状态行（手机端折叠标题摘要仅在缺材料时红色显示），字号缩小至 13px，缺材料红色提醒保留，修复研究进度底色渗入队列面板（进度背景限制在「正在研究」块内）；生产消耗栏显示剩余可用量和队列产出，同一物品在消耗栏和产物栏的队列产出一致。其余同 v1.42.0——自动收菜/定时钓鱼/研究队列三个快捷按钮位于游戏队列进度条下方一行（研究队列按钮显示无研究队列或研究所类别·研究名称·当前研究等级、点击进入研究中心，按钮底色同另外两个按钮并提升到扫描线蒙版之上，研究进行中淡紫色随进度从左向右覆盖金底、完成时完全覆盖，开始下一个研究整键回金底重新覆盖）；修复取消钓鱼预约后按钮悬停提示残留，未预约钓鱼按钮点击改为进入钓鱼界面；研究队列面板无重复开关（设置页保留同款）。其余同 v1.41.4——研究队列（记录并预留材料、开研时扣除，队列条目显示计划起止等级与对应消耗；待加入卡片按计划执行等级显示——进行中的研究占一级、队列条目逐条推进，入队/移出后卡片实时刷新到下一计划等级的数据，材料行显示扣除队列预留后的可用数量、不足时数值显示红色且仅提示不拦截入队）与自动结算研究，自动接受任务/领取奖励，研究队列面板按端适配——PC 保留固定面板样式，手机端嵌入研究列表滚动流内并吸顶折叠（滚过列表顶自动收起为标题条、滚回自动展开，点击标题可手动折叠/展开），缺少材料提醒显示红色，梳毛/采集/生产/烹饪产出物显示背包库存和队列预计产出。');
+    // 整行替换：任何以 // @description 开头直到行尾的内容都替换掉，避免每次 build 在尾部累积旧段落。
+    .replace(/(\/\/ @description)[^\r\n]*/, (_, prefix) =>
+        prefix + '  v' + version + '：云同步 uid 安全加固——覆盖/上传前实时校验当前游戏玩家 uid（pull 请求前后双闸、push 上传前后双闸、flush 检测账号切换丢弃旧状态），防止 A 回退登录页后 B 登录被 A 的云端配置串号覆盖。v1.43.2——云同步与脚本加载并行——4 个 init 立即执行不等网络，服务端不可达/挂起都不影响加载（单次请求 3 秒超时）；启动只 pull 不 push，拉取后与本地比对，一致不覆盖不通知，仅云端覆盖本地 / push 成功 / push 失败三类用通知栏反馈；回退登录页不 push、不 pull；未登录不同步、不等待 uid；设置页云同步开关，本地设置/研究队列/钓鱼预约变化时 2 秒节流自动上传；首次开启云端有数据则二选一，无数据静默启用；钓鱼预约新增 day 日期字段跨日不同步；队列条目去 submitted、本地租约不进 payload；明文 JSON + XOR/Base64 混淆传输。自动收菜按钮 60 秒往返进度 CSS keyframes 动画；研究队列（预留材料与自动结算）、自动接受任务/领奖、市场行情、采集/生产/烹饪详情优化、防呆设置、点金辅助、农业辅助（自动收菜+好友农场预览）、检查更新、定时钓鱼、炼金经验效率与越级计算等，详见脚本正文。');
 new (require('node:vm').Script)(script, { filename: file });
-if (!script.includes(block) || !script.includes('        nekEnhancements.init();') || !script.includes('function () { nekEnhancements.decorate(); }')) {
+if (!script.includes(block) || !/nekEnhancements\.init\(\);/.test(script) || !script.includes('function () { nekEnhancements.decorate(); }')) {
     throw new Error('Userscript integration anchors changed; build aborted.');
 }
 fs.writeFileSync(file, script.replace(/\n/g, newline));

@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.42.6
-// @description  v1.42.6：自动收菜按钮 60 秒往返进度改 CSS keyframes 动画（仿游戏原生队列进度条——JS 仅在检测锚点重置/按钮重建/开关切换时写一次 animation-delay 对齐相位，不再 requestAnimationFrame 每帧写 background），视觉与时钟同步语义不变，消除每帧 DOM 样式重算开销。其余同 v1.42.5——任务侧栏「满」角标核对周期由每秒改为每 30 秒（满员显示/未满移除/display:block 兜底同周期执行）。其余同 v1.42.4——修复任务侧栏「满」角标离开任务页后被游戏原生 toggleSidebarDot 隐藏/改写的问题——角标改用独立类名 .tip.nek-quest-full（不再用 .tip-default），视觉与种植角标一致但不会被原生逻辑擦掉，每 30 秒核对并强制 display:block 兜底。其余同 v1.42.3——任务侧栏劳务派遣合同满员时显示黄色「满」字角标（复用种植侧栏 .tip-container > .tip.tip-default 样式，合同数 game.quests.work.length 对上限 game.character.quest_max，每 30 秒核对、未满自动移除）。其余同 v1.42.2——研究队列面板右上角新增帮助问号（种植页 .icon-help 同款圆形问号，点击弹游戏原生帮助弹窗说明材料预留机制），面板正文仅显示队列条目与材料预留/背包/可用——删除说明行与「等待当前研究完成」等状态行（手机端折叠标题摘要仅在缺材料时红色显示），字号缩小至 13px，缺材料红色提醒保留，修复研究进度底色渗入队列面板（进度背景限制在「正在研究」块内）；生产消耗栏显示剩余可用量和队列产出，同一物品在消耗栏和产物栏的队列产出一致。其余同 v1.42.0——自动收菜/定时钓鱼/研究队列三个快捷按钮位于游戏队列进度条下方一行（研究队列按钮显示无研究队列或研究所类别·研究名称·当前研究等级、点击进入研究中心，按钮底色同另外两个按钮并提升到扫描线蒙版之上，研究进行中淡紫色随进度从左向右覆盖金底、完成时完全覆盖，开始下一个研究整键回金底重新覆盖）；修复取消钓鱼预约后按钮悬停提示残留，未预约钓鱼按钮点击改为进入钓鱼界面；研究队列面板无重复开关（设置页保留同款）。其余同 v1.41.4——研究队列（记录并预留材料、开研时扣除，队列条目显示计划起止等级与对应消耗；待加入卡片按计划执行等级显示——进行中的研究占一级、队列条目逐条推进，入队/移出后卡片实时刷新到下一计划等级的数据，材料行显示扣除队列预留后的可用数量、不足时数值显示红色且仅提示不拦截入队）与自动结算研究，自动接受任务/领取奖励，研究队列面板按端适配——PC 保留固定面板样式，手机端嵌入研究列表滚动流内并吸顶折叠（滚过列表顶自动收起为标题条、滚回自动展开，点击标题可手动折叠/展开），缺少材料提醒显示红色，梳毛/采集/生产/烹饪产出物显示背包库存和队列预计产出。其余同 v1.42.4——修复任务侧栏「满」角标离开任务页后被游戏原生 toggleSidebarDot 隐藏/改写的问题——角标改用独立类名 .tip.nek-quest-full（不再用 .tip-default），视觉与种植角标一致但不会被原生逻辑擦掉，每 30 秒核对并强制 display:block 兜底。其余同 v1.42.3——任务侧栏劳务派遣合同满员时显示黄色「满」字角标（复用种植侧栏 .tip-container > .tip.tip-default 样式，合同数 game.quests.work.length 对上限 game.character.quest_max，每 30 秒核对、未满自动移除）。其余同 v1.42.2——研究队列面板右上角新增帮助问号（种植页 .icon-help 同款圆形问号，点击弹游戏原生帮助弹窗说明材料预留机制），面板正文仅显示队列条目与材料预留/背包/可用——删除说明行与「等待当前研究完成」等状态行（手机端折叠标题摘要仅在缺材料时红色显示），字号缩小至 13px，缺材料红色提醒保留，修复研究进度底色渗入队列面板（进度背景限制在「正在研究」块内）；生产消耗栏显示剩余可用量和队列产出，同一物品在消耗栏和产物栏的队列产出一致。其余同 v1.42.0——自动收菜/定时钓鱼/研究队列三个快捷按钮位于游戏队列进度条下方一行（研究队列按钮显示无研究队列或研究所类别·研究名称·当前研究等级、点击进入研究中心，按钮底色同另外两个按钮并提升到扫描线蒙版之上，研究进行中淡紫色随进度从左向右覆盖金底、完成时完全覆盖，开始下一个研究整键回金底重新覆盖）；修复取消钓鱼预约后按钮悬停提示残留，未预约钓鱼按钮点击改为进入钓鱼界面；研究队列面板无重复开关（设置页保留同款）。其余同 v1.41.4——研究队列（记录并预留材料、开研时扣除，队列条目显示计划起止等级与对应消耗；待加入卡片按计划执行等级显示——进行中的研究占一级、队列条目逐条推进，入队/移出后卡片实时刷新到下一计划等级的数据，材料行显示扣除队列预留后的可用数量、不足时数值显示红色且仅提示不拦截入队）与自动结算研究，自动接受任务/领取奖励，研究队列面板按端适配——PC 保留固定面板样式，手机端嵌入研究列表滚动流内并吸顶折叠（滚过列表顶自动收起为标题条、滚回自动展开，点击标题可手动折叠/展开），缺少材料提醒显示红色，梳毛/采集/生产/烹饪产出物显示背包库存和队列预计产出。其余同 v1.42.3——任务侧栏劳务派遣合同满员时显示黄色「满」字角标（复用种植侧栏 .tip-container > .tip.tip-default 样式，合同数 game.quests.work.length 对上限 game.character.quest_max，每秒核对、未满自动移除）。其余同 v1.42.2——研究队列面板右上角新增帮助问号（种植页 .icon-help 同款圆形问号，点击弹游戏原生帮助弹窗说明材料预留机制），面板正文仅显示队列条目与材料预留/背包/可用——删除说明行与「等待当前研究完成」等状态行（手机端折叠标题摘要仅在缺材料时红色显示），字号缩小至 13px，缺材料红色提醒保留，修复研究进度底色渗入队列面板（进度背景限制在「正在研究」块内）；生产消耗栏显示剩余可用量和队列产出，同一物品在消耗栏和产物栏的队列产出一致。其余同 v1.42.0——自动收菜/定时钓鱼/研究队列三个快捷按钮位于游戏队列进度条下方一行（研究队列按钮显示无研究队列或研究所类别·研究名称·当前研究等级、点击进入研究中心，按钮底色同另外两个按钮并提升到扫描线蒙版之上，研究进行中淡紫色随进度从左向右覆盖金底、完成时完全覆盖，开始下一个研究整键回金底重新覆盖）；修复取消钓鱼预约后按钮悬停提示残留，未预约钓鱼按钮点击改为进入钓鱼界面；研究队列面板无重复开关（设置页保留同款）。其余同 v1.41.4——研究队列（记录并预留材料、开研时扣除，队列条目显示计划起止等级与对应消耗；待加入卡片按计划执行等级显示——进行中的研究占一级、队列条目逐条推进，入队/移出后卡片实时刷新到下一计划等级的数据，材料行显示扣除队列预留后的可用数量、不足时数值显示红色且仅提示不拦截入队）与自动结算研究，自动接受任务/领取奖励，研究队列面板按端适配——PC 保留固定面板样式，手机端嵌入研究列表滚动流内并吸顶折叠（滚过列表顶自动收起为标题条、滚回自动展开，点击标题可手动折叠/展开），缺少材料提醒显示红色，梳毛/采集/生产/烹饪产出物显示背包库存和队列预计产出。其余同 v1.42.2——研究队列面板右上角新增帮助问号（种植页 .icon-help 同款圆形问号，点击弹游戏原生帮助弹窗说明材料预留机制），面板正文仅显示队列条目与材料预留/背包/可用——删除说明行与「等待当前研究完成」等状态行（手机端折叠标题摘要仅在缺材料时红色显示），字号缩小至 13px，缺材料红色提醒保留，修复研究进度底色渗入队列面板（进度背景限制在「正在研究」块内）；生产消耗栏显示剩余可用量和队列产出，同一物品在消耗栏和产物栏的队列产出一致。其余同 v1.42.0——自动收菜/定时钓鱼/研究队列三个快捷按钮位于游戏队列进度条下方一行（研究队列按钮显示无研究队列或研究所类别·研究名称·当前研究等级、点击进入研究中心，按钮底色同另外两个按钮并提升到扫描线蒙版之上，研究进行中淡紫色随进度从左向右覆盖金底、完成时完全覆盖，开始下一个研究整键回金底重新覆盖）；修复取消钓鱼预约后按钮悬停提示残留，未预约钓鱼按钮点击改为进入钓鱼界面；研究队列面板无重复开关（设置页保留同款）。其余同 v1.41.4——研究队列（记录并预留材料、开研时扣除，队列条目显示计划起止等级与对应消耗；待加入卡片按计划执行等级显示——进行中的研究占一级、队列条目逐条推进，入队/移出后卡片实时刷新到下一计划等级的数据，材料行显示扣除队列预留后的可用数量、不足时数值显示红色且仅提示不拦截入队）与自动结算研究，自动接受任务/领取奖励，研究队列面板按端适配——PC 保留固定面板样式，手机端嵌入研究列表滚动流内并吸顶折叠（滚过列表顶自动收起为标题条、滚回自动展开，点击标题可手动折叠/展开），缺少材料提醒显示红色，梳毛/采集/生产/烹饪产出物显示背包库存和队列预计产出。其余同 v1.42.0——自动收菜/定时钓鱼/研究队列三个快捷按钮位于游戏队列进度条下方一行（研究队列按钮显示无研究队列或研究所类别·研究名称·当前研究等级、点击进入研究中心，按钮底色同另外两个按钮并提升到扫描线蒙版之上，研究进行中淡紫色随进度从左向右覆盖金底、完成时完全覆盖，开始下一个研究整键回金底重新覆盖）；修复取消钓鱼预约后按钮悬停提示残留，未预约钓鱼按钮点击改为进入钓鱼界面；研究队列面板无重复开关（设置页保留同款）。其余同 v1.41.4——研究队列（记录并预留材料、开研时扣除，队列条目显示计划起止等级与对应消耗；待加入卡片按计划执行等级显示——进行中的研究占一级、队列条目逐条推进，入队/移出后卡片实时刷新到下一计划等级的数据，材料行显示扣除队列预留后的可用数量、不足时数值显示红色且仅提示不拦截入队）与自动结算研究，自动接受任务/领取奖励，研究队列面板按端适配——PC 保留固定面板样式，手机端嵌入研究列表滚动流内并吸顶折叠（滚过列表顶自动收起为标题条、滚回自动展开，点击标题可手动折叠/展开），缺少材料提醒显示红色，梳毛/采集/生产/烹饪产出物显示背包库存和队列预计产出。其余同 v1.42.0——自动收菜/定时钓鱼/研究队列三个快捷按钮位于游戏队列进度条下方一行（研究队列按钮显示无研究队列或研究所类别·研究名称·当前研究等级、点击进入研究中心，按钮底色同另外两个按钮并提升到扫描线蒙版之上，研究进行中淡紫色随进度从左向右覆盖金底、完成时完全覆盖，开始下一个研究整键回金底重新覆盖）；修复取消钓鱼预约后按钮悬停提示残留，未预约钓鱼按钮点击改为进入钓鱼界面；研究队列面板无重复开关（设置页保留同款）。其余同 v1.41.4——研究队列（记录并预留材料、开研时扣除，队列条目显示计划起止等级与对应消耗；待加入卡片按计划执行等级显示——进行中的研究占一级、队列条目逐条推进，入队/移出后卡片实时刷新到下一计划等级的数据，材料行显示扣除队列预留后的可用数量、不足时数值显示红色且仅提示不拦截入队）与自动结算研究，自动接受任务/领取奖励，研究队列面板按端适配——PC 保留固定面板样式，手机端嵌入研究列表滚动流内并吸顶折叠（滚过列表顶自动收起为标题条、滚回自动展开，点击标题可手动折叠/展开），缺少材料提醒显示红色，梳毛/采集/生产/烹饪产出物显示背包库存和队列预计产出。其余同 v1.41.4——研究队列（记录并预留材料、开研时扣除，队列条目显示计划起止等级与对应消耗；待加入卡片按计划执行等级显示——进行中的研究占一级、队列条目逐条推进，入队/移出后卡片实时刷新到下一计划等级的数据，材料行显示扣除队列预留后的可用数量、不足时数值显示红色且仅提示不拦截入队）与自动结算研究，自动接受任务/领取奖励，研究队列面板按端适配——PC 保留固定面板样式，手机端嵌入研究列表滚动流内并吸顶折叠（滚过列表顶自动收起为标题条、滚回自动展开，点击标题可手动折叠/展开），缺少材料提醒显示红色，梳毛/采集/生产/烹饪产出物显示背包库存和队列预计产出。其余同 v1.41.4——研究队列（记录并预留材料、开研时扣除，队列条目显示计划起止等级与对应消耗；待加入卡片按计划执行等级显示——进行中的研究占一级、队列条目逐条推进，入队/移出后卡片实时刷新到下一计划等级的数据，材料行显示扣除队列预留后的可用数量、不足时数值显示红色且仅提示不拦截入队）与自动结算研究，自动接受任务/领取奖励，研究队列面板按端适配——PC 保留固定面板样式，手机端嵌入研究列表滚动流内并吸顶折叠（滚过列表顶自动收起为标题条、滚回自动展开，点击标题可手动折叠/展开），缺少材料提醒显示红色，梳毛/采集/生产/烹饪产出物显示背包库存和队列预计产出。其余同 v1.41.4——研究队列（记录并预留材料、开研时扣除，队列条目显示计划起止等级与对应消耗；待加入卡片按计划执行等级显示——进行中的研究占一级、队列条目逐条推进，入队/移出后卡片实时刷新到下一计划等级的数据，材料行显示扣除队列预留后的可用数量、不足时数值显示红色且仅提示不拦截入队）与自动结算研究，自动接受任务/领取奖励，研究队列面板按端适配——PC 保留固定面板样式，手机端嵌入研究列表滚动流内并吸顶折叠（滚过列表顶自动收起为标题条、滚回自动展开，点击标题可手动折叠/展开），缺少材料提醒显示红色，梳毛/采集/生产/烹饪产出物显示背包库存和队列预计产出。其余同 v1.41.4——研究队列（记录并预留材料、开研时扣除，队列条目显示计划起止等级与对应消耗；待加入卡片按计划执行等级显示——进行中的研究占一级、队列条目逐条推进，入队/移出后卡片实时刷新到下一计划等级的数据，材料行显示扣除队列预留后的可用数量、不足时数值显示红色且仅提示不拦截入队）与自动结算研究，自动接受任务/领取奖励，研究队列面板按端适配——PC 保留固定面板样式，手机端嵌入研究列表滚动流内并吸顶折叠（滚过列表顶自动收起为标题条、滚回自动展开，点击标题可手动折叠/展开），缺少材料提醒显示红色，梳毛/采集/生产/烹饪产出物显示背包库存和队列预计产出。主要功能：一、左侧熟练度悬浮提示（总经验/当前经验/距升级还需）；二、行动窗口与炼金界面（原子/神秘/量子炼金执行区）经验效率、目标等级与升下一级次数计算（含越级耗时与期望经验修正，越级时显示「原效率×获取期望比例=预期效率」并按越级档位着色；炼金期望按成功率折算）并快捷填入升级所需执行次数，炼金执行区另有「背包可执行次数」按钮（按当前点金/分解/研究/提纯/还原/转换/量子配方逐项折算材料持有量）；三、物品说明中显示市场行情（官方市场缓存接口：首次全量拉取+过期全量重拉+单物品按需强刷，三行显示左一/右一/刚交价/今日成/下次刷新倒计时）；四、烹饪页、生产页与采集页优化改造（自绘详情含「低于推荐等级X级」越级提示；生产详情内置「加工倍数」选择，倍数同步放大材料消耗与产物显示，可执行次数按倍数折算）；五、列出当前采集/生产/烹饪列表经验效率最高的两种操作（按越级机制修正：耗时倍率、成功率与烹饪失败10%经验）；六、部分防呆设置；七、点金辅助：原子炼金术选择物品时可按点金收益/点金经验/单位时间研究经验排序（均按含加成与成功率的期望值），研究产出另起一行拆分为梳毛/采集/种植/钓鱼/生产/烹饪六类，点击仅显示能产出该类别研究材料的物品并按期望份数排序；八、农业辅助（原「自动收菜」升级合并）：①自动收菜——进入游戏后直接拉取种植数据，不切页不打断操作；每30秒自动收获成熟地块，补种由游戏原生「自动播种」完成（种植页点亮地块右上角圆点），收获成果合并为一条通知；跳过地块改用游戏原生「地块锁」（🔒），锁定地块的自动收获与手动单块收获均在客户端拦截（服务端批量收获跳过锁定地块，但单块收获不校验，故加客户端兜底），自动收菜开关按钮以背景进度条显示检测进度（60 秒往返循环：前 30 秒收获绿覆盖黄底、后 30 秒黄底覆盖绿色，rAF 每帧重算丝滑无跳秒，进度锚定实际检测时钟、按钮中途出现也显示真实进度，不另起独立计时）；②好友农场成熟预览——好友农场列表弹窗内逐个后台探测好友农场数据，直接显示各好友「可偷 N」与最近成熟倒计时，无需逐个进入农场。设置开关位置：游戏设置-「其他」标签页「农业辅助」（同时控制上述两个功能）；自动收菜在当前行动「取消」左侧保留快捷开关（仅控制自动收获）；九、检查更新——每次加载游戏时检测 GitHub 最新版本（发现新版本且距上次提醒超过 60 分钟时，顶部通知引导在 Tampermonkey 中更新）；设置区标题旁显示当前版本号；十、v1116 生活装备适配——自绘生产/采集详情材料需求按巨匠省料率折算（两位小数、加工倍数与执行校验同口径），额外奖励几率乘装备幸运（研究幸运/10+装备幸运/100），行动窗口「背包可执行次数」按钮按省料后需求折算，经验效率经 game.getEfficiency 自动含面罩最终效率乘区；自绘生产/采集详情「额外奖励」补显示 v1116 宝箱掉落（梳毛/采集/生产宝箱，几率含幸运加成、数量不随加工倍数放大，复用原生 getActionChestPreview）；修复检查更新因 window.UI 引用错误（UI 为顶层词法绑定不在 window 上）导致检测从未执行的问题；十一、定时钓鱼——已订阅天气预报的钓场，钓鱼页「天气预报」时段条目可点击预约：预约时读取当前所选鱼饵（未选鱼饵二次确认后以无鱼饵预约），到点每 5 秒检查并自动以 ∞ 次立即开钓（mold start 替换当前行动，开钓快照原队列，服务端 update_queue 后 diff 补回）；预约时队列已满直接拒绝（不删除已有队列），开钓时队列仍满则等待并低频提醒；相邻时段预约自动衔接换钓（可跨钓场，不停钓），链条最后一个时段结束自动停钓并恢复原队列；自动开钓后用户手动取消/更换钓鱼不作处理（本时段预约自然失效，未来时段保留），时段结束时队头不是预约钓场的钓鱼同样不作处理；状态条逐条显示预约倒计时与独立取消入口；支持旧版单预约自动迁移；设置-「其他」标签页「定时钓鱼」开关，受总开关联动控制；十二、v1.36.0 修复——①满级用户生产/采集/烹饪详情两个按钮（升下一级次数/背包可执行次数）与经验效率模块整体消失：满级分支不再提前 return，「背包可执行次数」与「经验效率」照常显示（目标等级计算行满级时隐藏），可执行按钮在无升级按钮时改以 ∞ 档为锚点；②生产详情选多倍率后持有数值恒红：持有数文字带千分位逗号，parseInt 在逗号处截断（12,000→12）导致恒判不足，修复为先去逗号再解析；十三、v1.37.0 定时钓鱼状态按钮——当前行动「取消」左侧新增钓鱼状态按钮（与「自动收菜」开关并列）：未预约显示「未预约钓鱼」（金色底灰字，底色 v1.37.7 改用自动收菜同款金色 var(--c-warning)），已预约显示「天气·钓场名·鱼饵」，背景以开钓时刻前 4 小时为起点由米色向湖水青渐变覆盖、开钓时刻覆盖完成（进度锚定时段真实时间戳，按钮中途出现即显示正确进度），钓鱼中改为原色从左往右渐变覆盖回青色上、时段结束刚好完全回色（v1.37.6，连续预约按方案A每段独立回色，段末衔接瞬间跳回满青），无下一次预约自动回到未预约状态；点击按钮可取消显示中的预约（钓鱼中取消会停钓并按快照恢复原队列）；预约状态展示从天气预报状态条迁移至该按钮，预报条目「已预约/钓鱼中」角标与点击预约保留；v1.37.1 修复钓鱼按钮复用收菜类名导致出现两个「自动收菜」；v1.37.2/3 预报区提示栏改常态文本并接入 DOM 装饰链同步出现（含防 MutationObserver 自激循环的零写缓存）；十四、v1.37.4 市场行情修复——部分物品永远显示「获取市场数据中……」：市场无行情数据的物品（新物品/从未上架/特定强化等级），服务端不响应 market_cache 单物品请求（10 秒超时返回 null），且全量快照中无该条目时占位符无终止机制；现全量缓存就绪且未过期仍查不到时判定为确定无行情，显示「暂无市场行情」终止等待，后续全量重拉若数据出现自动恢复；单物品强刷返回快照但缺该强化等级时同样终止等待；十五、v1.37.5 修复生产行动弹窗/详情面板高级装备无按钮——原生经验行经 Utils.formatNumber 渲染（游戏默认开启万进制），单次经验 ≥ 1 万时显示「1.2万」等缩写，而小助手解析「xx经验值 N 点」的正则只认纯数字/千分位，匹配失败导致整段装饰（升下一级次数/背包可执行次数按钮与经验效率模块）被跳过——低级装备经验小于 1 万故正常；现正则支持小数与 万/亿/兆/京/K/M/B/T 单位（新增 mkParseNumUnit 解析），并识别到动作时改用游戏同款 calcExpWithBonus 精确覆盖文本解析值（消除缩写舍入误差，烹饪因口径不同保持文本解析）；十六、v1.38.0 自动收菜补种提醒——自动收获发送时记录开启了原生「自动播种」的地块及其作物（crop_id 即种子物品 id），收获响应落定后地块变回空地而背包已无该种子 → 判定种子不足未能补种，按作物聚合提醒「种子不足，N 块地未补种——作物×N」（同一作物 10 分钟节流；背包仍有种子时不误报；观察表只记录本次收获发送的地块，判定后即清除）。
+// @version      1.43.3
+// @description  v1.43.3：云同步 uid 安全加固——覆盖/上传前实时校验当前游戏玩家 uid（pull 请求前后双闸、push 上传前后双闸、flush 检测账号切换丢弃旧状态），防止 A 回退登录页后 B 登录被 A 的云端配置串号覆盖。v1.43.2——云同步与脚本加载并行——4 个 init 立即执行不等网络，服务端不可达/挂起都不影响加载（单次请求 3 秒超时）；启动只 pull 不 push，拉取后与本地比对，一致不覆盖不通知，仅云端覆盖本地 / push 成功 / push 失败三类用通知栏反馈；回退登录页不 push、不 pull；未登录不同步、不等待 uid；设置页云同步开关，本地设置/研究队列/钓鱼预约变化时 2 秒节流自动上传；首次开启云端有数据则二选一，无数据静默启用；钓鱼预约新增 day 日期字段跨日不同步；队列条目去 submitted、本地租约不进 payload；明文 JSON + XOR/Base64 混淆传输。自动收菜按钮 60 秒往返进度 CSS keyframes 动画；研究队列（预留材料与自动结算）、自动接受任务/领奖、市场行情、采集/生产/烹饪详情优化、防呆设置、点金辅助、农业辅助（自动收菜+好友农场预览）、检查更新、定时钓鱼、炼金经验效率与越级计算等，详见脚本正文。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
 // @match        https://nekoidle.net/*
@@ -44,61 +44,71 @@
         };
         const setEnabled = v => {
             try { localStorage.setItem(LS_KEY, v ? '1' : '0'); } catch (e) { /* 忽略 */ }
-        };
+        
+            cloudMark();};
         const isCalcEnabled = () => {
             try { return localStorage.getItem(LS_CALC_KEY) !== '0'; } catch (e) { return true; }
         };
         const setCalcEnabled = v => {
             try { localStorage.setItem(LS_CALC_KEY, v ? '1' : '0'); } catch (e) { /* 忽略 */ }
-        };
+        
+            cloudMark();};
         const isMarketEnabled = () => {
             try { return localStorage.getItem(LS_MARKET_KEY) !== '0'; } catch (e) { return true; }
         };
         const setMarketEnabled = v => {
             try { localStorage.setItem(LS_MARKET_KEY, v ? '1' : '0'); } catch (e) { /* 忽略 */ }
-        };
+        
+            cloudMark();};
         const isCookEnabled = () => {
             try { return localStorage.getItem(LS_COOK_KEY) !== '0'; } catch (e) { return true; }
         };
         const setCookEnabled = v => {
             try { localStorage.setItem(LS_COOK_KEY, v ? '1' : '0'); } catch (e) { /* 忽略 */ }
-        };
+        
+            cloudMark();};
         const isProdEnabled = () => {
             try { return localStorage.getItem(LS_PROD_KEY) !== '0'; } catch (e) { return true; }
         };
         const setProdEnabled = v => {
             try { localStorage.setItem(LS_PROD_KEY, v ? '1' : '0'); } catch (e) { /* 忽略 */ }
-        };
+        
+            cloudMark();};
         const isPickEnabled = () => {
             try { return localStorage.getItem(LS_PICK_KEY) !== '0'; } catch (e) { return true; }
         };
         const setPickEnabled = v => {
             try { localStorage.setItem(LS_PICK_KEY, v ? '1' : '0'); } catch (e) { /* 忽略 */ }
-        };
+        
+            cloudMark();};
         const isEffMarkEnabled = () => {
             try { return localStorage.getItem(LS_EFFMARK_KEY) !== '0'; } catch (e) { return true; }
         };
         const setEffMarkEnabled = v => {
             try { localStorage.setItem(LS_EFFMARK_KEY, v ? '1' : '0'); } catch (e) { /* 忽略 */ }
-        };
+        
+            cloudMark();};
         const isFoolproofEnabled = () => {
             try { return localStorage.getItem(LS_FOOLPROOF_KEY) !== '0'; } catch (e) { return true; }
         };
         const setFoolproofEnabled = v => {
             try { localStorage.setItem(LS_FOOLPROOF_KEY, v ? '1' : '0'); } catch (e) { /* 忽略 */ }
-        };
+        
+            cloudMark();};
         const isAlcSortEnabled = () => {
             try { return localStorage.getItem(LS_ALCSORT_KEY) !== '0'; } catch (e) { return true; }
         };
         const setAlcSortEnabled = v => {
             try { localStorage.setItem(LS_ALCSORT_KEY, v ? '1' : '0'); } catch (e) { /* 忽略 */ }
-        };
+        
+            cloudMark();};
         const isCookJumpEnabled = () => {
             try { return localStorage.getItem(LS_CJ_KEY) !== '0'; } catch (e) { return true; }
         };
         const setCookJumpEnabled = v => {
             try { localStorage.setItem(LS_CJ_KEY, v ? '1' : '0'); } catch (e) { /* 忽略 */ }
-        };
+        
+            cloudMark();};
         // 烹饪列表优化通过 body 类作用域控制 CSS 生效（总开关关闭时同样视为关闭）
         const applyCookClass = () => {
             const on = isEnabled() && isCookEnabled();
@@ -715,7 +725,8 @@
         };
         const setAlcSortMode = v => {
             try { localStorage.setItem(ALC_SORT_MODE_KEY, v); } catch (e) { /* 忽略 */ }
-        };
+        
+            cloudMark();};
 
         // 包装 UI.showItemSelector 给原子炼金选择器打标（action='alchemy' && type=1），
         // 其余选择器不受影响；只 hook 一次
@@ -4043,7 +4054,7 @@
             data: () => typeof Data !== 'undefined' ? Data : null,
             cookingChestDivisor: typeof CHEST_TIME_DIVISOR_COOKING !== 'undefined' ? CHEST_TIME_DIVISOR_COOKING : 21600,
             enabled: isEnabled, identifyAction, document, window,
-            storage: { getItem: k => localStorage.getItem(k), setItem: (k, v) => localStorage.setItem(k, v), removeItem: k => localStorage.removeItem(k) }
+            storage: { getItem: k => localStorage.getItem(k), setItem: (k, v) => { localStorage.setItem(k, v); if (k.indexOf('nek_enhancements_v1:') === 0 && k.indexOf(':lease') === -1) cloudMark(); }, removeItem: k => localStorage.removeItem(k) }
         });
         // NEK_ENHANCEMENTS_END
 
@@ -4100,13 +4111,15 @@
         };
         const setHarvestEnabled = v => {
             try { localStorage.setItem(LS_HARVEST_KEY, v ? '1' : '0'); } catch (e) { /* 忽略 */ }
-        };
+        
+            cloudMark();};
         const isFarmAssistEnabled = () => {
             try { return localStorage.getItem(LS_FARM_KEY) !== '0'; } catch (e) { return true; }
         };
         const setFarmAssistEnabled = v => {
             try { localStorage.setItem(LS_FARM_KEY, v ? '1' : '0'); } catch (e) { /* 忽略 */ }
-        };
+        
+            cloudMark();};
         // 开关切换后统一刷新队列位置按钮的文案与样式
         const applyHarvestState = () => {
             document.querySelectorAll('.nek-harvest-toggle').forEach(btn => paintToggleButton(btn));
@@ -5045,6 +5058,16 @@
                             '</div>' +
                         '</label>' +
                     '</div>' +
+                    '<div class="setting-item">' +
+                        '<div class="setting-name" title="云同步：页面刷新时从服务端拉取配置，本地设置/研究队列/钓鱼预约变化时自动上传（单账号 2 秒限流）。多设备同账号使用时，回退到登录页会自动停止同步以免冲突。首次开启时若云端已有数据，可选择用云端覆盖本地或用本地覆盖云端">云同步</div>' +
+                        '<div class="setting-input"></div>' +
+                        '<label class="slider-container">' +
+                            '<div class="toggle-switch">' +
+                                '<input type="checkbox" class="nek-assist-cloud-toggle">' +
+                                '<span class="toggle-slider"></span>' +
+                            '</div>' +
+                        '</label>' +
+                    '</div>' +
                 '</div>';
             content.appendChild(section);
 
@@ -5061,6 +5084,7 @@
             const harvest = section.querySelector('.nek-assist-harvest-toggle');
             const fishtimer = section.querySelector('.nek-assist-fishtimer-toggle');
             const upd = section.querySelector('.nek-assist-upd-toggle');
+            const cloudToggle = section.querySelector('.nek-assist-cloud-toggle');
             calc.checked = isCalcEnabled();
             market.checked = isMarketEnabled();
             if (cook) cook.checked = isCookEnabled();
@@ -5073,6 +5097,7 @@
             if (harvest) harvest.checked = isFarmAssistEnabled();
             if (fishtimer) fishtimer.checked = isFishTimerEnabled();
             if (upd) upd.checked = isUpdateCheckEnabled();
+            if (cloudToggle) cloudToggle.checked = isCloudEnabled();
             master.checked = isEnabled();
             master.addEventListener('change', function () {
                 setEnabled(master.checked);
@@ -5125,6 +5150,9 @@
             if (upd) upd.addEventListener('change', function () {
                 setUpdateCheckEnabled(upd.checked);
             });
+            if (cloudToggle) cloudToggle.addEventListener('change', function () {
+                cloudOnToggle(cloudToggle.checked, cloudToggle);
+            });
         }
 
         // 页面重渲染导致区块被重建时，把开关勾选态对齐到存储值
@@ -5156,12 +5184,14 @@
             if (fishtimerSt && fishtimerSt.checked !== isFishTimerEnabled()) fishtimerSt.checked = isFishTimerEnabled();
             const upd = section.querySelector('.nek-assist-upd-toggle');
             if (upd && upd.checked !== isUpdateCheckEnabled()) upd.checked = isUpdateCheckEnabled();
+            const cloudSt = section.querySelector('.nek-assist-cloud-toggle');
+            if (cloudSt && cloudSt.checked !== isCloudEnabled()) cloudSt.checked = isCloudEnabled();
         }
 
         // ---------------- 自动检查更新（GitHub raw 头部 @version 对比） ----------------
         // 注意：发布新版本时需同步修改 CURRENT_VERSION（与头部 @version 保持一致）。
         // 页面上下文无 GM_info（@grant none 且经 <script> 注入），只能内置当前版本号。
-        const CURRENT_VERSION = '1.42.6';
+        const CURRENT_VERSION = '1.43.3';
         const LS_UPD_KEY = 'nek_update_check_enabled';        // 检查更新开关，默认开
         const LS_UPD_REMIND = 'nek_update_remind_last';       // 上次提醒时间戳（提醒节流）
         const UPD_REMIND_INTERVAL = 60 * 60 * 1000;           // 提醒节流：距上次提醒超过 60 分钟才再次提醒
@@ -5172,7 +5202,8 @@
         };
         const setUpdateCheckEnabled = v => {
             try { localStorage.setItem(LS_UPD_KEY, v ? '1' : '0'); } catch (e) { /* 忽略 */ }
-        };
+        
+            cloudMark();};
         function cmpVersion(a, b) {
             const pa = String(a || '').split('.').map(n => parseInt(n, 10) || 0);
             const pb = String(b || '').split('.').map(n => parseInt(n, 10) || 0);
@@ -5289,7 +5320,8 @@
         };
         const setFishTimerEnabled = v => {
             try { localStorage.setItem(LS_FISHTIMER_KEY, v ? '1' : '0'); } catch (e) { /* 忽略 */ }
-        };
+        
+            cloudMark();};
         function flog() {
             const args = [].slice.call(arguments);
             args.unshift(FISHTIMER_TAG);
@@ -5313,7 +5345,8 @@
                     if (old && old.pondId !== undefined && old.period !== undefined) {
                         return {
                             bookings: [{ pondId: String(old.pondId), period: old.period, weather: old.weather || '',
-                                timeText: old.timeText || '', baitId: 0, baitName: '', createdAt: old.createdAt || Date.now() }],
+                                timeText: old.timeText || '', baitId: 0, baitName: '', createdAt: old.createdAt || Date.now(),
+                                day: new Date(old.createdAt || Date.now()).toLocaleDateString('sv-SE') }],
                             chain: null
                         };
                     }
@@ -5328,7 +5361,13 @@
                 } else {
                     localStorage.removeItem(LS_FISH_STATE_KEY);
                 }
+                cloudMark();   // 云同步：钓鱼预约变化触发 push
             } catch (e) { /* 忽略 */ }
+        }
+        // 本地日历日 YYYY-MM-DD（钓鱼预约 day 字段，跨日同步过滤用）
+        function fishLocalDay() {
+            const d = new Date(), p = n => (n < 10 ? '0' : '') + n;
+            return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
         }
         function fmtFishDur(sec) {
             sec = Math.max(0, Math.floor(sec));
@@ -5649,7 +5688,7 @@
             const start = period * FISH_PERIOD_SEC;
             const inPeriod = now >= start && now < start + FISH_PERIOD_SEC;
             st.bookings.push({ pondId: pondId, period: period, weather: weather, timeText: timeText,
-                baitId: baitId, baitName: baitName, createdAt: Date.now() });
+                baitId: baitId, baitName: baitName, createdAt: Date.now(), day: fishLocalDay() });
             st.bookings.sort(function (a, b) { return a.period - b.period; });
             saveFishState(st);
             flog('已预约：钓场 ' + pondId + ' 时段 ' + timeText + ' ' + weather + ' · 鱼饵 ' + (baitName || '无'));
@@ -5934,10 +5973,363 @@
             flog('已加载：预约天气预报时段自动 ∞ 次开钓（读取所选鱼饵，未选需确认；队列满拒绝预约；' +
                 '多时段自动衔接；队列满/手动干预不作破坏性处理）。当前' + (isFishTimerEnabled() ? '开启' : '关闭'));
         }
+        // ---------------- 云同步（v3：明文 JSON + 静态文件服务端） ----------------
+        // 端点：云服务器域名 + 直连端口，Python 服务端自身启用 TLS（无需 Caddy）。
+        // 游戏页是 https，必须用 https，否则被浏览器混合内容策略拦截。
+        // 保持 @grant none：页面上下文原生 fetch；uid 走查询参数，服务端按 uid 读写文件。
+        // 传输混淆：XOR + Base64（密钥公开，只防非明文落盘，不防蓄意篡改）。
+        function cloudMark() { try { cloud.markDirty(); } catch (e) { /* 云同步未就绪，忽略 */ } }
+        const CLOUD_ENDPOINT = 'https://tcc.shinki.top:19527/api/state';
+        const CLOUD_XOR_KEY = 'nek-cloud-v3-2026';
+        const CLOUD_MIN_INTERVAL = 2000;      // 单 uid 最小同步间隔（与服务端一致）
+        const CLOUD_REQ_TIMEOUT = 3000;       // 单次请求超时：服务端挂起时也尽快结束 pull、解除 booting
+        const CLOUD_LS_KEY = 'nek_cloud_enabled';
+        const CLOUD_SETTING_KEYS = {
+            assistant: 'nek_assistant_enabled', calc: 'nek_assistant_calc_enabled',
+            market: 'nek_assistant_market_enabled', cook: 'nek_assistant_cook_enabled',
+            prod: 'nek_assistant_prod_enabled', pick: 'nek_assistant_pick_enabled',
+            effmark: 'nek_assistant_effmark_enabled', foolproof: 'nek_assistant_foolproof_enabled',
+            alcsort: 'nek_assistant_alcsort_enabled', cookjump: 'nek_assistant_cookjump_enabled',
+            harvest: 'nek_harvest_enabled', farm: 'nek_farm_assist_enabled',
+            fishtimer: 'nek_assistant_fishtimer_enabled', update: 'nek_update_check_enabled',
+            alcsortMode: 'nek_assistant_alcsort_mode'
+        };
+        const CLOUD_ENH_SETTING_KEYS = ['researchQueue', 'researchFinish', 'questAccept', 'questReward', 'holdings'];
+
+        const isCloudEnabled = () => {
+            try { return localStorage.getItem(CLOUD_LS_KEY) === '1'; } catch (e) { return false; }
+        };
+        const setCloudEnabled = v => {
+            try { localStorage.setItem(CLOUD_LS_KEY, v ? '1' : '0'); } catch (e) { /* 忽略 */ }
+        };
+        const cloudNotify = (msg, type, ms) => {
+            try { if (UI && UI.notifier && UI.notifier.show) UI.notifier.show(msg, type || 'tip', ms || 3000); } catch (e) { /* 忽略 */ }
+        };
+        // 回退到「登录成功但未进入游戏」页面：URL 仍是 /game、uid 仍可读，但正文只有登录框。
+        // 此时必须停止同步，避免与其他客户端的同步请求冲突。
+        const isLoginScreen = () => {
+            try {
+                const modal = document.querySelector('.modal-box');
+                if (!modal) return false;
+                const cs = getComputedStyle(modal);
+                if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity || '1') === 0) return false;
+                const t = (modal.innerText || '').replace(/\s/g, '');
+                if (!/登录|注册/.test(t)) return false;
+                const container = document.querySelector('.container');
+                const bodyLen = (container ? container.innerText : document.body.innerText || '').replace(/\s/g, '').length;
+                return bodyLen < 80;   // 游戏主界面未渲染（实测回退态正文仅约 30 字）
+            } catch (e) { return false; }
+        };
+        // 同步读取 uid：未登录时游戏不会提供 uid（决策1），无需等待，直接跳过同步。
+        const readUidCloud = () => {
+            try {
+                const uid = typeof game !== 'undefined' && game && game.character && game.character.uid;
+                return uid != null && String(uid) !== '' ? String(uid) : '';
+            } catch (e) { return ''; }
+        };
+        // uid 安全闸门：覆盖本地 / 上传云端前，目标 uid 必须与「当前游戏玩家」本人一致。
+        // 场景：A 的 pull 异步等待期间 A 回退登录页、B 登录进游戏；若不加闸门，
+        // A 的响应回来会把 A 的云端配置写进 B 的本地（设置项是全局 key），造成串号覆盖。
+        // 每次都实时读 game.character.uid，绝不信任异步启动时的缓存 uid。
+        const cloudUidGuard = (uid) => {
+            const cur = readUidCloud();
+            if (!cur || String(cur) !== String(uid)) throw new Error('uid_changed');
+            return String(uid);
+        };
+
+        // XOR + Base64 简单混淆（对称，服务端用同一密钥逆运算）
+        function cloudEncode(data) {
+            const raw = new TextEncoder().encode(JSON.stringify(data));
+            const key = CLOUD_XOR_KEY;
+            const out = new Uint8Array(raw.length);
+            for (let i = 0; i < raw.length; i++) out[i] = raw[i] ^ key.charCodeAt(i % key.length);
+            let bin = '';
+            for (let i = 0; i < out.length; i += 0x8000) bin += String.fromCharCode.apply(null, out.subarray(i, i + 0x8000));
+            return btoa(bin);
+        }
+        function cloudDecode(blob) {
+            const bin = atob(blob);
+            const raw = new Uint8Array(bin.length);
+            const key = CLOUD_XOR_KEY;
+            for (let i = 0; i < bin.length; i++) raw[i] = bin.charCodeAt(i) ^ key.charCodeAt(i % key.length);
+            return JSON.parse(new TextDecoder().decode(raw));
+        }
+
+        // 组装 payload：设置 + 研究队列（去 submitted）+ 钓鱼预约（带 day）
+        function cloudBuildPayload(uid) {
+            const settings = {};
+            Object.keys(CLOUD_SETTING_KEYS).forEach(k => {
+                try { settings[k] = localStorage.getItem(CLOUD_SETTING_KEYS[k]); } catch (e) { settings[k] = null; }
+            });
+            let enh = {};
+            try { enh = JSON.parse(localStorage.getItem('nek_enhancements_v1:' + uid) || '{}') || {}; } catch (e) { /* 忽略 */ }
+            CLOUD_ENH_SETTING_KEYS.forEach(k => { settings[k] = !!(enh.settings && enh.settings[k]); });
+            const queue = (Array.isArray(enh.queue) ? enh.queue : [])
+                .filter(e => e && typeof e.key === 'string' && Number.isInteger(e.projectId))
+                .slice(0, 100)
+                .map(e => { const o = Object.assign({}, e); delete o.submitted; return o; });
+            let bookings = [];
+            try {
+                const st = JSON.parse(localStorage.getItem(LS_FISH_STATE_KEY) || '{}') || {};
+                if (Array.isArray(st.bookings)) bookings = st.bookings.map(b => {
+                    const o = Object.assign({}, b);
+                    if (!o.day) o.day = o.createdAt ? new Date(o.createdAt).toLocaleDateString('sv-SE') : todayLocal();
+                    delete o.chain;
+                    return o;
+                });
+            } catch (e) { /* 忽略 */ }
+            return { schema: 1, uid: uid, ts: Date.now(), settings, queue, fish: { bookings } };
+        }
+        function todayLocal() {
+            const d = new Date();
+            const p = n => (n < 10 ? '0' : '') + n;
+            return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+        }
+        // 决策2：页面加载后把云端与本地数据比对，一致则不覆盖、不通知。
+        // 只比 settings/queue/fish.bookings 三类同步内容，忽略 ts/schema 等元数据；
+        // queue 去 submitted、bookings 去 chain，与 cloudBuildPayload 口径一致。
+        function cloudStable(v) {
+            if (Array.isArray(v)) return v.map(cloudStable);
+            if (v && typeof v === 'object') {
+                const out = {};
+                Object.keys(v).sort().forEach(k => { out[k] = cloudStable(v[k]); });
+                return out;
+            }
+            return v;
+        }
+        function cloudPayloadBody(p) {
+            return cloudStable({
+                settings: (p && p.settings) || {},
+                queue: (p && Array.isArray(p.queue) ? p.queue : []).map(e => { const o = Object.assign({}, e); delete o.submitted; return o; }),
+                bookings: (p && p.fish && Array.isArray(p.fish.bookings) ? p.fish.bookings : []).map(b => { const o = Object.assign({}, b); delete o.chain; return o; })
+            });
+        }
+        function cloudSameAsLocal(remote, uid) {
+            try {
+                return JSON.stringify(cloudPayloadBody(remote)) === JSON.stringify(cloudPayloadBody(cloudBuildPayload(uid)));
+            } catch (e) { return false; }
+        }
+        // 结构白名单校验：非法数据一律不应用（防篡改最后一道防线）
+        function cloudValidate(p) {
+            if (!p || typeof p !== 'object' || p.schema !== 1) return false;
+            if (!/^\d{1,20}$/.test(String(p.uid || ''))) return false;
+            if (!Number.isInteger(p.ts) || p.ts <= 0) return false;
+            if (!p.settings || typeof p.settings !== 'object') return false;
+            if (!Array.isArray(p.queue) || p.queue.length > 100) return false;
+            if (p.queue.some(e => !e || typeof e.key !== 'string' || !Number.isInteger(e.projectId) || e.projectId <= 0)) return false;
+            if (!p.fish || !Array.isArray(p.fish.bookings) || p.fish.bookings.length > 100) return false;
+            if (p.fish.bookings.some(b => !b || b.pondId == null || !Number.isInteger(b.period))) return false;
+            return true;
+        }
+        // 应用云端 payload 到本地：queue 去 submitted、钓鱼预约按 day 过滤跨日
+        function cloudApply(p, uid) {
+            if (!cloudValidate(p)) throw new Error('bad_payload');
+            cloudUidGuard(uid);   // 覆盖前确认目标 uid 仍是当前游戏玩家（防异步期间切换账号串配置）
+            if (String(p.uid) !== String(uid)) throw new Error('uid_mismatch');
+            Object.keys(CLOUD_SETTING_KEYS).forEach(k => {
+                const v = p.settings[k];
+                if (v === null || v === undefined) return;
+                try { localStorage.setItem(CLOUD_SETTING_KEYS[k], String(v)); } catch (e) { /* 忽略 */ }
+            });
+            let enh = {};
+            try { enh = JSON.parse(localStorage.getItem('nek_enhancements_v1:' + uid) || '{}') || {}; } catch (e) { /* 忽略 */ }
+            enh.settings = enh.settings || {};
+            CLOUD_ENH_SETTING_KEYS.forEach(k => { enh.settings[k] = !!p.settings[k]; });
+            enh.queue = (p.queue || []).map(e => { const o = Object.assign({}, e); delete o.submitted; return o; });
+            try { localStorage.setItem('nek_enhancements_v1:' + uid, JSON.stringify(enh)); } catch (e) { /* 忽略 */ }
+            const today = todayLocal();
+            const bookings = (p.fish.bookings || []).map(b => {
+                const o = Object.assign({}, b);
+                if (!o.day) o.day = o.createdAt ? new Date(o.createdAt).toLocaleDateString('sv-SE') : '';
+                return o;
+            }).filter(b => {
+                if (b.day === today) return true;
+                if (b.period >= currentFishPeriod()) return true;   // 未来时段保留（旧数据无 day 时按 period 兜底）
+                return false;
+            });
+            try {
+                const st = JSON.parse(localStorage.getItem(LS_FISH_STATE_KEY) || '{}') || {};
+                st.bookings = bookings;
+                if (!st.chain) localStorage.setItem(LS_FISH_STATE_KEY, JSON.stringify(st));
+                else if (bookings.length) localStorage.setItem(LS_FISH_STATE_KEY, JSON.stringify(st));
+                else localStorage.removeItem(LS_FISH_STATE_KEY);
+            } catch (e) { /* 忽略 */ }
+        }
+
+        // 云同步状态机
+        const cloud = {
+            uid: '', dirty: false, running: false, lastPushAt: 0, failNotified: false, timer: null,
+            booting: true,   // 启动加载阶段：只 pull 不 push，页面加载完成后才允许 push
+            async request(method, uid, body) {
+                const url = CLOUD_ENDPOINT + '?uid=' + encodeURIComponent(uid);
+                const opt = { method: method, headers: { 'Content-Type': 'application/json' } };
+                if (body) opt.body = JSON.stringify(body);
+                // 超时保护：服务端不可达/挂起时也要在 CLOUD_REQ_TIMEOUT 内结束，
+                // 否则 bootPull 长期 pending 会让 booting 无法解除、push 永久被禁。
+                const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+                if (ctrl) opt.signal = ctrl.signal;
+                const timer = ctrl ? setTimeout(() => ctrl.abort(), CLOUD_REQ_TIMEOUT) : null;
+                try {
+                    const resp = await fetch(url, opt);
+                    let data = null;
+                    try { data = await resp.json(); } catch (e) { /* 忽略 */ }
+                    return { status: resp.status, data: data };
+                } finally {
+                    if (timer) clearTimeout(timer);
+                }
+            },
+            async pull(uid) {
+                if (isLoginScreen()) return { skipped: true };
+                const curUid = cloudUidGuard(uid);   // 拉取前确认目标 uid 仍是当前玩家
+                const r = await this.request('GET', curUid);
+                if (isLoginScreen()) return { skipped: true };   // 异步等待期间回退登录页：放弃
+                cloudUidGuard(curUid);   // 响应回来后再确认玩家没切换
+                if (r.status === 404) return { found: false };   // 云端无数据：静默
+                if (r.status === 429) return { limited: true, retryMs: r.data && r.data.retryMs || CLOUD_MIN_INTERVAL };
+                if (r.status !== 200 || !r.data || !r.data.data) throw new Error('http_' + r.status);
+                // 决策2：云端与本地一致则不覆盖、不通知；仅覆盖时反馈。
+                if (cloudSameAsLocal(r.data.data, curUid)) return { found: true, applied: false };
+                cloudApply(r.data.data, curUid);
+                cloudNotify('云同步：云端数据已覆盖本地（' + new Date().toLocaleTimeString() + '）', 'tip', 2500);
+                return { found: true, applied: true };
+            },
+            async push(uid, payload) {
+                if (isLoginScreen()) return { skipped: true };
+                const curUid = cloudUidGuard(uid);   // 上传前确认目标 uid 仍是当前玩家（防切换账号串号）
+                const body = { v: 1, ts: payload.ts, blob: cloudEncode(payload) };
+                const r = await this.request('PUT', curUid, body);
+                if (isLoginScreen()) return { skipped: true };
+                cloudUidGuard(curUid);   // 异步等待期间若切换账号，放弃后续写入
+                if (r.status === 429) return { limited: true, retryMs: r.data && r.data.retryMs || CLOUD_MIN_INTERVAL };
+                if (r.status === 409) {
+                    // LWW：本地 ts 更新则强制重推；云端更新则应用云端
+                    const remote = r.data && r.data.data;
+                    if (remote && Number(remote.ts) > payload.ts) {
+                        try { cloudApply(remote, curUid); cloudNotify('云同步：已采用云端较新配置', 'tip', 2500); } catch (e) { /* 忽略 */ }
+                        return { appliedRemote: true };
+                    }
+                    body.ts = Date.now() + 1;
+                    const r2 = await this.request('PUT', curUid, body);
+                    if (r2.status === 200) return { ok: true };
+                    if (r2.status === 429) return { limited: true, retryMs: r2.data && r2.data.retryMs || CLOUD_MIN_INTERVAL };
+                    throw new Error('http_' + r2.status);
+                }
+                if (r.status !== 200) throw new Error('http_' + r.status);
+                return { ok: true };
+            },
+            markDirty() {
+                // 决策2：启动加载阶段禁止 push；决策3：登录页不 push。
+                if (this.booting || !isCloudEnabled() || isLoginScreen()) return;
+                this.dirty = true;
+                if (!this.running) this.flush();
+            },
+            async flush() {
+                if (this.booting || !isCloudEnabled() || isLoginScreen()) { this.dirty = false; return; }
+                if (this.running) return;
+                // 决策1：uid 同步读取，未登录直接跳过，不等待。
+                // 防串号：始终以「当前游戏玩家」为准；若与缓存 uid 不同（A 切到 B），
+                // 丢弃 A 的旧待发状态，改为处理 B，绝不把 B 的本地数据推到 A 的云端。
+                const uid = readUidCloud();
+                if (!uid) return;
+                if (this.uid && String(this.uid) !== String(uid)) {
+                    this.dirty = false;
+                    if (this.timer) { clearTimeout(this.timer); this.timer = null; }
+                    this.lastPushAt = 0;
+                }
+                this.uid = uid;
+                const wait = CLOUD_MIN_INTERVAL - (Date.now() - this.lastPushAt);
+                if (wait > 0) {
+                    if (!this.timer) this.timer = setTimeout(() => { this.timer = null; this.flush(); }, wait);
+                    return;
+                }
+                this.running = true;
+                this.dirty = false;
+                try {
+                    const payload = cloudBuildPayload(uid);
+                    const r = await this.push(uid, payload);
+                    this.lastPushAt = Date.now();
+                    if (r && r.ok) {
+                        if (this.failNotified) { this.failNotified = false; }
+                        cloudNotify('云同步：已上传配置', 'tip', 2500);
+                    } else if (r && r.limited) {
+                        this.dirty = true;
+                        if (!this.timer) this.timer = setTimeout(() => { this.timer = null; this.flush(); }, r.retryMs + 200);
+                        if (!this.failNotified) { this.failNotified = true; cloudNotify('云同步：同步过于频繁，稍后重试', 'error', 3000); }
+                    }
+                } catch (e) {
+                    if (!this.failNotified) { this.failNotified = true; cloudNotify('云同步：上传失败（' + (e.message || '网络异常') + '）', 'error', 3500); }
+                    console.warn('[云同步] push 失败', e);
+                } finally {
+                    this.running = false;
+                    if (this.dirty && !this.timer) this.flush();
+                }
+            },
+            async bootPull() {
+                // 决策1：未登录（无 uid）不进行云同步、不等待；决策3：登录页不 pull。
+                if (!isCloudEnabled() || isLoginScreen()) return;
+                const uid = readUidCloud();
+                if (!uid) return;   // 未登录：静默跳过
+                this.uid = uid;
+                try {
+                    await this.pull(uid);   // 拉取失败/404/429 均静默（仅覆盖本地才反馈）
+                } catch (e) {
+                    console.warn('[云同步] pull 失败，使用本地数据', e);
+                }
+            }
+        };
+
+        // 打开开关时检查云端：无数据静默启用；有数据让用户二选一
+        async function cloudOnToggle(checked, toggleEl) {
+            if (!checked) { setCloudEnabled(false); cloudNotify('云同步：已关闭', 'tip', 2000); return; }
+            if (isLoginScreen()) {
+                toggleEl.checked = false;
+                cloudNotify('云同步：请先进入游戏再开启', 'error', 3000);
+                return;
+            }
+            const uid = readUidCloud();
+            if (!uid) { toggleEl.checked = false; cloudNotify('云同步：未获取到账号，无法开启', 'error', 3000); return; }
+            cloud.uid = uid;
+            let r;
+            try { r = await cloud.request('GET', uid); }
+            catch (e) { toggleEl.checked = false; cloudNotify('云同步：连接服务端失败', 'error', 3500); return; }
+            if (r.status === 429) { toggleEl.checked = false; cloudNotify('云同步：请求过于频繁，请稍后再试', 'error', 3000); return; }
+            if (r.status === 404) { setCloudEnabled(true); cloudNotify('云同步：已开启（云端暂无数据）', 'tip', 2500); cloud.markDirty(); return; }
+            if (r.status !== 200 || !r.data || !r.data.data) {
+                toggleEl.checked = false; cloudNotify('云同步：服务端响应异常', 'error', 3500); return;
+            }
+            // 有云端数据：二选一
+            const useCloud = window.confirm(
+                '云同步：该账号在云端已有配置数据。\n\n' +
+                '【确定】使用云端数据覆盖当前浏览器\n' +
+                '【取消】保留当前浏览器数据并覆盖云端'
+            );
+            if (useCloud) {
+                try { cloudApply(r.data.data, uid); setCloudEnabled(true); cloudNotify('云同步：已开启并应用云端数据', 'tip', 3000); }
+                catch (e) { toggleEl.checked = false; cloudNotify('云同步：云端数据异常，未启用', 'error', 3500); }
+            } else {
+                setCloudEnabled(true);
+                cloud.lastPushAt = 0;
+                cloud.flush();
+                cloudNotify('云同步：已开启，正在上传本地数据', 'tip', 3000);
+            }
+        }
+
+        // 启动顺序（4 个 init 与云同步并行，与原版加载路径一致）：
+        // 1) 四个 init 立即同步执行，不等待任何网络——服务端不可达/挂起都不影响脚本加载，
+        //    与未加入云同步的原版完全相同；队列/设置若被云端覆盖，慢一拍在下一次读取生效。
+        // 2) 云同步 pull 放到后台并行：未登录无 uid / 回退登录页都同步跳过，不等待、不同步；
+        //    已登录只 pull 不 push，拉取后与本地比对，一致不覆盖不通知，仅覆盖才反馈。
+        // 3) booting 标志覆盖 pull 全程，确保拉取期间的任何写入都不会被回推云端；
+        //    在 finally 解除（成功 / 404 / 429 / 失败 / 超时 / 跳过都会解除），不留死角。
         nekEnhancements.init();
         initHarvest();   // 启动自动收菜（等待游戏就绪后挂载主循环与队列位置开关）
         initFishTimer();   // 启动定时钓鱼（天气预报时段自动开钓/停止/恢复队列）
         initUpdateCheck();   // 启动检查更新（等待游戏 UI 就绪后静默检测 GitHub 最新版本）
+        (async function bootWithCloud() {
+            try { await cloud.bootPull(); }
+            catch (e) { console.warn('[云同步] 启动拉取异常', e); }
+            finally { cloud.booting = false; }
+        })();
     };
 
     // 注入页面上下文执行
