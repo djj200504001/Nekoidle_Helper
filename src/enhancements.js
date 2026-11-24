@@ -377,9 +377,9 @@ function createNekController(env) {
     // 与 plan() 的计费口径一致——队列条目与待加入卡片都按该等级显示消耗。
     // 本地存储不可用时返回 null，调用方按原生视图渲染。
     function plannedLevel(projectId) {
+        const c = context();
         const state = read();
         if (!state.readable) return null;
-        const c = context();
         const levels = Object.assign({}, c?.levels || {});
         const active = c?.task;
         if (active) levels[active.projectId] = (Number(levels[active.projectId]) || 0) + 1;
@@ -522,6 +522,7 @@ function createNekEnhancements(env) {
     const doc = env.document, storage = env.storage;
     const itemInfo = new WeakMap();
     const queueMetadata = new WeakMap();
+    let detachResearchScroll = null;
     let installed = false, timer = null, silentReward = false;
     let cancelRequest = null;
     const core = createNekController({
@@ -802,6 +803,9 @@ function createNekEnhancements(env) {
     }
     function decorateResearch(v) {
         const ui = env.ui();
+        if (detachResearchScroll && (!detachResearchScroll.panel.isConnected || !env.enabled() || !v.account)) {
+            detachResearchScroll();
+        }
         doc.querySelectorAll('.nek-research-add').forEach(b => { const hidden = !env.enabled(); if (b.hidden !== hidden) b.hidden = hidden; });
         if (!env.enabled() || !v.account) { doc.querySelectorAll('.nek-research-queue').forEach(p => p.remove()); return; }
         // 窄屏/触屏（与游戏断点一致）才启用「嵌入列表+吸顶折叠」；PC 端空间足够，保留 v1.40.0 固定面板样式
@@ -811,7 +815,12 @@ function createNekEnhancements(env) {
         if (!host) return;
         let panel = host.querySelector('.nek-research-queue');
         // 跨断点切换（旋转屏幕/拉伸窗口）时结构与宿主都会变：清掉所有不匹配当前模式的面板
-        doc.querySelectorAll('.nek-research-queue').forEach(p => { if (p !== panel || (panel && panel._nekNarrow !== narrow)) p.remove(); });
+        doc.querySelectorAll('.nek-research-queue').forEach(p => {
+            if (p !== panel || (panel && panel._nekNarrow !== narrow)) {
+                if (detachResearchScroll?.panel === p) detachResearchScroll();
+                p.remove();
+            }
+        });
         if (panel && !panel.isConnected) panel = null;
         if (!panel && narrow) {
             panel = doc.createElement('div'); panel.className = 'neon-section nek-research-queue nek-float';
@@ -869,6 +878,11 @@ function createNekEnhancements(env) {
                 if (over !== !!panel._nekAutoOver) { panel._nekAutoOver = over; panel._nekManual = null; panel._nekApply(); }
             };
             host.addEventListener('scroll', panel._nekSync, { passive: true });
+            detachResearchScroll = () => {
+                host.removeEventListener('scroll', panel._nekSync);
+                detachResearchScroll = null;
+            };
+            detachResearchScroll.panel = panel;
             panel._nekSync();   // 刷新时可能已在列表中部：立即同步折叠状态
         } else if (!panel) {
             panel = doc.createElement('div'); panel.className = 'neon-section nek-research-queue';
@@ -1052,7 +1066,14 @@ function createNekEnhancements(env) {
         pulse(); timer = setInterval(pulse, 2000);
         env.window.addEventListener('pagehide', core.release);
     }
-    return { init, decorate, core };
+    function snapshotActions() {
+        return (env.game()?.queue || []).map(entry => {
+            const state = queueMetadata.get(entry);
+            return { ...entry, remaining: state?.remaining ?? entry.remaining ?? entry.count,
+                multiplier: state?.multiplier ?? entry.multiplier ?? entry.item?.multiplier };
+        });
+    }
+    return { init, decorate, core, snapshotActions };
 }
 
 // CommonJS test exports (not embedded into the userscript).

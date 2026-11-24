@@ -68,6 +68,14 @@ test('入队只保存成本与预留，不发请求、不扣背包', () => {
     assert.deepEqual(view.queue.totals, { 9610: 500, 1101: 100 });
     assert.equal(view.queue.entries[0].entry.record.targetLevel, 1);
 });
+test('切换账号后第一次读取计划等级使用新账号的队列', () => {
+    const h = harness();
+    assert.equal(h.core.enqueue(11).ok, true);
+    h.c.uid = 8;
+    assert.equal(h.core.plannedLevel(11), 0);
+    h.c.uid = 7;
+    assert.equal(h.core.plannedLevel(11), 1);
+});
 test('共享材料预留不足时仍可入队，仅返回警告', () => {
     const h = harness(); h.quantities[9610] = 999;
     assert.equal(h.core.enqueue(11).ok, true);

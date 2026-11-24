@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.44.2
-// @description  v1.44.2：修复研究队列云同步「已完成研究复活」竞态——云端旧队列覆盖本地时，按游戏实时等级过滤掉目标已达成的条目（与 plan()/settleSubmitted 同口径，含正在研究任务 +1），比对时同口径过滤避免每次刷新误报覆盖。v1.44.1——toolbar「手动云同步」按钮改为与签到按钮同款青色发光样式（文字由「同步」改「手动云同步」）。v1.44.0——云同步新增市场「我的收藏」同步（localStorage.favorite 的 itemId 数组，归一化去重排序后入 payload；挂钩 Utils.setData 自动上传；云端覆盖前弹窗对比两端收藏数量由用户决定整份覆盖）+ toolbar 签到按钮旁新增「同步」按钮（仅上传本地到云端，不拉取）。v1.43.7——修复刷新时误报「云端已覆盖本地」——开关按脚本真实语义归一化比对（null 或 1 都=开、0=关），null 与 1 不再判为不同；研究按钮缺料红框内发光改呼吸动画。v1.43.6——研究队列按钮缺料提示——队首材料确实不足（复用研究队列已有的 researchStatus 判定）时，快捷按钮红边框 + 红色内发光、字保持黑色，title 补注「队首材料不足，等待补充」。v1.43.5——pull 绑定到游戏主界面顶栏 toolbar-container——进入游戏（含刷新、回退登录页后重新进入）时各发一次 GET，同一节点只拉一次、回退清空以允许再拉；服务端 GET/GET 与 PUT/PUT 各自 2 秒限流、两者互不干扰。v1.43.4——修复刷新不发 pull：从 document-idle 延后到主界面就绪后再拉。v1.43.3——云同步 uid 安全加固——覆盖/上传前实时校验当前游戏玩家 uid（pull 请求前后双闸、push 上传前后双闸、flush 检测账号切换丢弃旧状态），防止 A 回退登录页后 B 登录被 A 的云端配置串号覆盖。v1.43.2——云同步与脚本加载并行——4 个 init 立即执行不等网络，服务端不可达/挂起都不影响加载（单次请求 3 秒超时）；启动只 pull 不 push，拉取后与本地比对，一致不覆盖不通知，仅云端覆盖本地 / push 成功 / push 失败三类用通知栏反馈；回退登录页不 push、不 pull；未登录不同步、不等待 uid；设置页云同步开关，本地设置/研究队列/钓鱼预约变化时 2 秒节流自动上传；首次开启云端有数据则二选一，无数据静默启用；钓鱼预约新增 day 日期字段跨日不同步；队列条目去 submitted、本地租约不进 payload；明文 JSON + XOR/Base64 混淆传输。自动收菜按钮 60 秒往返进度 CSS keyframes 动画；研究队列（预留材料与自动结算）、自动接受任务/领奖、市场行情、采集/生产/烹饪详情优化、防呆设置、点金辅助、农业辅助（自动收菜+好友农场预览）、检查更新、定时钓鱼、炼金经验效率与越级计算等，详见脚本正文。
+// @version      1.44.3
+// @description  v1.44.3：修复云同步开关与预约恢复、研究账号切换、定时钓鱼队列恢复及构建校验。v1.44.2——修复研究队列云同步「已完成研究复活」竞态——云端旧队列覆盖本地时，按游戏实时等级过滤掉目标已达成的条目（与 plan()/settleSubmitted 同口径，含正在研究任务 +1），比对时同口径过滤避免每次刷新误报覆盖。v1.44.1——toolbar「手动云同步」按钮改为与签到按钮同款青色发光样式（文字由「同步」改「手动云同步」）。v1.44.0——云同步新增市场「我的收藏」同步（localStorage.favorite 的 itemId 数组，归一化去重排序后入 payload；挂钩 Utils.setData 自动上传；云端覆盖前弹窗对比两端收藏数量由用户决定整份覆盖）+ toolbar 签到按钮旁新增「同步」按钮（仅上传本地到云端，不拉取）。v1.43.7——修复刷新时误报「云端已覆盖本地」——开关按脚本真实语义归一化比对（null 或 1 都=开、0=关），null 与 1 不再判为不同；研究按钮缺料红框内发光改呼吸动画。v1.43.6——研究队列按钮缺料提示——队首材料确实不足（复用研究队列已有的 researchStatus 判定）时，快捷按钮红边框 + 红色内发光、字保持黑色，title 补注「队首材料不足，等待补充」。v1.43.5——pull 绑定到游戏主界面顶栏 toolbar-container——进入游戏（含刷新、回退登录页后重新进入）时各发一次 GET，同一节点只拉一次、回退清空以允许再拉；服务端 GET/GET 与 PUT/PUT 各自 2 秒限流、两者互不干扰。v1.43.4——修复刷新不发 pull：从 document-idle 延后到主界面就绪后再拉。v1.43.3——云同步 uid 安全加固——覆盖/上传前实时校验当前游戏玩家 uid（pull 请求前后双闸、push 上传前后双闸、flush 检测账号切换丢弃旧状态），防止 A 回退登录页后 B 登录被 A 的云端配置串号覆盖。v1.43.2——云同步与脚本加载并行——4 个 init 立即执行不等网络，服务端不可达/挂起都不影响加载（单次请求 3 秒超时）；启动只 pull 不 push，拉取后与本地比对，一致不覆盖不通知，仅云端覆盖本地 / push 成功 / push 失败三类用通知栏反馈；回退登录页不 push、不 pull；未登录不同步、不等待 uid；设置页云同步开关，本地设置/研究队列/钓鱼预约变化时 2 秒节流自动上传；首次开启云端有数据则二选一，无数据静默启用；钓鱼预约新增 day 日期字段跨日不同步；队列条目去 submitted、本地租约不进 payload；明文 JSON + XOR/Base64 混淆传输。自动收菜按钮 60 秒往返进度 CSS keyframes 动画；研究队列（预留材料与自动结算）、自动接受任务/领奖、市场行情、采集/生产/烹饪详情优化、防呆设置、点金辅助、农业辅助（自动收菜+好友农场预览）、检查更新、定时钓鱼、炼金经验效率与越级计算等，详见脚本正文。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
 // @match        https://nekoidle.net/*
@@ -3370,9 +3370,9 @@
             // 与 plan() 的计费口径一致——队列条目与待加入卡片都按该等级显示消耗。
             // 本地存储不可用时返回 null，调用方按原生视图渲染。
             function plannedLevel(projectId) {
+                const c = context();
                 const state = read();
                 if (!state.readable) return null;
-                const c = context();
                 const levels = Object.assign({}, c?.levels || {});
                 const active = c?.task;
                 if (active) levels[active.projectId] = (Number(levels[active.projectId]) || 0) + 1;
@@ -3515,6 +3515,7 @@
             const doc = env.document, storage = env.storage;
             const itemInfo = new WeakMap();
             const queueMetadata = new WeakMap();
+            let detachResearchScroll = null;
             let installed = false, timer = null, silentReward = false;
             let cancelRequest = null;
             const core = createNekController({
@@ -3795,6 +3796,9 @@
             }
             function decorateResearch(v) {
                 const ui = env.ui();
+                if (detachResearchScroll && (!detachResearchScroll.panel.isConnected || !env.enabled() || !v.account)) {
+                    detachResearchScroll();
+                }
                 doc.querySelectorAll('.nek-research-add').forEach(b => { const hidden = !env.enabled(); if (b.hidden !== hidden) b.hidden = hidden; });
                 if (!env.enabled() || !v.account) { doc.querySelectorAll('.nek-research-queue').forEach(p => p.remove()); return; }
                 // 窄屏/触屏（与游戏断点一致）才启用「嵌入列表+吸顶折叠」；PC 端空间足够，保留 v1.40.0 固定面板样式
@@ -3804,7 +3808,12 @@
                 if (!host) return;
                 let panel = host.querySelector('.nek-research-queue');
                 // 跨断点切换（旋转屏幕/拉伸窗口）时结构与宿主都会变：清掉所有不匹配当前模式的面板
-                doc.querySelectorAll('.nek-research-queue').forEach(p => { if (p !== panel || (panel && panel._nekNarrow !== narrow)) p.remove(); });
+                doc.querySelectorAll('.nek-research-queue').forEach(p => {
+                    if (p !== panel || (panel && panel._nekNarrow !== narrow)) {
+                        if (detachResearchScroll?.panel === p) detachResearchScroll();
+                        p.remove();
+                    }
+                });
                 if (panel && !panel.isConnected) panel = null;
                 if (!panel && narrow) {
                     panel = doc.createElement('div'); panel.className = 'neon-section nek-research-queue nek-float';
@@ -3862,6 +3871,11 @@
                         if (over !== !!panel._nekAutoOver) { panel._nekAutoOver = over; panel._nekManual = null; panel._nekApply(); }
                     };
                     host.addEventListener('scroll', panel._nekSync, { passive: true });
+                    detachResearchScroll = () => {
+                        host.removeEventListener('scroll', panel._nekSync);
+                        detachResearchScroll = null;
+                    };
+                    detachResearchScroll.panel = panel;
                     panel._nekSync();   // 刷新时可能已在列表中部：立即同步折叠状态
                 } else if (!panel) {
                     panel = doc.createElement('div'); panel.className = 'neon-section nek-research-queue';
@@ -4045,7 +4059,14 @@
                 pulse(); timer = setInterval(pulse, 2000);
                 env.window.addEventListener('pagehide', core.release);
             }
-            return { init, decorate, core };
+            function snapshotActions() {
+                return (env.game()?.queue || []).map(entry => {
+                    const state = queueMetadata.get(entry);
+                    return { ...entry, remaining: state?.remaining ?? entry.remaining ?? entry.count,
+                        multiplier: state?.multiplier ?? entry.multiplier ?? entry.item?.multiplier };
+                });
+            }
+            return { init, decorate, core, snapshotActions };
         }
         const nekEnhancements = createNekEnhancements({
             game: () => typeof game !== 'undefined' ? game : null,
@@ -5198,7 +5219,7 @@
         // ---------------- 自动检查更新（GitHub raw 头部 @version 对比） ----------------
         // 注意：发布新版本时需同步修改 CURRENT_VERSION（与头部 @version 保持一致）。
         // 页面上下文无 GM_info（@grant none 且经 <script> 注入），只能内置当前版本号。
-        const CURRENT_VERSION = '1.44.2';
+        const CURRENT_VERSION = '1.44.3';
         const LS_UPD_KEY = 'nek_update_check_enabled';        // 检查更新开关，默认开
         const LS_UPD_REMIND = 'nek_update_remind_last';       // 上次提醒时间戳（提醒节流）
         const UPD_REMIND_INTERVAL = 60 * 60 * 1000;           // 提醒节流：距上次提醒超过 60 分钟才再次提醒
@@ -5742,7 +5763,7 @@
         // 开钓（新链条首个时段或衔接换钓）：mold 'start' 替换队头，∞ 次，鱼饵按预约
         function startChainBooking(st, booking) {
             if (!st.chain) {
-                st.chain = { snapshot: JSON.parse(JSON.stringify(game.queue || [])),
+                st.chain = { snapshot: JSON.parse(JSON.stringify(nekEnhancements.snapshotActions())),
                     currentPeriod: booking.period, pendingPond: booking.pondId, pendingAt: Date.now(), tries: 0 };
             } else {
                 st.chain.currentPeriod = booking.period;
@@ -5761,27 +5782,35 @@
         function restoreQueueSnapshot(snapshot) {
             if (!Array.isArray(snapshot)) return;
             const cur = game.queue || [];
-            const remain = {};
-            cur.forEach(function (a) {
-                const k = (a && a.type) + ':' + (a && a.id);
-                remain[k] = (remain[k] || 0) + 1;
-            });
+            const key = a => {
+                const item = Object.assign({}, a.item);
+                const multiplier = Number(a.multiplier ?? item.multiplier ?? 1);
+                delete item.multiplier;
+                return JSON.stringify(cloudStable([a.type, String(a.id), item, multiplier]));
+            };
+            const remaining = cur.filter(Boolean).slice();
             const missing = [];
-            snapshot.forEach(function (a) {
-                const k = (a && a.type) + ':' + (a && a.id);
-                if (remain[k] > 0) remain[k]--;
+            snapshot.filter(Boolean).forEach(function (a) {
+                const index = remaining.findIndex(entry => a.token != null && entry.token != null ?
+                    a.token === entry.token : key(a) === key(entry));
+                if (index >= 0) remaining.splice(index, 1);
                 else missing.push(a);
             });
             if (!missing.length) {
                 flog('原队列完整，无需补回');
                 return;
             }
+            let requested = 0;
             missing.forEach(function (a) {
-                const count = (a.count === undefined || a.count === null) ? 1 : a.count;
+                const count = Number(a.remaining ?? a.count ?? 1);
+                if (count !== -1 && (!Number.isSafeInteger(count) || count <= 0)) return;
                 flog('补回队列：', a.type, a.id, 'x' + (count === -1 ? '∞' : count));
-                game.startAction(a.type, a.id, count, a.item || {}, 'after');
+                const item = Object.assign({}, a.item);
+                if (a.multiplier != null) item.multiplier = a.multiplier;
+                game.startAction(a.type, a.id, count, item, 'after');
+                requested++;
             });
-            UI.notifier.show('定时钓鱼：已补回 ' + missing.length + ' 条原队列行动（排在队尾）', 'tip', 3000);
+            if (requested) UI.notifier.show('定时钓鱼：已请求补回 ' + requested + ' 条原队列行动（排在队尾）', 'tip', 3000);
         }
 
         // 包装 update_queue：链条结束停钓后的首个全量队列到达时执行补回
@@ -6132,7 +6161,7 @@
             });
             let enh = {};
             try { enh = JSON.parse(localStorage.getItem('nek_enhancements_v1:' + uid) || '{}') || {}; } catch (e) { /* 忽略 */ }
-            CLOUD_ENH_SETTING_KEYS.forEach(k => { settings[k] = !!(enh.settings && enh.settings[k]); });
+            CLOUD_ENH_SETTING_KEYS.forEach(k => { settings[k] = enh.settings?.[k] !== false; });
             const queue = (Array.isArray(enh.queue) ? enh.queue : [])
                 .filter(e => e && typeof e.key === 'string' && Number.isInteger(e.projectId))
                 .slice(0, 100)
@@ -6147,6 +6176,7 @@
                     return o;
                 });
             } catch (e) { /* 忽略 */ }
+            bookings = cloudCurrentBookings(bookings);
             return { schema: 1, uid: uid, ts: Date.now(), settings, queue, fish: { bookings }, favorites: cloudFavorites() };
         }
         function todayLocal() {
@@ -6165,6 +6195,16 @@
                 return out;
             }
             return v;
+        }
+        function cloudCurrentBookings(bookings) {
+            const today = todayLocal(), period = currentFishPeriod();
+            return bookings.filter(b => b && b.period >= period).map(b => {
+                const entry = Object.assign({}, b);
+                delete entry.chain;
+                if (!entry.day && entry.createdAt) entry.day = new Date(entry.createdAt).toLocaleDateString('sv-SE');
+                if (!entry.day) entry.day = today;
+                return entry;
+            }).filter(b => b.day === today);
         }
         function cloudPayloadBody(p) {
             // 开关按脚本真实语义归一化：布尔开关的判定是 getItem(k) !== '0'，
@@ -6188,7 +6228,7 @@
                 settings: settings,
                 // 两端都按实时等级丢弃已完成项：避免云端旧队列反复被判为「不同」而每次刷新都提示覆盖
                 queue: cloudQueueAlive((p && Array.isArray(p.queue) ? p.queue : []).map(e => { const o = Object.assign({}, e); delete o.submitted; return o; })),
-                bookings: (p && p.fish && Array.isArray(p.fish.bookings) ? p.fish.bookings : []).map(b => { const o = Object.assign({}, b); delete o.chain; return o; }),
+                bookings: cloudCurrentBookings(Array.isArray(p?.fish?.bookings) ? p.fish.bookings : []),
                 favorites: favorites.slice(0, 500)
             });
         }
@@ -6217,40 +6257,32 @@
             if (!cloudValidate(p)) throw new Error('bad_payload');
             cloudUidGuard(uid);   // 覆盖前确认目标 uid 仍是当前游戏玩家（防异步期间切换账号串配置）
             if (String(p.uid) !== String(uid)) throw new Error('uid_mismatch');
+            const enh = JSON.parse(localStorage.getItem('nek_enhancements_v1:' + uid) || '{}') || {};
+            if (enh.queue?.some(entry => entry?.submitted)) throw new Error('研究正在确认，请稍后同步');
+            const st = JSON.parse(localStorage.getItem(LS_FISH_STATE_KEY) || '{}') || {};
+            const activeBooking = st.chain && st.bookings?.find(b => b.period === st.chain.currentPeriod);
             Object.keys(CLOUD_SETTING_KEYS).forEach(k => {
                 const v = p.settings[k];
-                if (v === null || v === undefined) return;
-                try { localStorage.setItem(CLOUD_SETTING_KEYS[k], String(v)); } catch (e) { /* 忽略 */ }
+                if (v === undefined) return;
+                if (v === null) localStorage.removeItem(CLOUD_SETTING_KEYS[k]);
+                else localStorage.setItem(CLOUD_SETTING_KEYS[k], k === 'alcsortMode' ? String(v) : (v === '0' || v === false ? '0' : '1'));
             });
-            let enh = {};
-            try { enh = JSON.parse(localStorage.getItem('nek_enhancements_v1:' + uid) || '{}') || {}; } catch (e) { /* 忽略 */ }
             enh.settings = enh.settings || {};
-            CLOUD_ENH_SETTING_KEYS.forEach(k => { enh.settings[k] = !!p.settings[k]; });
-            enh.queue = cloudQueueAlive((p.queue || []).map(e => { const o = Object.assign({}, e); delete o.submitted; return o; }));
-            try { localStorage.setItem('nek_enhancements_v1:' + uid, JSON.stringify(enh)); } catch (e) { /* 忽略 */ }
-            const today = todayLocal();
-            const bookings = (p.fish.bookings || []).map(b => {
-                const o = Object.assign({}, b);
-                if (!o.day) o.day = o.createdAt ? new Date(o.createdAt).toLocaleDateString('sv-SE') : '';
-                return o;
-            }).filter(b => {
-                if (b.day === today) return true;
-                if (b.period >= currentFishPeriod()) return true;   // 未来时段保留（旧数据无 day 时按 period 兜底）
-                return false;
+            CLOUD_ENH_SETTING_KEYS.forEach(k => {
+                if (Object.hasOwn(p.settings, k)) enh.settings[k] = p.settings[k] !== false && p.settings[k] !== '0';
             });
-            try {
-                const st = JSON.parse(localStorage.getItem(LS_FISH_STATE_KEY) || '{}') || {};
-                st.bookings = bookings;
-                if (!st.chain) localStorage.setItem(LS_FISH_STATE_KEY, JSON.stringify(st));
-                else if (bookings.length) localStorage.setItem(LS_FISH_STATE_KEY, JSON.stringify(st));
-                else localStorage.removeItem(LS_FISH_STATE_KEY);
-            } catch (e) { /* 忽略 */ }
+            enh.queue = cloudQueueAlive((p.queue || []).map(e => { const o = Object.assign({}, e); delete o.submitted; return o; }));
+            localStorage.setItem('nek_enhancements_v1:' + uid, JSON.stringify(enh));
+            st.bookings = cloudCurrentBookings(p.fish.bookings);
+            if (activeBooking) {
+                st.bookings = [activeBooking, ...st.bookings.filter(b => b.period !== activeBooking.period)];
+            }
+            localStorage.setItem(LS_FISH_STATE_KEY, JSON.stringify(st));
             // 市场收藏：整份覆盖，覆盖前弹窗对比两端数量由用户决定；旧 payload 无该字段则不动本地。
             if (p.favorites != null) {
                 const applyFav = cloudConfirmFavorites(p);
                 if (applyFav) {
-                    try { localStorage.setItem('favorite', JSON.stringify(cloudNormalizeFavorites(p.favorites))); }
-                    catch (e) { /* 忽略 */ }
+                    localStorage.setItem('favorite', JSON.stringify(cloudNormalizeFavorites(p.favorites)));
                 }
             }
         }
@@ -6316,6 +6348,7 @@
                 const r = await this.request('GET', curUid);
                 if (isLoginScreen()) return { skipped: true };   // 异步等待期间回退登录页：放弃
                 cloudUidGuard(curUid);   // 响应回来后再确认玩家没切换
+                if (!isCloudEnabled()) return { skipped: true };
                 if (r.status === 404) return { found: false };   // 云端无数据：静默
                 if (r.status === 429) return { limited: true, retryMs: r.data && r.data.retryMs || CLOUD_MIN_INTERVAL };
                 if (r.status !== 200 || !r.data || !r.data.data) throw new Error('http_' + r.status);
@@ -6337,11 +6370,17 @@
                     // LWW：本地 ts 更新则强制重推；云端更新则应用云端
                     const remote = r.data && r.data.data;
                     if (remote && Number(remote.ts) > payload.ts) {
-                        try { cloudApply(remote, curUid); cloudNotify('云同步：已采用云端较新配置', 'tip', 2500); } catch (e) { /* 忽略 */ }
+                        if (!isCloudEnabled()) return { skipped: true };
+                        cloudApply(remote, curUid);
+                        cloudNotify('云同步：已采用云端较新配置', 'tip', 2500);
                         return { appliedRemote: true };
                     }
-                    body.ts = Date.now() + 1;
+                    if (!isCloudEnabled()) return { skipped: true };
+                    body.ts = Math.max(Date.now(), payload.ts) + 1;
+                    body.blob = cloudEncode(Object.assign({}, payload, { ts: body.ts }));
                     const r2 = await this.request('PUT', curUid, body);
+                    if (isLoginScreen() || !isCloudEnabled()) return { skipped: true };
+                    cloudUidGuard(curUid);
                     if (r2.status === 200) return { ok: true };
                     if (r2.status === 429) return { limited: true, retryMs: r2.data && r2.data.retryMs || CLOUD_MIN_INTERVAL };
                     throw new Error('http_' + r2.status);
@@ -6424,7 +6463,9 @@
         };
 
         // 打开开关时检查云端：无数据静默启用；有数据让用户二选一
+        let cloudToggleRevision = 0;
         async function cloudOnToggle(checked, toggleEl) {
+            const revision = ++cloudToggleRevision;
             if (!checked) { setCloudEnabled(false); cloudNotify('云同步：已关闭', 'tip', 2000); return; }
             if (isLoginScreen()) {
                 toggleEl.checked = false;
@@ -6436,7 +6477,12 @@
             cloud.uid = uid;
             let r;
             try { r = await cloud.request('GET', uid); }
-            catch (e) { toggleEl.checked = false; cloudNotify('云同步：连接服务端失败', 'error', 3500); return; }
+            catch (e) {
+                if (revision === cloudToggleRevision) { toggleEl.checked = false; cloudNotify('云同步：连接服务端失败', 'error', 3500); }
+                return;
+            }
+            if (revision !== cloudToggleRevision) return;
+            if (isLoginScreen() || readUidCloud() !== uid) { toggleEl.checked = false; return; }
             if (r.status === 429) { toggleEl.checked = false; cloudNotify('云同步：请求过于频繁，请稍后再试', 'error', 3000); return; }
             if (r.status === 404) { setCloudEnabled(true); cloudNotify('云同步：已开启（云端暂无数据）', 'tip', 2500); cloud.markDirty(); return; }
             if (r.status !== 200 || !r.data || !r.data.data) {

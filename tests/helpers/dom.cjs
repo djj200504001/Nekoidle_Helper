@@ -42,6 +42,7 @@ class Element {
     replaceChildren(...children) { this.textContent = ''; this.append(...children); }
     remove() { if (this.parentNode) { const parent = this.parentNode; parent.childNodes = parent.childNodes.filter(c => c !== this); this.parentNode = null; parent.mutate(); } }
     addEventListener(type, fn) { (this.listeners[type] ||= []).push(fn); }
+    removeEventListener(type, fn) { this.listeners[type] = (this.listeners[type] || []).filter(listener => listener !== fn); }
     fire(type) { this.listeners[type]?.forEach(fn => fn({ stopPropagation() {} })); }
     matches(selector) {
         const parts = selector.trim().split(/\s+/), last = parts.pop();
