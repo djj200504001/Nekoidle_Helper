@@ -14,9 +14,9 @@ test('安装文件与模块源码一致，入口、版本号和单次初始化�
     assert.equal((script.match(/\/\/ NEK_ENHANCEMENTS_END/g) || []).length, 1);
     assert.equal((script.match(/nekEnhancements\.init\(\);/g) || []).length, 1);
     assert.equal((script.match(/function \(\) \{ nekEnhancements\.decorate\(\); \}/g) || []).length, 1);
-    assert.match(script, /@version\s+1\.46\.1\n/);
-    assert.match(script, /@description\s+v1\.46\.1：/);
-    assert.match(script, /const CURRENT_VERSION = '1\.46\.1';/);
+    assert.match(script, /@version\s+1\.53\.0\n/);
+    assert.match(script, /@description\s+v1\.53\.0：/);
+    assert.match(script, /const CURRENT_VERSION = '1\.53\.0';/);
     assert.doesNotThrow(() => new vm.Script(script));
 });
 
@@ -158,7 +158,7 @@ test('云同步市场收藏：payload 纳入 favorites、归一化比对、覆�
     assert.match(script, /localStorage\.getItem\('favorite'\)/);
     assert.match(script, /!Number\.isInteger\(n\) \|\| n <= 0/);
     // payload 纳入 favorites，schema 仍为 1
-    assert.match(script, /fish: \{ bookings \}, favorites: cloudFavorites\(\)/);
+    assert.match(script, /favorites: cloudFavorites\(\)/);
     // 比对口径一致：cloudPayloadBody 用同一归一化函数，纳入 favorites
     assert.match(script, /const favorites = cloudNormalizeFavorites\(p && p\.favorites\)/);
     assert.match(script, /favorites: favorites\.slice\(0, 500\)/);
@@ -239,4 +239,159 @@ test('云同步研究队列：覆盖与比对均按实时等级丢弃已完成�
     // 研究数据未就绪：原样保留，绝不误删
     assert.deepEqual(alive({}), ['done', 'next', 'other', 'legacy']);
     assert.deepEqual(alive({ UI: { researchInfo: null }, game: null }), ['done', 'next', 'other', 'legacy']);
+});
+
+test('市场行情：全量快照缺底数时先单物品强刷确认，不直接判无行情', () => {
+    const script = fs.readFileSync(path.join(root, '银河猫娘放置小助手.user.js'), 'utf8').replace(/\r\n/g, '\n');
+    // 缺底数分支：走带 fallback 的单物品强刷，不再直接写死「暂无市场行情」
+    assert.match(script, /mkForceItem\(id, enh, key, true\)/);
+    assert.doesNotMatch(script, /if \(mkBulkAt && Date\.now\(\) - mkBulkAt < MK_CACHE_TTL && mkNoData\(id, enh\)\) \{\s*\n\s*mkMarkNoData\(key\);/);
+    // 只有强刷返回仍无该等级才落终态；超时/失败延时重试，避免永久挂「获取中」
+    assert.match(script, /function mkForceItem\(id, enh, key, noDataFallback\)/);
+    assert.match(script, /if \(noDataFallback && mkBulkAt && Date\.now\(\) - mkBulkAt < MK_CACHE_TTL\) mkMarkNoData\(key\)/);
+    assert.match(script, /function mkScheduleRetry\(id, enh, key\)/);
+    assert.match(script, /\}, 6000\);/);
+    // 单物品快照到达后恢复同物品其他等级；成功渲染时清掉重试定时器
+    assert.match(script, /function mkRefreshId\(id\)/);
+    assert.match(script, /mkRefreshId\(id\);\s*\/\/ 同物品其他等级/);
+    assert.match(script, /clearTimeout\(retry\); mkRetryTimers\.delete\(key\)/);
+    // 注释保留实测来源，便于回归
+    assert.match(script, /松露意面 id 5003/);
+});
+
+test('库存成本：浮窗三按钮、悬停行情新增行、成本表列与小计差额', () => {
+    const script = fs.readFileSync(path.join(root, '银河猫娘放置小助手.user.js'), 'utf8').replace(/\r\n/g, '\n');
+    // 按钮尺寸：不再覆盖原生 .btn 字号/内边距
+    assert.doesNotMatch(script, /\.nek-cost-head \.nek-cost-sub-btn\.btn\{font-size:inherit/);
+    // 浮窗：确定 / 清空 / 取消，清空删除本地记录
+    assert.match(script, /actions\.append\(confirm, clear, cancel\)/);
+    assert.match(script, /clear\.textContent = '清空'/);
+    assert.match(script, /delete map\[String\(id\)\]/);
+    assert.match(script, /库存成本 · /);
+    // 悬停行情新增库存成本行，保存/清空/买入后推送刷新事件
+    assert.match(script, /function mkStockCost\(id\)/);
+    assert.match(script, /<span class="nek-mk-lbl">库存成本：<\/span>/);
+    assert.match(script, /function publishStockCost\(id\)/);
+    assert.match(script, /document\.addEventListener\('nek-stock-cost-updated'/);
+    // 成本卡片：两块可展开，直接买入材料=一层+库存成本列+括号，基础制作=完整树无库存成本/括号
+    assert.match(script, /row\(oneLevel, 'th', \['材料', '库存成本', '出售小计', '收购小计'\]\)/);
+    assert.match(script, /row\(tree, 'th', \['材料', '出售小计', '收购小计'\]\)/);
+    assert.match(script, /summaryRow\(direct, '直接买入材料'/);
+    assert.match(script, /summaryRow\(full, '从基础原料制作'/);
+    assert.match(script, /direct\.dataset\.nekView = 'direct'/);
+    assert.match(script, /full\.dataset\.nekView = 'full'/);
+    assert.match(script, /d\.dataset\.nekView\)\);/);
+    assert.match(script, /\.nek-cost-diff-pos\{color:rgb\(76,175,80\)\}\.nek-cost-diff-neg\{color:rgb\(255,48,33\)\}/);
+    assert.match(script, /appendDiff\(tr\.cells\[2\], diffOf\(child\.sellQuote, sub\)\)/);
+    assert.match(script, /appendDiff\(tr\.cells\[3\], diffOf\(child\.demandQuote, sub\)\)/);
+    assert.doesNotMatch(script, /function subtotalText\(node, side, root\)/);
+    assert.match(script, /\+ ' x' \+ qtyText\(node\.quantity\)/);
+    // 行情取数复用主脚本 API，不再在成本页另拉全量快照
+    assert.match(script, /window\.__NEK_MARKET__ = \{/);
+    assert.match(script, /ensureBulk: function \(\) \{ return mkEnsureBulk\(\); \}/);
+    assert.match(script, /api && typeof api\.quote === 'function'\) return api\.quote\(id, 0\)/);
+    assert.match(script, /document\.dispatchEvent\(new CustomEvent\('nek-market-quote-updated'/);
+    assert.match(script, /doc\.addEventListener\('nek-market-quote-updated'/);
+    assert.doesNotMatch(script, /const market = await env\.game\(\)\.loadMarketCache\(true\)/);
+});
+
+test('悬停行情渲染：库存成本读取本地值，缺失显示缺报价', () => {
+    const script = fs.readFileSync(path.join(root, '银河猫娘放置小助手.user.js'), 'utf8').replace(/\r\n/g, '\n');
+    const stockStart = script.indexOf('        function mkStockCost(id) {');
+    const stockEnd = script.indexOf('        // 全量快照中是否缺少', stockStart);
+    const lineStart = script.indexOf('        function mkLineHtml(lv, id) {');
+    const lineEnd = script.indexOf('        // 渲染某 key 的全部挂载标记', lineStart);
+    assert.ok(stockStart > 0 && stockEnd > stockStart && lineStart > stockEnd && lineEnd > lineStart);
+    const body = script.slice(stockStart, stockEnd) + '\n' + script.slice(lineStart, lineEnd);
+    const ctx = {
+        fmt: n => String(n),
+        game: { character: { uid: 7 } },
+        localStorage: { getItem: k => k === 'nek_warehouse_cost_v1:7' ? JSON.stringify({ 2211: 80 }) : null }
+    };
+    const html = vm.runInNewContext(body + '\nmkLineHtml({ sell_price: 100, demand_price: 80 }, 2211);', ctx);
+    assert.match(html, /库存成本：<\/span><span class="nek-mk-val">80<\/span>/);
+    const missing = vm.runInNewContext(body + '\nmkLineHtml({}, 9999);', ctx);
+    assert.match(missing, /库存成本：<\/span><span class="nek-mk-val">缺报价<\/span>/);
+});
+
+test('云同步 v1.52：成本数据纳入 payload、3 条/5 秒上传、未知字段暂存回传', () => {
+    const script = fs.readFileSync(path.join(root, '银河猫娘放置小助手.user.js'), 'utf8').replace(/\r\n/g, '\n');
+    // 成本核算条目与库存成本纳入 payload / 校验 / 覆盖 / 比对
+    assert.match(script, /function cloudNormalizeCostItems\(v\)/);
+    assert.match(script, /function cloudNormalizeWarehouseCost\(v\)/);
+    assert.match(script, /costItems: cloudCostItems\(uid\), warehouseCost: cloudWarehouseCost\(uid\)/);
+    assert.match(script, /p\.costItems != null && \(!Array\.isArray\(p\.costItems\)/);
+    assert.match(script, /p\.warehouseCost != null && \(!p\.warehouseCost \|\| typeof p\.warehouseCost/);
+    assert.match(script, /localStorage\.setItem\('nek_cost_items_v1:' \+ uid/);
+    assert.match(script, /localStorage\.setItem\('nek_warehouse_cost_v1:' \+ uid/);
+    assert.match(script, /costItems: cloudNormalizeCostItems\(p && p\.costItems\)/);
+    assert.match(script, /warehouseCost: cloudNormalizeWarehouseCost\(p && p\.warehouseCost\)/);
+    assert.match(script, /doc\.addEventListener\('nek-cost-items-updated'/);
+    // 旧 payload 无新字段不误报覆盖
+    assert.match(script, /if \(!\('costItems' in probe\)\) probe\.costItems = local\.costItems/);
+    // 上传节流：3 条 / 5 秒，不再立即上传
+    assert.match(script, /const CLOUD_DIRTY_BATCH = 3/);
+    assert.match(script, /const CLOUD_DIRTY_DELAY = 5000/);
+    assert.match(script, /this\.edits\+\+;/);
+    assert.match(script, /if \(this\.edits >= CLOUD_DIRTY_BATCH\) this\.flush\(\);/);
+    assert.match(script, /}, CLOUD_DIRTY_DELAY\);/);
+    assert.doesNotMatch(script, /markDirty\(\) \{[\s\S]{0,400}if \(!this\.running\) this\.flush\(\);/);
+    // 多版本容错：未识别字段暂存，上传原样带回
+    assert.match(script, /const CLOUD_STAGED_KEY = uid => 'nek_cloud_staged_v1:' \+ uid/);
+    assert.match(script, /function cloudStageUnknown\(p, uid\)/);
+    assert.match(script, /cloudStageUnknown\(r\.data\.data, curUid\)/);
+    assert.match(script, /cloudStageUnknown\(p, uid\);/);
+    assert.match(script, /const staged = cloudStaged\(uid\);/);
+    assert.match(script, /if \(!CLOUD_KNOWN_TOP\.has\(k\)\) payload\[k\] = stagedTop\[k\]/);
+
+    // 行为验证：归一化函数按去重/两位小数口径处理
+    const start = script.indexOf('        function cloudNormalizeCostItems(v) {');
+    const end = script.indexOf('        function cloudSameAsLocal(remote, uid) {', start);
+    assert.ok(start > 0 && end > start);
+    const ctx = { Object, Number, Array, Set: global.Set, isNaN };
+    const api = vm.runInNewContext(start > 0 ? script.slice(start, end) + '\n({ cloudNormalizeCostItems, cloudNormalizeWarehouseCost });' : '', ctx);
+    assert.equal(JSON.stringify(api.cloudNormalizeCostItems([3, 1, 3, '2', 0, -1])), '[1,2,3]');
+    assert.equal(JSON.stringify(api.cloudNormalizeWarehouseCost({ 12: 1.239, 13: '2.5', 14: -1, x: 3 })), '{"12":1.24,"13":2.5}');
+});
+
+test('v1.53：展开三角、精算范围、成本核算开关与设置项合并', () => {
+    const script = fs.readFileSync(path.join(root, '银河猫娘放置小助手.user.js'), 'utf8').replace(/\r\n/g, '\n');
+    // 三角提示（展开后旋转）
+    assert.match(script, /append\(title, 'span', 'nek-cost-caret', '▶'\)/);
+    assert.match(script, /\.nek-cost-caret\{display:inline-block;font-size:10px/);
+    assert.match(script, /\.nek-cost-expand\[open\] \.nek-cost-caret\{transform:rotate\(90deg\)\}/);
+    // 精算只对生产/烹饪成品显示，复用同一可核算判定
+    assert.match(script, /function craftableProduct\(data, product\)/);
+    assert.match(script, /const eligible = id > 0 && craftableProduct\(env\.data\(\), id\)/);
+    assert.match(script, /if \(!fav \|\| !costEnabled\(\) \|\| !eligible\)/);
+    assert.match(script, /const currentId = Number\(env\.ui\(\)\?\.marketplaceOption\?\.id \?\? env\.ui\(\)\?\.itemId\)/);
+    assert.match(script, /const choices = Object\.values\(data\.items\)\.filter\(item => craftableProduct\(data, item\.id\)\)/);
+    // 成本核算独立开关：侧栏入口 + 精算按钮 + 云同步
+    assert.match(script, /const LS_COST_KEY = 'nek_assistant_cost_enabled'/);
+    assert.match(script, /cost: 'nek_assistant_cost_enabled'/);
+    assert.match(script, /enabled: isEnabled, costEnabled: isCostEnabled/);
+    assert.match(script, /<input type="checkbox" class="nek-assist-cost-toggle">/);
+    assert.match(script, /if \(!isEnabled\(\) \|\| !isCostEnabled\(\)\) \{[\s\S]{0,180}\.nek-cost-entry, \.nek-market-cost, \.page\.nek-cost/);
+    // 五项合并为一个开关，旧五个 UI 开关不再出现
+    assert.match(script, /<input type="checkbox" class="nek-assist-uiopt-toggle">/);
+    for (const old of ['cook', 'prod', 'pick', 'alcsort', 'harvest']) {
+        assert.doesNotMatch(script, new RegExp('nek-assist-' + old + '-toggle'));
+    }
+    // 行为验证：合并开关任一子项开启即为开启；切换时五项一起写
+    const start = script.indexOf('        const isUiOptEnabled =');
+    const end = script.indexOf('        // 开关切换后统一刷新队列位置按钮的文案与样式', start);
+    assert.ok(start > 0 && end > start);
+    const calls = [];
+    const ctx = {
+        isCookEnabled: () => true, isProdEnabled: () => false, isPickEnabled: () => false,
+        isAlcSortEnabled: () => false, isFarmAssistEnabled: () => false,
+        setCookEnabled: v => calls.push(['cook', v]), setProdEnabled: v => calls.push(['prod', v]),
+        setPickEnabled: v => calls.push(['pick', v]), setAlcSortEnabled: v => calls.push(['alc', v]),
+        setFarmAssistEnabled: v => calls.push(['farm', v]),
+        applyCookClass() {}, applyProdClass() {}, applyPickClass() {}, applyAlcSortState() {}, applyHarvestState() {}
+    };
+    const api = vm.runInNewContext(script.slice(start, end) + '\n({ isUiOptEnabled, setUiOptEnabled });', ctx);
+    assert.equal(api.isUiOptEnabled(), true);
+    api.setUiOptEnabled(false);
+    assert.deepEqual(calls, [['cook', false], ['prod', false], ['pick', false], ['alc', false], ['farm', false]]);
 });

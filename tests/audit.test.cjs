@@ -31,7 +31,10 @@ test('云同步保留默认开关、已关闭的开关和进行中的钓鱼链�
     const context = { localStorage: {
         getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v), removeItem: k => storage.delete(k)
     }, LS_FISH_STATE_KEY: 'fish', CLOUD_ENH_SETTING_KEYS: ['holdings', 'researchQueue'], CLOUD_SETTING_KEYS: { harvest: 'hv' },
-    currentFishPeriod: () => 32, cloudFavorites: () => [], cloudUidGuard() {}, cloudQueueAlive: q => q };
+    currentFishPeriod: () => 32, cloudFavorites: () => [], cloudUidGuard() {}, cloudQueueAlive: q => q,
+    cloudStaged: () => ({}), cloudCostItems: () => [], cloudWarehouseCost: () => ({}),
+    cloudNormalizeCostItems: v => v, cloudNormalizeWarehouseCost: v => v, cloudStageUnknown() {},
+    document: { dispatchEvent() {} }, CustomEvent: function () {} };
     const api = vm.runInNewContext(section('function cloudBuildPayload(', '// 收藏整份覆盖前的确认') +
         '\n;({ cloudBuildPayload, cloudApply, todayLocal })', context);
     const today = api.todayLocal();
