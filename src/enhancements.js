@@ -518,6 +518,42 @@ function estimateQueueMaterials(game, data, metadata) {
     return totals;
 }
 
+// Each node represents the quantity needed for one finished product.
+function recipeCost(data, product, market, quantity = 1, ancestors = new Set()) {
+    const item = data?.items?.[product];
+    const actions = (item?.sources?.actions || []).map(source => data.actions?.[source.id]).filter(Boolean);
+    const node = { name: item?.name || String(product), quantity, children: [], sell: null, demand: null };
+    const level = market?.get(product)?.levels?.[0];
+    for (const side of ['sell', 'demand']) {
+        const price = Number(level?.[side + '_price']);
+        node[side + 'Quote'] = Number.isFinite(price) && price > 0 ? price * quantity : null;
+    }
+    const raw = actions.find(action => action.action === 1 || action.action === 2);
+    if (raw) {
+        node.source = raw.action === 1 ? '梳毛' : '采集';
+        node.sell = node.sellQuote;
+        node.demand = node.demandQuote;
+        return node;
+    }
+    const recipe = actions.find(action => action.action === 6 && action.rewards?.some(r => r.itemId === product));
+    const reward = recipe?.rewards.find(r => r.itemId === product);
+    if (ancestors.has(product) || !reward || reward.chance !== 100 || reward.min !== reward.max ||
+        !(reward.min > 0) || !recipe.requirements?.length ||
+        !recipe.requirements.every(r => Number.isFinite(r.quantity) && r.quantity > 0)) {
+        node.source = '配方不可用';
+        return node;
+    }
+    const path = new Set(ancestors).add(product);
+    node.children = recipe.requirements.map(r => recipeCost(data, r.itemId, market, quantity * r.quantity / reward.min, path));
+    for (const side of ['sell', 'demand']) {
+        const total = key => node.children.some(child => child[key] == null) ? null :
+            node.children.reduce((sum, child) => sum + child[key], 0);
+        node[side] = total(side);
+        node[side + 'Direct'] = total(side + 'Quote');
+    }
+    return node;
+}
+
 function createNekEnhancements(env) {
     const doc = env.document, storage = env.storage;
     const itemInfo = new WeakMap();
@@ -1049,10 +1085,89 @@ function createNekEnhancements(env) {
         doc.querySelectorAll('.nek-output-queue').forEach(label => { if (!queueLabels.has(label)) label.remove(); });
         doc.querySelectorAll('.nek-material-available').forEach(label => { if (!materialLabels.has(label)) label.remove(); });
     }
+    function decorateCostEntry() {
+        const entry = doc.querySelector('.nek-cost-entry');
+        if (!env.enabled()) { entry?.remove(); return; }
+        const anchor = doc.querySelector('.sidebar-group-items .sidebar-item.action-8');
+        if (!anchor || entry) return;
+        const button = doc.createElement('button');
+        button.type = 'button';
+        button.className = 'sidebar-item nek-cost-entry';
+        button.title = '成本核算';
+        button.innerHTML = '<span class="sidebar-item-name"><span>成本核算</span></span>';
+        anchor.after(button);
+        button.addEventListener('click', () => {
+            if (button.classList.contains('active')) return;
+            env.ui().changeContent('nek-cost');
+            const page = doc.querySelector('.page.nek-cost');
+            if (!page) return;
+            button.classList.add('active');
+            page.innerHTML = '<div class="page-body neon"><div class="page-tab"><div class="page-tab-item active">成本核算</div></div><div class="page-main"><button type="button" class="btn">刷新行情</button><p role="status"></p><div class="nek-cost-results"></div></div></div>';
+            const refresh = page.querySelector('button');
+            const status = page.querySelector('[role="status"]');
+            const results = page.querySelector('.nek-cost-results');
+            const append = (parent, tag, cls, value) => {
+                const el = doc.createElement(tag);
+                el.className = cls;
+                if (value != null) el.textContent = value;
+                parent.appendChild(el);
+                return el;
+            };
+            function render(market) {
+                results.replaceChildren();
+                const data = env.data();
+                const format = n => n == null ? (market ? '缺报价' : '—') : n.toLocaleString('zh-CN');
+                for (const product of [6103, 6113, 6123]) {
+                    const cost = recipeCost(data, product, market);
+                    const card = append(results, 'section', 'neon-section');
+                    append(card, 'div', 'modal-container-title', cost.name);
+                    const table = append(card, 'table', 'nek-cost-table');
+                    table.style.width = '100%';
+                    function row(table, tag, values) {
+                        const tr = table.insertRow();
+                        values.forEach(v => append(tr, tag, '', v));
+                        tr.style.textAlign = 'start';
+                        return tr;
+                    }
+                    row(table, 'th', ['单件成本（喵点）', '按出售价', '按收购价']);
+                    row(table, 'td', ['买入直接材料', format(cost.sellDirect), format(cost.demandDirect)]);
+                    row(table, 'td', ['从基础原料制作', format(cost.sell), format(cost.demand)]);
+                    const details = append(card, 'details', '');
+                    append(details, 'summary', '', '逐层配方与用量');
+                    const tree = append(details, 'table', 'nek-cost-table');
+                    tree.style.width = '100%';
+                    row(tree, 'th', ['材料 × 累计用量', '出售口径小计', '收购口径小计']);
+                    function branch(node, depth) {
+                        const label = node.name + ' × ' + format(node.quantity) + (node.source ? '（' + node.source + '）' : '');
+                        const tr = row(tree, 'td', [label, format(node.sell), format(node.demand)]);
+                        tr.firstChild.style.paddingInlineStart = depth * 0.65 + 'em';
+                        node.children.forEach(child => branch(child, depth + 1));
+                    }
+                    branch(cost, 0);
+                }
+            }
+            async function load() {
+                refresh.disabled = true;
+                render(null);
+                status.textContent = '正在读取市场行情…';
+                try {
+                    const market = await env.game().loadMarketCache(true);
+                    if (!page.isConnected) return;
+                    if (!market?.size) throw new Error('empty market');
+                    render(market);
+                    status.textContent = '按市场快照中的材料单价估算，单位为喵点。';
+                } catch {
+                    if (page.isConnected) status.textContent = '未取得市场行情，请刷新重试。';
+                } finally { refresh.disabled = false; }
+            }
+            refresh.addEventListener('click', load);
+            load();
+        });
+    }
     function decorate() {
         const v = core.view();
         if (!v.account) return;
-        style(); decorateResearch(v); decorateSettings(v); decorateHoldings(v);
+        style(); decorateResearch(v); decorateSettings(v); decorateHoldings(v); decorateCostEntry();
         doc.querySelectorAll('[data-nek-option]').forEach(input => {
             const checked = v.settings[input.dataset.nekOption]; if (input.checked !== checked) input.checked = checked;
         });
@@ -1077,4 +1192,4 @@ function createNekEnhancements(env) {
 }
 
 // CommonJS test exports (not embedded into the userscript).
-if (typeof module !== 'undefined') module.exports = { createNekController, createNekEnhancements };
+if (typeof module !== 'undefined') module.exports = { createNekController, createNekEnhancements, recipeCost };
