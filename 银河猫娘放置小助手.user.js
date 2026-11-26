@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.44.3
-// @description  v1.44.3：修复云同步开关与预约恢复、研究账号切换、定时钓鱼队列恢复及构建校验。v1.44.2——修复研究队列云同步「已完成研究复活」竞态——云端旧队列覆盖本地时，按游戏实时等级过滤掉目标已达成的条目（与 plan()/settleSubmitted 同口径，含正在研究任务 +1），比对时同口径过滤避免每次刷新误报覆盖。v1.44.1——toolbar「手动云同步」按钮改为与签到按钮同款青色发光样式（文字由「同步」改「手动云同步」）。v1.44.0——云同步新增市场「我的收藏」同步（localStorage.favorite 的 itemId 数组，归一化去重排序后入 payload；挂钩 Utils.setData 自动上传；云端覆盖前弹窗对比两端收藏数量由用户决定整份覆盖）+ toolbar 签到按钮旁新增「同步」按钮（仅上传本地到云端，不拉取）。v1.43.7——修复刷新时误报「云端已覆盖本地」——开关按脚本真实语义归一化比对（null 或 1 都=开、0=关），null 与 1 不再判为不同；研究按钮缺料红框内发光改呼吸动画。v1.43.6——研究队列按钮缺料提示——队首材料确实不足（复用研究队列已有的 researchStatus 判定）时，快捷按钮红边框 + 红色内发光、字保持黑色，title 补注「队首材料不足，等待补充」。v1.43.5——pull 绑定到游戏主界面顶栏 toolbar-container——进入游戏（含刷新、回退登录页后重新进入）时各发一次 GET，同一节点只拉一次、回退清空以允许再拉；服务端 GET/GET 与 PUT/PUT 各自 2 秒限流、两者互不干扰。v1.43.4——修复刷新不发 pull：从 document-idle 延后到主界面就绪后再拉。v1.43.3——云同步 uid 安全加固——覆盖/上传前实时校验当前游戏玩家 uid（pull 请求前后双闸、push 上传前后双闸、flush 检测账号切换丢弃旧状态），防止 A 回退登录页后 B 登录被 A 的云端配置串号覆盖。v1.43.2——云同步与脚本加载并行——4 个 init 立即执行不等网络，服务端不可达/挂起都不影响加载（单次请求 3 秒超时）；启动只 pull 不 push，拉取后与本地比对，一致不覆盖不通知，仅云端覆盖本地 / push 成功 / push 失败三类用通知栏反馈；回退登录页不 push、不 pull；未登录不同步、不等待 uid；设置页云同步开关，本地设置/研究队列/钓鱼预约变化时 2 秒节流自动上传；首次开启云端有数据则二选一，无数据静默启用；钓鱼预约新增 day 日期字段跨日不同步；队列条目去 submitted、本地租约不进 payload；明文 JSON + XOR/Base64 混淆传输。自动收菜按钮 60 秒往返进度 CSS keyframes 动画；研究队列（预留材料与自动结算）、自动接受任务/领奖、市场行情、采集/生产/烹饪详情优化、防呆设置、点金辅助、农业辅助（自动收菜+好友农场预览）、检查更新、定时钓鱼、炼金经验效率与越级计算等，详见脚本正文。
+// @version      1.46.1
+// @description  v1.46.1：统一成本核算入口的侧栏文字样式，并换用表格图标。v1.46.0——成本核算支持自选清单与宽屏双列。v1.45.2——收紧成本表，材料用量与双侧报价分列对齐。v1.45.1——修复成本核算页展开长配方后无法滚动的问题。v1.45.0——新增奇点科技生产成本核算，可逐层展开至采集和梳毛原料。v1.44.3——修复云同步开关与预约恢复、研究账号切换、定时钓鱼队列恢复及构建校验。v1.44.2——修复研究队列云同步「已完成研究复活」竞态——云端旧队列覆盖本地时，按游戏实时等级过滤掉目标已达成的条目（与 plan()/settleSubmitted 同口径，含正在研究任务 +1），比对时同口径过滤避免每次刷新误报覆盖。v1.44.1——toolbar「手动云同步」按钮改为与签到按钮同款青色发光样式（文字由「同步」改「手动云同步」）。v1.44.0——云同步新增市场「我的收藏」同步（localStorage.favorite 的 itemId 数组，归一化去重排序后入 payload；挂钩 Utils.setData 自动上传；云端覆盖前弹窗对比两端收藏数量由用户决定整份覆盖）+ toolbar 签到按钮旁新增「同步」按钮（仅上传本地到云端，不拉取）。v1.43.7——修复刷新时误报「云端已覆盖本地」——开关按脚本真实语义归一化比对（null 或 1 都=开、0=关），null 与 1 不再判为不同；研究按钮缺料红框内发光改呼吸动画。v1.43.6——研究队列按钮缺料提示——队首材料确实不足（复用研究队列已有的 researchStatus 判定）时，快捷按钮红边框 + 红色内发光、字保持黑色，title 补注「队首材料不足，等待补充」。v1.43.5——pull 绑定到游戏主界面顶栏 toolbar-container——进入游戏（含刷新、回退登录页后重新进入）时各发一次 GET，同一节点只拉一次、回退清空以允许再拉；服务端 GET/GET 与 PUT/PUT 各自 2 秒限流、两者互不干扰。v1.43.4——修复刷新不发 pull：从 document-idle 延后到主界面就绪后再拉。v1.43.3——云同步 uid 安全加固——覆盖/上传前实时校验当前游戏玩家 uid（pull 请求前后双闸、push 上传前后双闸、flush 检测账号切换丢弃旧状态），防止 A 回退登录页后 B 登录被 A 的云端配置串号覆盖。v1.43.2——云同步与脚本加载并行——4 个 init 立即执行不等网络，服务端不可达/挂起都不影响加载（单次请求 3 秒超时）；启动只 pull 不 push，拉取后与本地比对，一致不覆盖不通知，仅云端覆盖本地 / push 成功 / push 失败三类用通知栏反馈；回退登录页不 push、不 pull；未登录不同步、不等待 uid；设置页云同步开关，本地设置/研究队列/钓鱼预约变化时 2 秒节流自动上传；首次开启云端有数据则二选一，无数据静默启用；钓鱼预约新增 day 日期字段跨日不同步；队列条目去 submitted、本地租约不进 payload；明文 JSON + XOR/Base64 混淆传输。自动收菜按钮 60 秒往返进度 CSS keyframes 动画；研究队列（预留材料与自动结算）、自动接受任务/领奖、市场行情、采集/生产/烹饪详情优化、防呆设置、点金辅助、农业辅助（自动收菜+好友农场预览）、检查更新、定时钓鱼、炼金经验效率与越级计算等，详见脚本正文。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
 // @match        https://nekoidle.net/*
@@ -3511,6 +3511,42 @@
             return totals;
         }
 
+        // Each node represents the quantity needed for one finished product.
+        function recipeCost(data, product, market, quantity = 1, ancestors = new Set()) {
+            const item = data?.items?.[product];
+            const actions = (item?.sources?.actions || []).map(source => data.actions?.[source.id]).filter(Boolean);
+            const node = { name: item?.name || String(product), quantity, children: [], sell: null, demand: null };
+            const level = market?.get(product)?.levels?.[0];
+            for (const side of ['sell', 'demand']) {
+                const price = Number(level?.[side + '_price']);
+                node[side + 'Quote'] = Number.isFinite(price) && price > 0 ? price * quantity : null;
+            }
+            const raw = actions.find(action => action.action === 1 || action.action === 2);
+            if (raw) {
+                node.source = raw.action === 1 ? '梳毛' : '采集';
+                node.sell = node.sellQuote;
+                node.demand = node.demandQuote;
+                return node;
+            }
+            const recipe = actions.find(action => action.action === 6 && action.rewards?.some(r => r.itemId === product));
+            const reward = recipe?.rewards.find(r => r.itemId === product);
+            if (ancestors.has(product) || !reward || reward.chance !== 100 || reward.min !== reward.max ||
+                !(reward.min > 0) || !recipe.requirements?.length ||
+                !recipe.requirements.every(r => Number.isFinite(r.quantity) && r.quantity > 0)) {
+                node.source = '配方不可用';
+                return node;
+            }
+            const path = new Set(ancestors).add(product);
+            node.children = recipe.requirements.map(r => recipeCost(data, r.itemId, market, quantity * r.quantity / reward.min, path));
+            for (const side of ['sell', 'demand']) {
+                const total = key => node.children.some(child => child[key] == null) ? null :
+                    node.children.reduce((sum, child) => sum + child[key], 0);
+                node[side] = total(side);
+                node[side + 'Direct'] = total(side + 'Quote');
+            }
+            return node;
+        }
+
         function createNekEnhancements(env) {
             const doc = env.document, storage = env.storage;
             const itemInfo = new WeakMap();
@@ -3747,6 +3783,19 @@
                 if (doc.getElementById('nek-enhancements-style')) return;
                 const el = doc.createElement('style'); el.id = 'nek-enhancements-style';
                 el.textContent = [
+                    '.sidebar-item.nek-cost-entry::after{box-sizing:border-box;width:18px;height:14px;left:13px;margin-top:-7px;border:1px solid currentColor;border-radius:1px;background:linear-gradient(currentColor,currentColor) center top/1px 100% no-repeat,linear-gradient(currentColor,currentColor) left 33%/100% 1px no-repeat,linear-gradient(currentColor,currentColor) left 66%/100% 1px no-repeat}',
+                    '.nek-cost > .page-body > .page-main{overflow-y:auto}',
+                    '.nek-cost .page-main{container-type:inline-size}.nek-cost-results{width:100%;max-width:76rem;display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:6px}',
+                    '@media(min-width:761px){@container(min-width:44rem){.nek-cost-results{grid-template-columns:repeat(2,minmax(0,1fr))}}}',
+                    '.nek-cost-tools,.nek-cost-head{display:flex;flex-wrap:wrap;align-items:center;gap:4px}.nek-cost-tools select{max-width:100%}.nek-cost-head .modal-container-title{margin-right:auto}',
+                    '.nek-cost-results>.neon-section{margin:0;padding:6px 8px;min-width:0}',
+                    '.nek-cost .page-main>.btn{align-self:flex-start}.nek-cost .page-main>p{margin:4px 0}',
+                    '.nek-cost-table{width:100%;border-collapse:collapse;table-layout:fixed;font-variant-numeric:tabular-nums}',
+                    '.nek-cost-table :is(th,td){padding:2px 4px;text-align:right;line-height:1.35;overflow-wrap:anywhere}',
+                    '.nek-cost-table :is(th,td):first-child{text-align:left}',
+                    '.nek-cost-table th:nth-last-child(-n+2){width:23%}.nek-cost-detail th:nth-child(2){width:12%}',
+                    '.nek-cost-table tr:nth-child(even){background:rgba(var(--r),var(--g),var(--b),.06)}',
+                    '.nek-cost-results summary{cursor:pointer;padding:3px 4px}',
                     // 手机端吸顶折叠（nek-float 仅窄屏添加）：面板嵌在研究列表滚动流内，滚过容器顶自动折叠成标题条并 sticky 吸顶。
                     // 背景必须不透明：neon-section 原背景 rgba(0,0,0,.18) 半透明，吸顶时下方滚动内容会透过面板造成文字重叠
                     '.nek-research-queue.nek-float{position:sticky;top:0;z-index:20;margin-top:8px;background-color:var(--c-bg,#092653);background-image:linear-gradient(rgba(0,0,0,.18),rgba(0,0,0,.18))}',
@@ -4042,10 +4091,157 @@
                 doc.querySelectorAll('.nek-output-queue').forEach(label => { if (!queueLabels.has(label)) label.remove(); });
                 doc.querySelectorAll('.nek-material-available').forEach(label => { if (!materialLabels.has(label)) label.remove(); });
             }
+            function decorateCostEntry() {
+                const entry = doc.querySelector('.nek-cost-entry');
+                if (!env.enabled()) { entry?.remove(); return; }
+                const anchor = doc.querySelector('.sidebar-group-items .sidebar-item.action-8');
+                if (!anchor || entry) return;
+                const button = doc.createElement('div');
+                button.setAttribute('role', 'button');
+                button.tabIndex = 0;
+                button.className = 'sidebar-item nek-cost-entry';
+                button.title = '成本核算';
+                button.innerHTML = '<div class="sidebar-item-name"><span>成本核算</span></div>';
+                anchor.after(button);
+                button.addEventListener('keydown', event => {
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    event.preventDefault();
+                    button.click();
+                });
+                button.addEventListener('click', () => {
+                    if (button.classList.contains('active')) return;
+                    env.ui().changeContent('nek-cost');
+                    const page = doc.querySelector('.page.nek-cost');
+                    if (!page) return;
+                    button.classList.add('active');
+                    page.innerHTML = '<div class="page-body neon"><div class="page-tab"><div class="page-tab-item active">成本核算</div></div><div class="page-main"><button type="button" class="btn">刷新行情</button><p role="status"></p><div class="nek-cost-results"></div></div></div>';
+                    const refresh = page.querySelector('button');
+                    const status = page.querySelector('[role="status"]');
+                    const results = page.querySelector('.nek-cost-results');
+                    const uid = core.view().account;
+                    const key = 'nek_cost_items_v1:' + uid;
+                    const data = env.data();
+                    const choices = Object.values(data.items).filter(item => recipeCost(data, item.id, null).children.length);
+                    const allowed = new Set(choices.map(item => item.id));
+                    let products = [6103, 6113, 6123];
+                    try {
+                        const saved = JSON.parse(storage.getItem(key));
+                        if (Array.isArray(saved)) products = [...new Set(saved.filter(id => allowed.has(id)))];
+                    } catch { /* 旧配置损坏时使用初始清单 */ }
+                    let replacing = null, snapshot = null;
+                    const append = (parent, tag, cls, value) => {
+                        const el = doc.createElement(tag);
+                        el.className = cls;
+                        if (value != null) el.textContent = value;
+                        parent.appendChild(el);
+                        return el;
+                    };
+                    const tools = doc.createElement('div');
+                    tools.className = 'nek-cost-tools';
+                    refresh.before(tools);
+                    const search = append(tools, 'input', '');
+                    search.type = 'search';
+                    search.placeholder = '搜索生产物品';
+                    search.setAttribute('aria-label', search.placeholder);
+                    const select = append(tools, 'select', '');
+                    select.setAttribute('aria-label', '选择生产物品');
+                    const apply = append(tools, 'button', 'btn', '添加物品');
+                    const cancel = append(tools, 'button', 'btn', '取消');
+                    tools.appendChild(refresh);
+                    function updatePicker() {
+                        select.replaceChildren();
+                        const query = search.value.trim();
+                        for (const item of choices) {
+                            if (products.includes(item.id) || !(item.name.includes(query) || String(item.id).includes(query))) continue;
+                            append(select, 'option', '', item.name).value = String(item.id);
+                        }
+                        apply.disabled = !select.options.length;
+                        if (apply.disabled) append(select, 'option', '', '没有可选物品');
+                        apply.textContent = replacing == null ? '添加物品' : '替换「' + data.items[replacing].name + '」';
+                        cancel.hidden = replacing == null;
+                    }
+                    function save(next) {
+                        if (core.view().account !== uid) return;
+                        try { storage.setItem(key, JSON.stringify(next)); }
+                        catch { status.textContent = '清单保存失败，请重试。'; return; }
+                        products = next;
+                        replacing = null;
+                        search.value = '';
+                        updatePicker();
+                        render(snapshot);
+                    }
+                    search.addEventListener('input', updatePicker);
+                    apply.addEventListener('click', () => {
+                        const id = Number(select.value);
+                        if (!allowed.has(id) || products.includes(id)) return;
+                        save(replacing == null ? [...products, id] : products.map(old => old === replacing ? id : old));
+                    });
+                    cancel.addEventListener('click', () => { replacing = null; updatePicker(); });
+                    updatePicker();
+                    function render(market) {
+                        snapshot = market;
+                        const expanded = new Set(Array.from(results.querySelectorAll('details[open]'), d => d.closest('section').dataset.product));
+                        results.replaceChildren();
+                        const format = n => n == null ? (market ? '缺报价' : '—') : n.toLocaleString('zh-CN');
+                        if (!products.length) append(results, 'p', '', '清单为空，可在上方选择并添加物品。');
+                        for (const product of products) {
+                            const cost = recipeCost(data, product, market);
+                            const card = append(results, 'section', 'neon-section');
+                            card.dataset.product = String(product);
+                            const head = append(card, 'div', 'nek-cost-head');
+                            append(head, 'div', 'modal-container-title', cost.name);
+                            append(head, 'button', 'btn', '替换').addEventListener('click', () => {
+                                replacing = product;
+                                search.value = '';
+                                updatePicker();
+                                search.focus();
+                            });
+                            append(head, 'button', 'btn', '删除').addEventListener('click', () => save(products.filter(id => id !== product)));
+                            const table = append(card, 'table', 'nek-cost-table');
+                            function row(table, tag, values) {
+                                const tr = table.insertRow();
+                                values.forEach(v => append(tr, tag, '', v));
+                                return tr;
+                            }
+                            row(table, 'th', ['单件成本（喵点）', '按出售价', '按收购价']);
+                            row(table, 'td', ['买入直接材料', format(cost.sellDirect), format(cost.demandDirect)]);
+                            row(table, 'td', ['从基础原料制作', format(cost.sell), format(cost.demand)]);
+                            const details = append(card, 'details', '');
+                            details.open = expanded.has(String(product));
+                            append(details, 'summary', '', '逐层配方与用量');
+                            const tree = append(details, 'table', 'nek-cost-table nek-cost-detail');
+                            row(tree, 'th', ['材料', '用量', '出售小计', '收购小计']);
+                            function branch(node, depth) {
+                                const label = node.name + (node.source ? '（' + node.source + '）' : '');
+                                const tr = row(tree, 'td', [label, format(node.quantity), format(node.sell), format(node.demand)]);
+                                tr.firstChild.style.paddingInlineStart = (4 + depth * 5) + 'px';
+                                node.children.forEach(child => branch(child, depth + 1));
+                            }
+                            branch(cost, 0);
+                        }
+                    }
+                    async function load() {
+                        refresh.disabled = true;
+                        render(null);
+                        status.textContent = '正在读取市场行情…';
+                        try {
+                            const market = await env.game().loadMarketCache(true);
+                            if (!page.isConnected) return;
+                            if (!market?.size) throw new Error('empty market');
+                            render(market);
+                            status.textContent = '按市场快照中的材料单价估算，单位为喵点。';
+                        } catch {
+                            if (page.isConnected) status.textContent = '未取得市场行情，请刷新重试。';
+                        } finally { refresh.disabled = false; }
+                    }
+                    refresh.addEventListener('click', load);
+                    load();
+                });
+            }
             function decorate() {
                 const v = core.view();
                 if (!v.account) return;
-                style(); decorateResearch(v); decorateSettings(v); decorateHoldings(v);
+                style(); decorateResearch(v); decorateSettings(v); decorateHoldings(v); decorateCostEntry();
                 doc.querySelectorAll('[data-nek-option]').forEach(input => {
                     const checked = v.settings[input.dataset.nekOption]; if (input.checked !== checked) input.checked = checked;
                 });
@@ -5219,7 +5415,7 @@
         // ---------------- 自动检查更新（GitHub raw 头部 @version 对比） ----------------
         // 注意：发布新版本时需同步修改 CURRENT_VERSION（与头部 @version 保持一致）。
         // 页面上下文无 GM_info（@grant none 且经 <script> 注入），只能内置当前版本号。
-        const CURRENT_VERSION = '1.44.3';
+        const CURRENT_VERSION = '1.46.1';
         const LS_UPD_KEY = 'nek_update_check_enabled';        // 检查更新开关，默认开
         const LS_UPD_REMIND = 'nek_update_remind_last';       // 上次提醒时间戳（提醒节流）
         const UPD_REMIND_INTERVAL = 60 * 60 * 1000;           // 提醒节流：距上次提醒超过 60 分钟才再次提醒
