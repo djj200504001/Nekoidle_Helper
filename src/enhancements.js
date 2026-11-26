@@ -790,6 +790,7 @@ function createNekEnhancements(env) {
         if (doc.getElementById('nek-enhancements-style')) return;
         const el = doc.createElement('style'); el.id = 'nek-enhancements-style';
         el.textContent = [
+            '.sidebar-item.nek-cost-entry::after{box-sizing:border-box;width:18px;height:14px;left:13px;margin-top:-7px;border:1px solid currentColor;border-radius:1px;background:linear-gradient(currentColor,currentColor) center top/1px 100% no-repeat,linear-gradient(currentColor,currentColor) left 33%/100% 1px no-repeat,linear-gradient(currentColor,currentColor) left 66%/100% 1px no-repeat}',
             '.nek-cost > .page-body > .page-main{overflow-y:auto}',
             '.nek-cost .page-main{container-type:inline-size}.nek-cost-results{width:100%;max-width:76rem;display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:6px}',
             '@media(min-width:761px){@container(min-width:44rem){.nek-cost-results{grid-template-columns:repeat(2,minmax(0,1fr))}}}',
@@ -1102,12 +1103,18 @@ function createNekEnhancements(env) {
         if (!env.enabled()) { entry?.remove(); return; }
         const anchor = doc.querySelector('.sidebar-group-items .sidebar-item.action-8');
         if (!anchor || entry) return;
-        const button = doc.createElement('button');
-        button.type = 'button';
+        const button = doc.createElement('div');
+        button.setAttribute('role', 'button');
+        button.tabIndex = 0;
         button.className = 'sidebar-item nek-cost-entry';
         button.title = '成本核算';
-        button.innerHTML = '<span class="sidebar-item-name"><span>成本核算</span></span>';
+        button.innerHTML = '<div class="sidebar-item-name"><span>成本核算</span></div>';
         anchor.after(button);
+        button.addEventListener('keydown', event => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            button.click();
+        });
         button.addEventListener('click', () => {
             if (button.classList.contains('active')) return;
             env.ui().changeContent('nek-cost');
