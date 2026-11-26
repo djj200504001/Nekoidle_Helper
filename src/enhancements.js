@@ -790,6 +790,7 @@ function createNekEnhancements(env) {
         if (doc.getElementById('nek-enhancements-style')) return;
         const el = doc.createElement('style'); el.id = 'nek-enhancements-style';
         el.textContent = [
+            '.nek-cost > .page-body > .page-main{overflow-y:auto}',
             // 手机端吸顶折叠（nek-float 仅窄屏添加）：面板嵌在研究列表滚动流内，滚过容器顶自动折叠成标题条并 sticky 吸顶。
             // 背景必须不透明：neon-section 原背景 rgba(0,0,0,.18) 半透明，吸顶时下方滚动内容会透过面板造成文字重叠
             '.nek-research-queue.nek-float{position:sticky;top:0;z-index:20;margin-top:8px;background-color:var(--c-bg,#092653);background-image:linear-gradient(rgba(0,0,0,.18),rgba(0,0,0,.18))}',
