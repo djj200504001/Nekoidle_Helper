@@ -791,7 +791,9 @@ function createNekEnhancements(env) {
         const el = doc.createElement('style'); el.id = 'nek-enhancements-style';
         el.textContent = [
             '.nek-cost > .page-body > .page-main{overflow-y:auto}',
-            '.nek-cost-results{width:100%;max-width:38rem;display:grid;gap:6px}',
+            '.nek-cost .page-main{container-type:inline-size}.nek-cost-results{width:100%;max-width:76rem;display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:6px}',
+            '@media(min-width:761px){@container(min-width:44rem){.nek-cost-results{grid-template-columns:repeat(2,minmax(0,1fr))}}}',
+            '.nek-cost-tools,.nek-cost-head{display:flex;flex-wrap:wrap;align-items:center;gap:4px}.nek-cost-tools select{max-width:100%}.nek-cost-head .modal-container-title{margin-right:auto}',
             '.nek-cost-results>.neon-section{margin:0;padding:6px 8px;min-width:0}',
             '.nek-cost .page-main>.btn{align-self:flex-start}.nek-cost .page-main>p{margin:4px 0}',
             '.nek-cost-table{width:100%;border-collapse:collapse;table-layout:fixed;font-variant-numeric:tabular-nums}',
@@ -1116,6 +1118,17 @@ function createNekEnhancements(env) {
             const refresh = page.querySelector('button');
             const status = page.querySelector('[role="status"]');
             const results = page.querySelector('.nek-cost-results');
+            const uid = core.view().account;
+            const key = 'nek_cost_items_v1:' + uid;
+            const data = env.data();
+            const choices = Object.values(data.items).filter(item => recipeCost(data, item.id, null).children.length);
+            const allowed = new Set(choices.map(item => item.id));
+            let products = [6103, 6113, 6123];
+            try {
+                const saved = JSON.parse(storage.getItem(key));
+                if (Array.isArray(saved)) products = [...new Set(saved.filter(id => allowed.has(id)))];
+            } catch { /* 旧配置损坏时使用初始清单 */ }
+            let replacing = null, snapshot = null;
             const append = (parent, tag, cls, value) => {
                 const el = doc.createElement(tag);
                 el.className = cls;
@@ -1123,14 +1136,67 @@ function createNekEnhancements(env) {
                 parent.appendChild(el);
                 return el;
             };
+            const tools = doc.createElement('div');
+            tools.className = 'nek-cost-tools';
+            refresh.before(tools);
+            const search = append(tools, 'input', '');
+            search.type = 'search';
+            search.placeholder = '搜索生产物品';
+            search.setAttribute('aria-label', search.placeholder);
+            const select = append(tools, 'select', '');
+            select.setAttribute('aria-label', '选择生产物品');
+            const apply = append(tools, 'button', 'btn', '添加物品');
+            const cancel = append(tools, 'button', 'btn', '取消');
+            tools.appendChild(refresh);
+            function updatePicker() {
+                select.replaceChildren();
+                const query = search.value.trim();
+                for (const item of choices) {
+                    if (products.includes(item.id) || !(item.name.includes(query) || String(item.id).includes(query))) continue;
+                    append(select, 'option', '', item.name).value = String(item.id);
+                }
+                apply.disabled = !select.options.length;
+                if (apply.disabled) append(select, 'option', '', '没有可选物品');
+                apply.textContent = replacing == null ? '添加物品' : '替换「' + data.items[replacing].name + '」';
+                cancel.hidden = replacing == null;
+            }
+            function save(next) {
+                if (core.view().account !== uid) return;
+                try { storage.setItem(key, JSON.stringify(next)); }
+                catch { status.textContent = '清单保存失败，请重试。'; return; }
+                products = next;
+                replacing = null;
+                search.value = '';
+                updatePicker();
+                render(snapshot);
+            }
+            search.addEventListener('input', updatePicker);
+            apply.addEventListener('click', () => {
+                const id = Number(select.value);
+                if (!allowed.has(id) || products.includes(id)) return;
+                save(replacing == null ? [...products, id] : products.map(old => old === replacing ? id : old));
+            });
+            cancel.addEventListener('click', () => { replacing = null; updatePicker(); });
+            updatePicker();
             function render(market) {
+                snapshot = market;
+                const expanded = new Set(Array.from(results.querySelectorAll('details[open]'), d => d.closest('section').dataset.product));
                 results.replaceChildren();
-                const data = env.data();
                 const format = n => n == null ? (market ? '缺报价' : '—') : n.toLocaleString('zh-CN');
-                for (const product of [6103, 6113, 6123]) {
+                if (!products.length) append(results, 'p', '', '清单为空，可在上方选择并添加物品。');
+                for (const product of products) {
                     const cost = recipeCost(data, product, market);
                     const card = append(results, 'section', 'neon-section');
-                    append(card, 'div', 'modal-container-title', cost.name);
+                    card.dataset.product = String(product);
+                    const head = append(card, 'div', 'nek-cost-head');
+                    append(head, 'div', 'modal-container-title', cost.name);
+                    append(head, 'button', 'btn', '替换').addEventListener('click', () => {
+                        replacing = product;
+                        search.value = '';
+                        updatePicker();
+                        search.focus();
+                    });
+                    append(head, 'button', 'btn', '删除').addEventListener('click', () => save(products.filter(id => id !== product)));
                     const table = append(card, 'table', 'nek-cost-table');
                     function row(table, tag, values) {
                         const tr = table.insertRow();
@@ -1141,6 +1207,7 @@ function createNekEnhancements(env) {
                     row(table, 'td', ['买入直接材料', format(cost.sellDirect), format(cost.demandDirect)]);
                     row(table, 'td', ['从基础原料制作', format(cost.sell), format(cost.demand)]);
                     const details = append(card, 'details', '');
+                    details.open = expanded.has(String(product));
                     append(details, 'summary', '', '逐层配方与用量');
                     const tree = append(details, 'table', 'nek-cost-table nek-cost-detail');
                     row(tree, 'th', ['材料', '用量', '出售小计', '收购小计']);
