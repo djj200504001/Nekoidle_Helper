@@ -791,6 +791,15 @@ function createNekEnhancements(env) {
         const el = doc.createElement('style'); el.id = 'nek-enhancements-style';
         el.textContent = [
             '.nek-cost > .page-body > .page-main{overflow-y:auto}',
+            '.nek-cost-results{width:100%;max-width:38rem;display:grid;gap:6px}',
+            '.nek-cost-results>.neon-section{margin:0;padding:6px 8px;min-width:0}',
+            '.nek-cost .page-main>.btn{align-self:flex-start}.nek-cost .page-main>p{margin:4px 0}',
+            '.nek-cost-table{width:100%;border-collapse:collapse;table-layout:fixed;font-variant-numeric:tabular-nums}',
+            '.nek-cost-table :is(th,td){padding:2px 4px;text-align:right;line-height:1.35;overflow-wrap:anywhere}',
+            '.nek-cost-table :is(th,td):first-child{text-align:left}',
+            '.nek-cost-table th:nth-last-child(-n+2){width:23%}.nek-cost-detail th:nth-child(2){width:12%}',
+            '.nek-cost-table tr:nth-child(even){background:rgba(var(--r),var(--g),var(--b),.06)}',
+            '.nek-cost-results summary{cursor:pointer;padding:3px 4px}',
             // 手机端吸顶折叠（nek-float 仅窄屏添加）：面板嵌在研究列表滚动流内，滚过容器顶自动折叠成标题条并 sticky 吸顶。
             // 背景必须不透明：neon-section 原背景 rgba(0,0,0,.18) 半透明，吸顶时下方滚动内容会透过面板造成文字重叠
             '.nek-research-queue.nek-float{position:sticky;top:0;z-index:20;margin-top:8px;background-color:var(--c-bg,#092653);background-image:linear-gradient(rgba(0,0,0,.18),rgba(0,0,0,.18))}',
@@ -1123,11 +1132,9 @@ function createNekEnhancements(env) {
                     const card = append(results, 'section', 'neon-section');
                     append(card, 'div', 'modal-container-title', cost.name);
                     const table = append(card, 'table', 'nek-cost-table');
-                    table.style.width = '100%';
                     function row(table, tag, values) {
                         const tr = table.insertRow();
                         values.forEach(v => append(tr, tag, '', v));
-                        tr.style.textAlign = 'start';
                         return tr;
                     }
                     row(table, 'th', ['单件成本（喵点）', '按出售价', '按收购价']);
@@ -1135,13 +1142,12 @@ function createNekEnhancements(env) {
                     row(table, 'td', ['从基础原料制作', format(cost.sell), format(cost.demand)]);
                     const details = append(card, 'details', '');
                     append(details, 'summary', '', '逐层配方与用量');
-                    const tree = append(details, 'table', 'nek-cost-table');
-                    tree.style.width = '100%';
-                    row(tree, 'th', ['材料 × 累计用量', '出售口径小计', '收购口径小计']);
+                    const tree = append(details, 'table', 'nek-cost-table nek-cost-detail');
+                    row(tree, 'th', ['材料', '用量', '出售小计', '收购小计']);
                     function branch(node, depth) {
-                        const label = node.name + ' × ' + format(node.quantity) + (node.source ? '（' + node.source + '）' : '');
-                        const tr = row(tree, 'td', [label, format(node.sell), format(node.demand)]);
-                        tr.firstChild.style.paddingInlineStart = depth * 0.65 + 'em';
+                        const label = node.name + (node.source ? '（' + node.source + '）' : '');
+                        const tr = row(tree, 'td', [label, format(node.quantity), format(node.sell), format(node.demand)]);
+                        tr.firstChild.style.paddingInlineStart = (4 + depth * 5) + 'px';
                         node.children.forEach(child => branch(child, depth + 1));
                     }
                     branch(cost, 0);
