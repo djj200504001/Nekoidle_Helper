@@ -538,8 +538,40 @@ function mergeWarehouseCost(oldCost, oldQty, buyPrice, buyQty) {
     const price = Number(buyPrice), qty = Number(buyQty);
     if (!Number.isFinite(price) || price < 0 || !Number.isFinite(qty) || qty <= 0) return null;
     const base = Number(oldCost), held = Number(oldQty);
+    // 无有效旧成本（含本地有库存但未录成本）时直接采用本次成交价，不做加权。
     if (!Number.isFinite(base) || base < 0 || !Number.isFinite(held) || held <= 0) return price;
     return Math.round((base * held + price * qty) / (held + qty) * 100) / 100;
+}
+
+// 结算领取前的待入库成本：挂单成交先进结算池，领取时才入库。
+// 用 settlement.order_id 从订单（当前+历史）取求购单价，生成 'item:enh' -> {price, quantity}。
+// 同一物品多行按数量加权单价；wantedId 为领取的单条结算 id（不传表示全部领取）。
+function claimCosts(settlements, orders, wantedId) {
+    const result = {};
+    const orderOf = new Map();
+    (orders || []).forEach(o => {
+        if (o && Number(o.side) === 2 && Number(o.price) > 0) orderOf.set(Number(o.id), o);
+    });
+    const wanted = wantedId == null ? null : Number(wantedId);
+    (settlements || []).forEach(s => {
+        if (!s) return;
+        if (wanted != null && Number(s.id) !== wanted) return;
+        const id = Number(s.item), enh = Number(s.enhancement) || 0, qty = Number(s.quantity) || 0;
+        const order = orderOf.get(Number(s.order_id));
+        if (!order) return;
+        // 结算项须与求购订单是同一物品/强化等级，避免把单价误记到同订单的其它结算物上。
+        if (Number(order.item) !== id || (Number(order.enhancement) || 0) !== enh) return;
+        const price = Number(order.price) || 0;
+        if (!(id > 0) || !(qty > 0) || !(price > 0)) return;
+        const key = id + ':' + enh;
+        const prev = result[key];
+        if (prev) {
+            const total = prev.quantity + qty;
+            prev.price = round2((prev.price * prev.quantity + price * qty) / total);
+            prev.quantity = total;
+        } else result[key] = { price, quantity: qty };
+    });
+    return result;
 }
 
 // 直接买入材料的库存合计：按每层直接材料自身库存单价 × 用量累加；
@@ -895,6 +927,9 @@ function createNekEnhancements(env) {
         installed = true;
         // 市场买入请求（side=2 求购）暂存单价；成交回包 add 到达时与本地库存成本加权。
         const marketBuys = new Map();
+        // 挂单成交先进结算池、领取才入库：领取时按 order_id 从订单取真实成交单价，
+        // 暂存为待入库映射，领取回包 add 到达时用该单价加权。
+        const pendingClaims = new Map();
         const send = msg.send;
         msg.send = function (type, data) {
             const stopping = type === 'queue' && data?.type === 'cancel';
@@ -906,6 +941,19 @@ function createNekEnhancements(env) {
                 if (id > 0 && Number(data.quantity) > 0) {
                     marketBuys.set(id + ':' + enh, { price: Number(data.price) || 0, quantity: Number(data.quantity), at: Date.now() });
                 }
+            }
+            if (result === true && type === 'market_settlement_claim') {
+                const g = env.game();
+                const orders = [...(Array.isArray(g?.order) ? g.order : []), ...(Array.isArray(g?.orderHistory) ? g.orderHistory : [])];
+                const costs = claimCosts(g?.settlement, orders, data?.id);
+                Object.keys(costs).forEach(key => {
+                    const next = costs[key], prev = pendingClaims.get(key);
+                    if (prev) {
+                        const total = prev.quantity + next.quantity;
+                        prev.price = round2((prev.price * prev.quantity + next.price * next.quantity) / total);
+                        prev.quantity = total;
+                    } else pendingClaims.set(key, { price: next.price, quantity: next.quantity });
+                });
             }
             core.observeSend(type, data, result === true); return result;
         };
@@ -921,16 +969,20 @@ function createNekEnhancements(env) {
                 });
                 const result = originalMarketUpdate.apply(this, arguments);
                 try {
-                    // 未成交的挂单不参与后续成交匹配，避免误用旧单价。
-                    if (content.type === 'place' && !(Number(content.filled) > 0)) marketBuys.clear();
                     (content.add || []).forEach(row => {
                         const id = Number(row.item), enh = Number(row.enhancement) || 0;
                         if (!(id > 0)) return;
                         const key = id + ':' + enh;
-                        const pending = marketBuys.get(key);
+                        // 结算领取入库优先用领取时暂存的真实成交价；其次直购暂存单价。
+                        const claim = pendingClaims.get(key);
+                        const pending = claim || marketBuys.get(key);
                         marketBuys.delete(key);
-                        if (!pending || !uid || Date.now() - pending.at > 120000) return;
                         const bought = Number(row.quantity) || 0;
+                        if (claim && bought > 0) {
+                            claim.quantity -= bought;
+                            if (claim.quantity <= 0) pendingClaims.delete(key);
+                        }
+                        if (!pending || !uid) return;
                         const price = Number(content.price) > 0 ? Number(content.price) : pending.price;
                         if (!(bought > 0) || !(price > 0)) return;
                         const map = warehouseCosts(uid);
@@ -1946,4 +1998,4 @@ function createNekEnhancements(env) {
 }
 
 // CommonJS test exports (not embedded into the userscript).
-if (typeof module !== 'undefined') module.exports = { createNekController, createNekEnhancements, recipeCost, substituteOptions, mergeWarehouseCost, stockTotalOf, directStockTotal, parseStockCost, round2, craftableProduct };
+if (typeof module !== 'undefined') module.exports = { createNekController, createNekEnhancements, recipeCost, substituteOptions, mergeWarehouseCost, claimCosts, stockTotalOf, directStockTotal, parseStockCost, round2, craftableProduct };

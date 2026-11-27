@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { recipeCost, substituteOptions, mergeWarehouseCost, stockTotalOf, directStockTotal, parseStockCost, round2, craftableProduct } = require('../src/enhancements.js');
+const { recipeCost, substituteOptions, mergeWarehouseCost, claimCosts, stockTotalOf, directStockTotal, parseStockCost, round2, craftableProduct } = require('../src/enhancements.js');
 
 test('多层生产按实际产量折算，直接买料与原料成本独立，单边缺价只影响该侧', () => {
     const items = Object.fromEntries([1, 2, 3].map(id => [id, { sources: { actions: [{ id }] } }]));
@@ -79,6 +79,35 @@ test('仓库成本按已有库存与本次买入价加权平均，无旧成本�
     assert.equal(mergeWarehouseCost(30, 100, 50, 0), null);
     assert.equal(mergeWarehouseCost(30, 100, -1, 10), null);
     assert.equal(mergeWarehouseCost(30, 100, 40, 5), 30.48);
+});
+
+test('结算领取待入库成本：按 order_id 取求购单价，多单同物品按数量加权，支持单条领取', () => {
+    const orders = [
+        { id: 1, side: 2, item: 10, price: 100 },
+        { id: 2, side: 1, item: 10, price: 999 },   // 卖单不参与
+        { id: 3, side: 2, item: 10, price: 200 },
+        { id: 4, side: 2, item: 20, enhancement: 3, price: 50 }
+    ];
+    const settlements = [
+        { id: 101, order_id: 1, item: 10, enhancement: 0, quantity: 2 },
+        { id: 102, order_id: 2, item: 10, enhancement: 0, quantity: 7 },  // 卖单结算被忽略
+        { id: 103, order_id: 3, item: 10, enhancement: 0, quantity: 8 },
+        { id: 104, order_id: 4, item: 20, enhancement: 3, quantity: 5 },
+        { id: 105, order_id: 999, item: 30, enhancement: 0, quantity: 1 }, // 无匹配订单
+        { id: 106, order_id: 1, item: 1, enhancement: 0, quantity: 10000 } // 同订单但不是求购物品，跳过
+    ];
+    const all = claimCosts(settlements, orders);
+    assert.equal(all['10:0'].price, 180);   // (100*2 + 200*8)/10
+    assert.equal(all['10:0'].quantity, 10);
+    assert.equal(all['20:3'].price, 50);
+    assert.equal(all['20:3'].quantity, 5);
+    assert.equal(all['30:0'], undefined);   // 取不到单价的不入映射
+    assert.equal(all['1:0'], undefined);    // 同订单的其它结算物不误记
+    // 单条领取：只算指定结算项
+    const one = claimCosts(settlements, orders, 101);
+    assert.equal(one['10:0'].price, 100);
+    assert.equal(one['10:0'].quantity, 2);
+    assert.equal(one['20:3'], undefined);
 });
 
 test('库存合计优先取节点自身库存成本（含中间产物），未记录才递归/市场兜底', () => {
