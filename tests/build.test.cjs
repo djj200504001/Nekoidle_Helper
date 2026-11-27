@@ -285,7 +285,9 @@ test('库存成本：浮窗三按钮、悬停行情新增行、成本表列与�
     assert.match(script, /appendDiff\(tr\.cells\[2\], diffOf\(child\.sellQuote, sub\)\)/);
     assert.match(script, /appendDiff\(tr\.cells\[3\], diffOf\(child\.demandQuote, sub\)\)/);
     assert.doesNotMatch(script, /function subtotalText\(node, side, root\)/);
-    assert.match(script, /\+ ' x' \+ qtyText\(node\.quantity\)/);
+    // 材料名与用量分两段渲染，材料名交给 bindMaterial 绑定原生交互
+    assert.match(script, /qty\.textContent = ' x' \+ qtyText\(node\.quantity\)/);
+    assert.match(script, /bindMaterial\(tr\.cells\[0\], (node|child)\)/);
     // 行情取数复用主脚本 API，不再在成本页另拉全量快照
     assert.match(script, /window\.__NEK_MARKET__ = \{/);
     assert.match(script, /ensureBulk: function \(\) \{ return mkEnsureBulk\(\); \}/);
@@ -327,6 +329,8 @@ test('云同步 v1.52：成本数据纳入 payload、3 条/5 秒上传、未知�
     assert.match(script, /costItems: cloudNormalizeCostItems\(p && p\.costItems\)/);
     assert.match(script, /warehouseCost: cloudNormalizeWarehouseCost\(p && p\.warehouseCost\)/);
     assert.match(script, /doc\.addEventListener\('nek-cost-items-updated'/);
+    // 成本数据本地写入必须打云同步脏标记，否则单独改成本不会触发上传
+    assert.match(script, /k\.indexOf\('nek_cost_items_v1:'\) === 0 \|\| k\.indexOf\('nek_warehouse_cost_v1:'\) === 0/);
     // 旧 payload 无新字段不误报覆盖
     assert.match(script, /if \(!\('costItems' in probe\)\) probe\.costItems = local\.costItems/);
     // 上传节流：3 条 / 5 秒，不再立即上传
@@ -352,6 +356,78 @@ test('云同步 v1.52：成本数据纳入 payload、3 条/5 秒上传、未知�
     const api = vm.runInNewContext(start > 0 ? script.slice(start, end) + '\n({ cloudNormalizeCostItems, cloudNormalizeWarehouseCost });' : '', ctx);
     assert.equal(JSON.stringify(api.cloudNormalizeCostItems([3, 1, 3, '2', 0, -1])), '[1,2,3]');
     assert.equal(JSON.stringify(api.cloudNormalizeWarehouseCost({ 12: 1.239, 13: '2.5', 14: -1, x: 3 })), '{"12":1.24,"13":2.5}');
+
+    // 行为验证：成本条目/库存成本写入必须打脏标记，lease 与无关键不打标，避免 pull→push 回环
+    const storageSrc = script.match(/storage: \{ getItem: k => localStorage\.getItem\(k\), setItem:[\s\S]*?removeItem: k => localStorage\.removeItem\(k\) \}/);
+    assert.ok(storageSrc);
+    let marks = 0;
+    const ls = {};
+    const storageCtx = { localStorage: { getItem: k => ls[k], setItem: (k, v) => { ls[k] = v; }, removeItem: k => { delete ls[k]; } }, cloudMark: () => { marks++; } };
+    const storage = vm.runInNewContext('(' + storageSrc[0].replace(/^storage: /, '') + ')', storageCtx);
+    storage.setItem('nek_cost_items_v1:7', '[1]');
+    assert.equal(marks, 1);
+    storage.setItem('nek_warehouse_cost_v1:7', '{}');
+    assert.equal(marks, 2);
+    storage.setItem('nek_enhancements_v1:7', '{}');
+    assert.equal(marks, 3);
+    storage.setItem('nek_enhancements_v1:7:lease', '1');
+    storage.setItem('favorite', '[]');
+    assert.equal(marks, 3);
+});
+
+test('成本材料名复用原生悬浮说明与点击菜单，缺失退化为纯文本', () => {
+    const script = fs.readFileSync(path.join(root, '银河猫娘放置小助手.user.js'), 'utf8').replace(/\r\n/g, '\n');
+    assert.match(script, /ui\.bindItemTooltip\(name, def, \{ item \}\)/);
+    assert.match(script, /ui\.showItemMenu\(name, \{ itemDef: def, enhancement: 0 \}\)/);
+    assert.match(script, /\.nek-cost-material-live\{cursor:pointer/);
+
+    const from = script.indexOf('            function bindMaterial(cell, node) {');
+    const to = script.indexOf('            // 展开块标题行', from);
+    assert.ok(from > 0 && to > from);
+    const source = script.slice(from, to);
+
+    const { Document } = require('./helpers/dom.cjs');
+    function makeEnv(opts = {}) {
+        const doc = new Document();
+        const calls = [];
+        const ui = {
+            bindItemTooltip: (el, def, param) => calls.push(['tip', el, def, param]),
+            showItemMenu: (el, param) => calls.push(['menu', el, param])
+        };
+        const game = { getItem: opts.getItem || (id => ({ id, name: '材料' + id })), getItemQuantity: () => 7 };
+        const data = { items: {} };
+        const qtyText = n => String(n);
+        const api = vm.runInNewContext(source + '\nbindMaterial', { doc, ui, game, data, qtyText, Number });
+        return { doc, calls, api };
+    }
+
+    // 有 def：材料名带 live 类，绑定原生说明，点击展开原生物品菜单且阻断冒泡
+    const ok = makeEnv();
+    const cell = ok.doc.createElement('td');
+    ok.api(cell, { id: 2211, name: '小麦', source: '采集', quantity: 3 });
+    const name = cell.children[0];
+    assert.equal(name.textContent, '小麦（采集）');
+    assert.equal(cell.children[1].textContent, ' x3');
+    assert.ok(name.classList.contains('nek-cost-material-live'));
+    assert.equal(ok.calls.length, 1);
+    assert.equal(ok.calls[0][0], 'tip');
+    assert.equal(ok.calls[0][2].id, 2211);
+    assert.equal(ok.calls[0][3].item.id, 2211);
+    assert.equal(ok.calls[0][3].item.quantity, 7);
+    let stopped = false;
+    name.listeners.click[0]({ stopPropagation() { stopped = true; } });
+    assert.equal(stopped, true);
+    assert.equal(ok.calls[1][0], 'menu');
+    assert.equal(ok.calls[1][2].itemDef.id, 2211);
+
+    // def 缺失：退化为纯文本，不绑定任何原生交互
+    const missing = makeEnv({ getItem: () => null });
+    const cell2 = missing.doc.createElement('td');
+    missing.api(cell2, { id: 9999, name: '未知物', quantity: 1 });
+    assert.equal(cell2.children[0].textContent, '未知物');
+    assert.equal(cell2.children[1].textContent, ' x1');
+    assert.equal(cell2.children[0].classList.contains('nek-cost-material-live'), false);
+    assert.equal(missing.calls.length, 0);
 });
 
 test('v1.53：展开三角、精算范围、成本核算开关与设置项合并', () => {

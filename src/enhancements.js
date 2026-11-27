@@ -1159,6 +1159,9 @@ function createNekEnhancements(env) {
             '.nek-cost-caret{display:inline-block;font-size:10px;line-height:1;opacity:.7;transition:transform .15s}',
             '.nek-cost-expand[open] .nek-cost-caret{transform:rotate(90deg)}',
             '.nek-cost-diff-pos{color:rgb(76,175,80)}.nek-cost-diff-neg{color:rgb(255,48,33)}',
+            // 材料名复用原生悬浮/点击：可交互时给手型与下划线提示，和普通文本区分。
+            '.nek-cost-material-live{cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px}',
+            '.nek-cost-material-live:hover{color:var(--c-main-bright,#74f9bc)}',
             // 手机端吸顶折叠（nek-float 仅窄屏添加）：面板嵌在研究列表滚动流内，滚过容器顶自动折叠成标题条并 sticky 吸顶。
             // 背景必须不透明：neon-section 原背景 rgba(0,0,0,.18) 半透明，吸顶时下方滚动内容会透过面板造成文字重叠
             '.nek-research-queue.nek-float{position:sticky;top:0;z-index:20;margin-top:8px;background-color:var(--c-bg,#092653);background-image:linear-gradient(rgba(0,0,0,.18),rgba(0,0,0,.18))}',
@@ -1706,6 +1709,30 @@ function createNekEnhancements(env) {
                 append(cell, 'span', value > 0 ? 'nek-cost-diff-pos' : 'nek-cost-diff-neg',
                     ' (' + (value > 0 ? '+' : '-') + Math.abs(value).toLocaleString('zh-CN', { maximumFractionDigits: 2 }) + ')');
             }
+            // 材料名复用游戏原生交互：悬浮显示物品文字说明（bindItemTooltip），
+            // 点击展开原生物品菜单（showItemMenu，含查看信息/收藏/跳转烹饪/库存成本等按钮）。
+            // 数量单独成段不参与绑定；def 缺失或原生 API 不可用时退化为纯文本。
+            function bindMaterial(cell, node) {
+                const def = game.getItem(node.id) || data.items[node.id];
+                const live = def && Number(def.id) > 0 && typeof ui.bindItemTooltip === 'function';
+                cell.replaceChildren();
+                const name = doc.createElement('span');
+                name.className = 'nek-cost-material' + (live ? ' nek-cost-material-live' : '');
+                name.textContent = node.name + (node.source ? '（' + node.source + '）' : '');
+                cell.appendChild(name);
+                const qty = doc.createElement('span');
+                qty.textContent = ' x' + qtyText(node.quantity);
+                cell.appendChild(qty);
+                if (!live) return;
+                const item = { id: Number(def.id), enhancement: 0, quantity: Number(game.getItemQuantity(node.id)) || 0 };
+                ui.bindItemTooltip(name, def, { item });
+                if (typeof ui.showItemMenu === 'function') {
+                    name.addEventListener('click', e => {
+                        e.stopPropagation();
+                        ui.showItemMenu(name, { itemDef: def, enhancement: 0 });
+                    });
+                }
+            }
             // 展开块标题行：与单件成本表同宽的三列布局（54% / 23% / 23%）。
             function summaryRow(parent, label, sell, demand, diffSell, diffDemand) {
                 const summary = append(parent, 'summary', 'nek-cost-summary');
@@ -1760,9 +1787,9 @@ function createNekEnhancements(env) {
                     for (const child of cost.children) {
                         const stock = stockOf(child.id);
                         const tr = row(oneLevel, 'td', [
-                            child.name + (child.source ? '（' + child.source + '）' : '') + ' x' + qtyText(child.quantity),
-                            stock == null ? (snapshot ? '缺报价' : '—') : stock.toLocaleString('zh-CN'),
+                            '', stock == null ? (snapshot ? '缺报价' : '—') : stock.toLocaleString('zh-CN'),
                             format(child.sellQuote), format(child.demandQuote)]);
+                        bindMaterial(tr.cells[0], child);
                         const sub = stock == null ? null : stock * Number(child.quantity);
                         appendDiff(tr.cells[2], diffOf(child.sellQuote, sub));
                         appendDiff(tr.cells[3], diffOf(child.demandQuote, sub));
@@ -1774,8 +1801,8 @@ function createNekEnhancements(env) {
                     const tree = append(full, 'table', 'nek-cost-table nek-cost-full');
                     row(tree, 'th', ['材料', '出售小计', '收购小计']);
                     function branch(node, depth) {
-                        const label = node.name + (node.source ? '（' + node.source + '）' : '') + ' x' + qtyText(node.quantity);
-                        const tr = row(tree, 'td', [label, format(node.sell), format(node.demand)]);
+                        const tr = row(tree, 'td', ['', format(node.sell), format(node.demand)]);
+                        bindMaterial(tr.cells[0], node);
                         tr.firstChild.style.paddingInlineStart = (4 + depth * 5) + 'px';
                         node.children.forEach(child => branch(child, depth + 1));
                     }

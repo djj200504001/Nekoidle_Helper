@@ -17,7 +17,7 @@ const block = start + '\n' + source.split('\n').map(l => l.trim() ? '        ' +
             data: () => typeof Data !== 'undefined' ? Data : null,
             cookingChestDivisor: typeof CHEST_TIME_DIVISOR_COOKING !== 'undefined' ? CHEST_TIME_DIVISOR_COOKING : 21600,
             enabled: isEnabled, costEnabled: isCostEnabled, identifyAction, document, window,
-            storage: { getItem: k => localStorage.getItem(k), setItem: (k, v) => { localStorage.setItem(k, v); if (k.indexOf('nek_enhancements_v1:') === 0 && k.indexOf(':lease') === -1) cloudMark(); }, removeItem: k => localStorage.removeItem(k) }
+            storage: { getItem: k => localStorage.getItem(k), setItem: (k, v) => { localStorage.setItem(k, v); if ((k.indexOf('nek_enhancements_v1:') === 0 && k.indexOf(':lease') === -1) || k.indexOf('nek_cost_items_v1:') === 0 || k.indexOf('nek_warehouse_cost_v1:') === 0) cloudMark(); }, removeItem: k => localStorage.removeItem(k) }
         });\n` + end;
 const from = script.indexOf(start), to = script.indexOf(end);
 if (from < 0 || to <= from || from !== script.lastIndexOf(start) || to !== script.lastIndexOf(end)) {
