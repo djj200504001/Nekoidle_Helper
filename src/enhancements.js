@@ -558,7 +558,7 @@ function normalizeInventoryLedger(value) {
             !Number.isFinite(row.since) || row.since <= 0) continue;
         const purchases = Array.isArray(row.purchases) ? row.purchases.slice(-20).filter(p =>
             Number.isSafeInteger(p?.quantity) && p.quantity > 0 && Number.isFinite(p.at) && p.at > 0 &&
-            Number.isFinite(p.price) && p.price > 0 && ['直购', '直购已核对', '求购领取', '历史采购'].includes(p.source))
+            Number.isFinite(p.price) && p.price >= 0 && ['直购', '直购已核对', '求购领取', '历史采购', '生产入库'].includes(p.source))
             .map(({ quantity, at, price, source }) => ({ quantity, at, price, source })) : [];
         items[id] = { quantity: row.quantity, since: row.since, purchases };
     }
@@ -1092,17 +1092,17 @@ function createNekEnhancements(env) {
                         let held = before.get(key) || 0;
                         for (const batch of batches) {
                             if (ledger.excluded.includes(id)) continue;
-                            const merged = mergeWarehouseCost(map[id], held, batch.price, batch.quantity);
+                            const oldCost = map[id] ?? productionUnitCost(id, map);
+                            const merged = mergeWarehouseCost(oldCost, held, batch.price, batch.quantity);
                             if (merged == null || batch.price <= 0) continue;
                             map[id] = merged;
                             held += batch.quantity;
                             changed = true;
-                            if (ledger.items[id]) {
-                                const knownOrder = Number.isSafeInteger(batch.id) && batch.id > 0;
-                                addPurchase(ledger.items[id], batch, content.type === 'claim' || claims.length && !direct
-                                    ? '求购领取' : knownOrder ? '直购已核对' : '直购');
-                                if (knownOrder) ledger.orders[batch.id] = { quantity: (ledger.orders[batch.id]?.quantity || 0) + batch.quantity };
-                            }
+                            const entry = ledger.items[id] ??= { quantity: held, since: Date.now(), purchases: [] };
+                            const knownOrder = Number.isSafeInteger(batch.id) && batch.id > 0;
+                            addPurchase(entry, batch, content.type === 'claim' || claims.length && !direct
+                                ? '求购领取' : knownOrder ? '直购已核对' : '直购');
+                            if (knownOrder) ledger.orders[batch.id] = { quantity: (ledger.orders[batch.id]?.quantity || 0) + batch.quantity };
                         }
                         if (batches.length) {
                             before.set(key, (before.get(key) || 0) + bought);
@@ -1135,7 +1135,12 @@ function createNekEnhancements(env) {
             const original = msg.handlers[type];
             if (typeof original !== 'function') continue;
             msg.handlers[type] = function (data) {
+                let production = null;
+                try { if (type === 'action_complete') production = captureProduction(data?.content); }
+                catch (e) { console.warn('[小助手] 读取生产批次失败', e); }
                 const result = original.apply(this, arguments);
+                try { if (production) recordProduction(production); }
+                catch (e) { console.warn('[小助手] 记录生产批次失败', e); }
                 observeQueue(type, data?.content);
                 return result;
             };
@@ -1665,6 +1670,100 @@ function createNekEnhancements(env) {
         } catch { /* 新建账本 */ }
         return normalizeInventoryLedger(null);
     }
+    function productionUnitCost(id, costs) {
+        if (!env.data()?.items?.[id]) return null;
+        return inventoryRecipeTotal(recipeCost(env.data(), id, null), costs);
+    }
+    function warehouseValue(id) {
+        const uid = core.view().account;
+        if (!uid || !costEnabled()) return null;
+        const costs = warehouseCosts(uid);
+        if (typeof costs[id] === 'number') return { price: costs[id], label: '库存成本' };
+        const price = productionUnitCost(id, costs);
+        return price == null ? null : { price, label: '生产成本' };
+    }
+    function captureProduction(content) {
+        if (!content || !costEnabled() || !Array.isArray(content.add)) return null;
+        const data = env.data(), game = env.game(), uid = core.view().account;
+        if (!data || !uid) return null;
+        const action = content.type === 'action' ? data.actions?.[content.id] : null;
+        const recipe = content.type === 'cooking' ? data.cookingRecipes?.[content.id] : action?.action === 6 ? action : null;
+        if (!recipe) return null;
+        const ledger = warehouseLedger(uid), costs = warehouseCosts(uid), outputs = new Map();
+        const rewardIds = new Set((recipe.rewards || []).map(reward => Number(reward.itemId)));
+        const received = new Map();
+        for (const row of content.add) {
+            const id = Number(row.item), quantity = Number(row.quantity);
+            if (Number(row.enhancement || 0) !== 0 || !rewardIds.has(id) || !(quantity > 0)) continue;
+            received.set(id, (received.get(id) || 0) + quantity);
+        }
+        let batchCost = null;
+        // 消耗明细含实际食材和用量。用原生背包的堆叠 ID 查出物品 ID，
+        // 可覆盖替换食材、多倍行动和额外产量。
+        if (received.size === 1 && Array.isArray(content.remove) && content.remove.length) {
+            batchCost = 0;
+            for (const row of content.remove) {
+                const item = game.inventory?.find(stack => Number(stack.id) === Number(row.id));
+                const id = Number(item?.item ?? row.item);
+                if (!Number.isSafeInteger(id) || !(Number(row.quantity) > 0) || Number(item?.enhancement || 0) !== 0) {
+                    batchCost = null;
+                    break;
+                }
+                // 已确认实际用料时，不以原配方价格替代缺价的食材。
+                const price = costs[id] ?? productionUnitCost(id, costs);
+                if (price == null) return null;
+                batchCost += price * Number(row.quantity);
+            }
+        }
+        for (const [id, quantity] of received) {
+            if (ledger.excluded.includes(id) || (!ledger.products.includes(id) && !Object.hasOwn(costs, id))) continue;
+            const estimate = productionUnitCost(id, costs);
+            const price = batchCost == null ? estimate : batchCost / quantity;
+            if (price == null) continue;
+            outputs.set(id, { quantity, price, before: game.getItemQuantity(id), old: costs[id] ?? estimate });
+        }
+        return outputs.size ? { uid, outputs } : null;
+    }
+    function recordProduction({ uid, outputs }) {
+        if (core.view().account !== uid) return;
+        const ledger = warehouseLedger(uid), costs = warehouseCosts(uid), game = env.game();
+        for (const [id, batch] of outputs) {
+            const actual = game.getItemQuantity(id);
+            if (actual <= batch.before) continue;
+            const quantity = Math.min(batch.quantity, actual - batch.before);
+            costs[id] = mergeWarehouseCost(batch.old, batch.before, batch.price, quantity);
+            if (!ledger.items[id]) recordWarehouseBase(ledger, id, actual);
+            ledger.items[id].quantity = actual;
+            addPurchase(ledger.items[id], { quantity, price: batch.price }, '生产入库');
+        }
+        saveWarehouseLedger(uid, ledger, costs);
+    }
+    let loginInventoryDiffs = new Map(), inventoryDiffUid = null;
+    function captureLoginInventory(uid, hasInventory) {
+        if (core.view().account !== String(uid)) return;
+        inventoryDiffUid = String(uid);
+        loginInventoryDiffs = new Map();
+        if (!hasInventory) return;
+        const game = env.game(), ledger = warehouseLedger(uid);
+        for (const [id, entry] of Object.entries(ledger.items)) {
+            const actual = game.getItemQuantity(Number(id));
+            if (entry.quantity !== actual) loginInventoryDiffs.set(Number(id), { book: entry.quantity, actual });
+        }
+        if (loginInventoryDiffs.size) env.ui()?.notifier?.show?.('库存账面数量与背包不一致，可在库存核算中确认或修正单价。', 'tip');
+    }
+    function syncInventoryBalances(uid) {
+        if (!historyReady()) return;
+        const ledger = warehouseLedger(uid), game = env.game();
+        let changed = false;
+        for (const id of new Set([...Object.keys(ledger.items).map(Number), ...ledger.products])) {
+            const actual = game.getItemQuantity(id);
+            if (ledger.items[id]?.quantity === actual || !Number.isSafeInteger(actual)) continue;
+            if (ledger.items[id]) ledger.items[id].quantity = actual;
+            else recordWarehouseBase(ledger, id, actual);
+            changed = true;
+        }
+        if (changed) saveWarehouseLedger(uid, ledger);
+    }
     function saveWarehouseLedger(uid, ledger, costs) {
         try {
             if (costs && env.saveWarehouseState) env.saveWarehouseState(uid, ledger, costs);
@@ -1741,7 +1840,7 @@ function createNekEnhancements(env) {
             // 旧库存视为耗尽，按这些采购批次的加权单价计剩余库存。
             let balance = Math.max(0, actual - acquired);
             for (const batch of fresh) {
-                costs[item] = mergeWarehouseCost(costs[item], balance, batch.price, batch.quantity);
+                costs[item] = mergeWarehouseCost(costs[item] ?? productionUnitCost(item, costs), balance, batch.price, batch.quantity);
                 balance += batch.quantity;
                 ledger.orders[batch.id] = { quantity: (ledger.orders[batch.id]?.quantity || 0) + batch.quantity };
                 addPurchase(entry, batch, '历史采购');
@@ -1869,7 +1968,8 @@ function createNekEnhancements(env) {
         picker.setAttribute('aria-label', '选择物品');
         const quantity = add(form, 'input', '');
         const price = add(form, 'input', '');
-        for (const [input, label, inputMode] of [[quantity, '期初数量', 'numeric'], [price, '单件成本', 'decimal']]) {
+        quantity.readOnly = true;
+        for (const [input, label, inputMode] of [[quantity, '背包数量', 'numeric'], [price, '单件成本', 'decimal']]) {
             input.placeholder = label;
             input.setAttribute('aria-label', label);
             input.inputMode = inputMode;
@@ -1886,7 +1986,8 @@ function createNekEnhancements(env) {
         function setInputs() {
             const id = Number(picker.value);
             quantity.value = id ? String(held(id)) : '';
-            price.value = warehouseCosts(uid)[id] ?? '';
+            const costs = warehouseCosts(uid);
+            price.value = costs[id] ?? round2(productionUnitCost(id, costs) ?? NaN) ?? '';
             saveButton.disabled = !id;
         }
         function updatePicker(selected) {
@@ -1913,11 +2014,12 @@ function createNekEnhancements(env) {
             if (panel.hidden || core.view().account !== uid) return;
             const ledger = warehouseLedger(uid), costs = warehouseCosts(uid);
             const ids = [...new Set([...Object.keys(costs).map(Number), ...ledger.products])];
-            const view = JSON.stringify([ledger, costs, ids.map(held)]);
+            const diffs = inventoryDiffUid === uid ? loginInventoryDiffs : new Map();
+            const view = JSON.stringify([ledger, costs, ids.map(held), [...diffs]]);
             if (view === lastView) return;
             lastView = view;
             results.replaceChildren();
-            function cardFor(id, isRecipe) {
+            function cardFor(id) {
                 const card = add(results, 'section', 'neon-section');
                 const head = add(card, 'div', 'nek-inventory-name');
                 const def = data.items[id];
@@ -1928,7 +2030,7 @@ function createNekEnhancements(env) {
                 }
                 add(head, 'strong', '', def?.name || '#' + id);
                 const actions = add(card, 'div', 'nek-inventory-actions');
-                if (!isRecipe) add(actions, 'button', 'btn', '修改').addEventListener('click', () => {
+                add(actions, 'button', 'btn', '修正单价').addEventListener('click', () => {
                     mode.value = 'stock';
                     search.value = '';
                     updatePicker(id);
@@ -1937,36 +2039,40 @@ function createNekEnhancements(env) {
                 add(actions, 'button', 'btn', '删除').addEventListener('click', () => {
                     if (!editingAllowed()) return;
                     const next = warehouseLedger(uid), prices = warehouseCosts(uid);
-                    if (isRecipe) next.products = next.products.filter(product => product !== id);
-                    else {
-                        delete next.items[id];
-                        delete prices[id];
-                        if (!next.excluded.includes(id)) next.excluded.push(id);
-                    }
-                    if (!saveWarehouseLedger(uid, next, prices)) status.textContent = '删除失败，请重试。';
+                    next.products = next.products.filter(product => product !== id);
+                    delete next.items[id];
+                    delete prices[id];
+                    if (!next.excluded.includes(id)) next.excluded.push(id);
+                    if (saveWarehouseLedger(uid, next, prices)) { diffs.delete(id); render(); }
+                    else status.textContent = '删除失败，请重试。';
                 });
                 return card;
             }
-            for (const id of Object.keys(costs).map(Number)) {
-                const card = cardFor(id, false), entry = ledger.items[id], actual = held(id);
-                add(card, 'div', '', '背包 ' + fmt(actual) + ' · 单件 ' + fmt(Number(costs[id])) + ' · 总额 ' + fmt(actual * costs[id]));
-                if (entry && entry.quantity !== actual) add(card, 'div', '', '账面 ' + fmt(entry.quantity) + '，按背包数量核算');
+            for (const id of ids) {
+                const card = cardFor(id), entry = ledger.items[id], actual = held(id);
+                const derived = ledger.products.includes(id) ? productionUnitCost(id, costs) : null;
+                const unit = costs[id] ?? derived;
+                add(card, 'div', '', '背包 ' + fmt(actual) + (unit == null ? ' · 缺少材料单价' :
+                    ' · ' + (costs[id] == null ? '生产单价 ' : '库存单价 ') + fmt(unit) + ' · 库存总额 ' + fmt(actual * unit)));
+                if (derived != null && costs[id] != null) add(card, 'div', '', '当前配方单价 ' + fmt(derived) + ' 喵点');
+                const diff = diffs.get(id);
+                if (diff) {
+                    add(card, 'div', '', '登录同步时账面 ' + fmt(diff.book) + '，背包 ' + fmt(diff.actual));
+                    add(card, 'button', 'btn', '忽略账面数量').addEventListener('click', () => {
+                        diffs.delete(id);
+                        render();
+                    });
+                }
                 if (entry?.purchases?.length) {
                     const details = add(card, 'details', '');
-                    add(details, 'summary', '', '近期采购');
+                    add(details, 'summary', '', '近期入库');
                     for (const receipt of entry.purchases.slice().reverse()) {
                         add(details, 'div', '', new Date(receipt.at).toLocaleString() + ' · ' + receipt.source +
                             ' · ' + fmt(receipt.quantity) + ' 件 × ' + fmt(receipt.price));
                     }
                 }
             }
-            for (const id of ledger.products) {
-                const card = cardFor(id, true);
-                const node = recipeCost(data, id, null);
-                const total = inventoryRecipeTotal(node, costs);
-                add(card, 'div', '', total == null ? '生产成本待核算，部分材料缺少库存单价' : '单件生产成本 ' + fmt(total) + ' 喵点');
-            }
-            if (!ids.length) add(results, 'p', '', '添加材料录入期初数量和单价，或选择产物核算生产成本。');
+            if (!ids.length) add(results, 'p', '', '添加材料录入期初单价，或选择产物核算生产成本。');
         }
         saveButton.addEventListener('click', () => {
             const id = Number(picker.value);
@@ -1975,16 +2081,20 @@ function createNekEnhancements(env) {
             if (mode.value === 'recipe') {
                 if (!craftableProduct(data, id) || ledger.products.includes(id)) return;
                 ledger.products.push(id);
+                if (!ledger.items[id]) recordWarehouseBase(ledger, id, held(id));
             } else {
-                const raw = quantity.value.trim(), qty = Number(raw), value = parseStockCost(price.value);
-                if (!/^\d+$/.test(raw) || !Number.isSafeInteger(qty) || value == null) {
-                    status.textContent = '请输入非负整数数量和最多两位小数的成本单价。';
+                const value = parseStockCost(price.value);
+                if (value == null) {
+                    status.textContent = '请输入最多两位小数的非负成本单价。';
                     return;
                 }
-                recordWarehouseBase(ledger, id, qty);
+                recordWarehouseBase(ledger, id, held(id));
                 costs[id] = value;
             }
-            status.textContent = saveWarehouseLedger(uid, ledger, costs) ? '已保存。' : '保存失败，请重试。';
+            const saved = saveWarehouseLedger(uid, ledger, costs);
+            if (saved && mode.value === 'stock' && inventoryDiffUid === uid) loginInventoryDiffs.delete(id);
+            status.textContent = saved ? '已保存。' : '保存失败，请重试。';
+            render();
         });
         sync.addEventListener('click', () => {
             if (!editingAllowed()) return;
@@ -2404,9 +2514,12 @@ function createNekEnhancements(env) {
             if (installed) {
                 core.tick();
                 decorate();
-                refreshInventoryPanel?.();
                 const uid = core.view().account;
-                if (uid) requestWarehouseHistory(uid);
+                if (uid) {
+                    syncInventoryBalances(uid);
+                    requestWarehouseHistory(uid);
+                }
+                refreshInventoryPanel?.();
             }
         }
         catch (e) { console.warn('[小助手] 研究/任务/库存辅助异常:', e); }
@@ -2423,7 +2536,7 @@ function createNekEnhancements(env) {
                 multiplier: state?.multiplier ?? entry.multiplier ?? entry.item?.multiplier };
         });
     }
-    return { init, decorate, core, snapshotActions };
+    return { init, decorate, core, snapshotActions, warehouseValue, captureLoginInventory };
 }
 
 // CommonJS test exports (not embedded into the userscript).

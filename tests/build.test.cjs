@@ -14,9 +14,9 @@ test('安装文件与模块源码一致，入口、版本号和单次初始化�
     assert.equal((script.match(/\/\/ NEK_ENHANCEMENTS_END/g) || []).length, 1);
     assert.equal((script.match(/nekEnhancements\.init\(\);/g) || []).length, 1);
     assert.equal((script.match(/function \(\) \{ nekEnhancements\.decorate\(\); \}/g) || []).length, 1);
-    assert.match(script, /@version\s+1\.57\.2\n/);
-    assert.match(script, /@description\s+v1\.57\.2：/);
-    assert.match(script, /const CURRENT_VERSION = '1\.57\.2';/);
+    assert.match(script, /@version\s+1\.58\.0\n/);
+    assert.match(script, /@description\s+v1\.58\.0：/);
+    assert.match(script, /const CURRENT_VERSION = '1\.58\.0';/);
     assert.doesNotThrow(() => new vm.Script(script));
 });
 
@@ -113,7 +113,7 @@ test('云同步加载顺序：启动只 pull 不 push，一致不覆盖不通知
     const script = fs.readFileSync(path.join(root, '银河猫娘放置小助手.user.js'), 'utf8');
     // 决策2：pull 后比对，一致 applied:false 不通知；仅覆盖时反馈
     assert.match(script, /function cloudSameAsLocal\(remote, uid\)/);
-    assert.match(script, /if \(cloudSameAsLocal\(r\.data\.data, curUid\)\) return \{ found: true, applied: false \}/);
+    assert.match(script, /if \(cloudSameAsLocal\(r\.data\.data, curUid\)\) return \{ found: true, applied: false, hasInventory \}/);
     // 比对语义归一化：null/'1' 都=开、'0'=关，避免 null vs '1' 误判为不同导致误报覆盖
     assert.match(script, /settings\[k\] = \(settings\[k\] === '0' \|\| settings\[k\] === false\) \? '0' : '1'/);
     assert.match(script, /if \(k === 'alcsortMode'\) \{[^\n]*字符串枚举/);
@@ -301,19 +301,22 @@ test('悬停行情渲染：库存成本读取本地值，缺失显示缺报价',
     const script = fs.readFileSync(path.join(root, '银河猫娘放置小助手.user.js'), 'utf8').replace(/\r\n/g, '\n');
     const stockStart = script.indexOf('        function mkStockCost(id) {');
     const stockEnd = script.indexOf('        // 全量快照中是否缺少', stockStart);
-    const lineStart = script.indexOf('        function mkLineHtml(lv, id) {');
+    const lineStart = script.indexOf('        function mkLineHtml(lv, id, enhancement = 0) {');
     const lineEnd = script.indexOf('        // 渲染某 key 的全部挂载标记', lineStart);
     assert.ok(stockStart > 0 && stockEnd > stockStart && lineStart > stockEnd && lineEnd > lineStart);
     const body = script.slice(stockStart, stockEnd) + '\n' + script.slice(lineStart, lineEnd);
     const ctx = {
         fmt: n => String(n),
         game: { character: { uid: 7 } },
+        nekEnhancements: { warehouseValue: id => id === 2212 ? { price: 45, label: '生产成本' } : null },
         localStorage: { getItem: k => k === 'nek_warehouse_cost_v1:7' ? JSON.stringify({ 2211: 80 }) : null }
     };
     const html = vm.runInNewContext(body + '\nmkLineHtml({ sell_price: 100, demand_price: 80 }, 2211);', ctx);
     assert.match(html, /库存成本：<\/span><span class="nek-mk-val">80<\/span>/);
     const missing = vm.runInNewContext(body + '\nmkLineHtml({}, 9999);', ctx);
     assert.match(missing, /库存成本：<\/span><span class="nek-mk-val">缺报价<\/span>/);
+    const derived = vm.runInNewContext(body + '\nmkLineHtml({}, 2212);', ctx);
+    assert.match(derived, /生产成本：<\/span><span class="nek-mk-val">45<\/span>/);
 });
 
 test('云同步 v1.52：成本数据纳入 payload、3 条/5 秒上传、未知字段暂存回传', () => {

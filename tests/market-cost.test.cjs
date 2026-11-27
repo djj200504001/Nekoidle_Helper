@@ -43,6 +43,12 @@ function setup() {
                 quantities[key] = (quantities[key] || 0) + (Number(row.quantity) || 0);
             });
             return 'native';
+        }, action_complete: function (message) {
+            for (const row of message.content.add) quantities[row.item + '-0'] = (quantities[row.item + '-0'] || 0) + row.quantity;
+            for (const row of message.content.remove || []) {
+                const stack = game.inventory.find(item => item.id === row.id);
+                quantities[stack.item + '-0'] -= row.quantity;
+            }
         }, market_history: function (message) {
             game.orderHistory = message.content;
         } }
@@ -68,12 +74,40 @@ function setup() {
         identifyAction: () => ({}), cookingChestDivisor: 21600
     });
     feature.init();
-    return { feature, msg, game, store, document, setQty: (id, qty, enh = 0) => { quantities[id + '-' + enh] = qty; } };
+    return { feature, msg, game, store, document, data, ui, pulse: intervals[0],
+        setQty: (id, qty, enh = 0) => { quantities[id + '-' + enh] = qty; } };
 }
 
 function stockCost(store, uid) {
     return JSON.parse(store.get('nek_warehouse_cost_v1:' + uid) || '{}');
 }
+
+test('产物先显示配方成本，实际生产和采购依次加权，消耗只更新账面数量', () => {
+    const h = setup(), uid = 669, key = 'nek_inventory_ledger_v1:' + uid;
+    h.data.items[20] = { id: 20, name: '面料', sources: { actions: [{ id: 220 }] } };
+    h.data.actions = { 220: { action: 6, requirements: [{ itemId: 10, quantity: 3 }],
+        rewards: [{ itemId: 20, min: 1, max: 1, chance: 100 }] } };
+    h.game.inventory = [{ id: 1, item: 10, quantity: 9 }];
+    h.setQty(10, 9);
+    h.setQty(20, 2);
+    h.store.set('nek_warehouse_cost_v1:' + uid, JSON.stringify({ 10: 10 }));
+    h.store.set(key, JSON.stringify({ products: [20] }));
+    assert.equal(h.feature.warehouseValue(20).price, 30);
+    assert.equal(h.feature.warehouseValue(20).label, '生产成本');
+    h.msg.handlers.action_complete({ content: { type: 'action', id: 220,
+        add: [{ item: 20, quantity: 2 }], remove: [{ id: 1, quantity: 3 }] } });
+    assert.equal(stockCost(h.store, uid)[20], 22.5, '实际多产一件，本批单价 15');
+    h.msg.send('market_instant', { side: 2, item: 20, price: 60, quantity: 1 });
+    h.msg.handlers.market_update({ content: { type: 'place', side: 2, price: 60, add: [{ item: 20, quantity: 1 }] } });
+    assert.equal(h.feature.warehouseValue(20).price, 30);
+    assert.equal(h.feature.warehouseValue(20).label, '库存成本');
+    h.setQty(20, 3);
+    h.pulse();
+    const ledger = JSON.parse(h.store.get(key));
+    assert.equal(ledger.items[20].quantity, 3);
+    assert.deepEqual(ledger.items[20].purchases.map(p => p.source), ['生产入库', '直购']);
+    assert.equal(stockCost(h.store, uid)[20], 30);
+});
 
 test('挂单收购：挂单成功回包不再清空暂存单价，结算领取后入库按真实成交价记成本', () => {
     const h = setup(), uid = 669, marketUpdate = h.msg.handlers.market_update;
@@ -133,6 +167,9 @@ test('直购仍按回包成交价加权，结算领取映射不干扰直购', ()
     h.msg.send('market_instant', { side: 2, item: 10, enhancement: 0, price: 50, quantity: 10, fill_or_kill: 1 });
     marketUpdate({ content: { type: 'place', side: 2, item: 10, filled: 10, price: 50, add: [{ id: 3, item: 10, enhancement: 0, quantity: 10 }] } });
     assert.equal(stockCost(h.store, uid)[10], 31.82, '直购按旧库存 100@30 + 买入 10@50 加权');
+    const ledger = JSON.parse(h.store.get('nek_inventory_ledger_v1:' + uid));
+    assert.equal(ledger.items[10].quantity, 110);
+    assert.equal(ledger.items[10].purchases[0].quantity, 10);
 });
 
 test('带云端账本的历史补账按实际库存与入账顺序计算，排除未领取与重复记录', () => {

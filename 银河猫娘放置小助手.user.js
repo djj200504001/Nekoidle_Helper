@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.57.2
-// @description  v1.57.2：历史订单支持录入期初库存成本。v1.57.1——修复库存消耗后的历史采购加权。v1.57.0——新增库存核算页，支持期初录入、采购历史对账、配方成本与云同步。v1.56.0——修复部分成交收购单的库存成本——结算项自带 side/price，改为直接按结算项的求购单价核算（side=2 入库、item=1 金币找零排除），分批成交分别点领取各自按该批成交价入库加权，不再依赖订单列表。v1.55.0——挂单收购物品后库存成本不更新修复：挂单成交先进结算池、领取才入库，领取时按结算 order_id 从订单取真实成交价，入库回包按该价加权（本地有库存但未录成本时直接采用成交价）；移除挂单回包误清空暂存单价与 120 秒过期限制。v1.54.0——成本核算材料树复用游戏原生交互——悬浮材料名显示物品文字说明、点击弹出原生物品菜单（含查看辞典/兑换/库存成本）；成本核算清单与库存成本数据的写入纳入云同步标记（增改条目、录入/清空库存成本、市场买入加权后立即触发上传），不再依赖其他操作顺带上传。v1.53.0——成本核算卡片展开标题左侧加三角指示（展开后旋转）；市场详情只对生产/烹饪成品显示「精算」按钮；成本核算（侧栏入口+精算）改为独立设置开关并纳入云同步；烹饪/生产/采集列表优化、点金辅助、农业辅助五项合并为设置页「生产采集界面优化」一个开关。v1.52.0——库存成本输入限两位小数；小计括号差额为 +0 时不显示；成本核算清单与库存成本纳入云同步（整份覆盖、归一化比对）；云同步改为连续 3 条修改或停止修改 5 秒后上传，云端旧脚本无法本地覆盖的字段暂存并在上传时原样带回。v1.51.0——成本核算卡片改为「直接买入材料」「从基础原料制作」两个可展开块——前者仅列一层直接材料、含库存成本列与按出售/收购小计的括号差额（正数绿字、负数红字），后者列完整逐层树、无库存成本列与括号；展开状态跨重绘保留。v1.50.0——修复小计括号差额：中间产物自身录有库存成本时按它核算，不再误展开子节点显示 +0；成本核算页改为复用主脚本行情 API（含 v1.44.4 单物品强刷修复），缺报价材料恢复行情后自动重绘，不再另拉全量快照自造取数。v1.49.0——修复替换食材按钮尺寸（不再覆盖原生 .btn 字号/内边距）；「仓库成本」改名「库存成本」，录入浮窗改确定/清空/取消三按钮；悬停物品行情新增库存成本行；成本表用量并入材料列（x数字）、第二列改库存成本，最终小计括号显示市场小计−库存合计差额。v1.48.0——物品菜单新增彩色像素图标「仓库成本」（背包无该物品时隐藏，录入浮窗默认填左一价，确定保存、点外部关闭），市场买入后按库存与成交价加权更新本地成本；替换食材按钮与删除按钮等高；面包等战斗掉落物改标「战斗掉落」。v1.47.1——修复成本核算侧栏图标显示样式差异、精算按钮样式，选择浮层筛选点击消失与图标重叠（全部档不显示第二层），采集/掉落类食材误标「配方不可用」，替换食材改用游戏原生选择界面。v1.47.0——成本核算界面改炼金式两层筛选图标网格（全部/生产/烹饪各四分支）；侧栏入口换趋势图表图标；市场详情收藏旁新增「精算」按钮一键加入/剔除清单；成本核算支持烹饪配方与「食材重构」替代食材（研究 126 解锁后显示替换按钮）。v1.46.2——修复全量市场快照漏物品（如无卖单的松露意面）时误判「暂无市场行情」——缺底数先走单物品强刷确认，失败延时重试，快照到达后恢复同物品其他等级。v1.46.1——统一成本核算入口的侧栏文字样式，并换用表格图标。v1.46.0——成本核算支持自选清单与宽屏双列。v1.45.2——收紧成本表，材料用量与双侧报价分列对齐。v1.45.1——修复成本核算页展开长配方后无法滚动的问题。v1.45.0——新增奇点科技生产成本核算，可逐层展开至采集和梳毛原料。v1.44.3——修复云同步开关与预约恢复、研究账号切换、定时钓鱼队列恢复及构建校验。v1.44.2——修复研究队列云同步「已完成研究复活」竞态——云端旧队列覆盖本地时，按游戏实时等级过滤掉目标已达成的条目（与 plan()/settleSubmitted 同口径，含正在研究任务 +1），比对时同口径过滤避免每次刷新误报覆盖。v1.44.1——toolbar「手动云同步」按钮改为与签到按钮同款青色发光样式（文字由「同步」改「手动云同步」）。v1.44.0——云同步新增市场「我的收藏」同步（localStorage.favorite 的 itemId 数组，归一化去重排序后入 payload；挂钩 Utils.setData 自动上传；云端覆盖前弹窗对比两端收藏数量由用户决定整份覆盖）+ toolbar 签到按钮旁新增「同步」按钮（仅上传本地到云端，不拉取）。v1.43.7——修复刷新时误报「云端已覆盖本地」——开关按脚本真实语义归一化比对（null 或 1 都=开、0=关），null 与 1 不再判为不同；研究按钮缺料红框内发光改呼吸动画。v1.43.6——研究队列按钮缺料提示——队首材料确实不足（复用研究队列已有的 researchStatus 判定）时，快捷按钮红边框 + 红色内发光、字保持黑色，title 补注「队首材料不足，等待补充」。v1.43.5——pull 绑定到游戏主界面顶栏 toolbar-container——进入游戏（含刷新、回退登录页后重新进入）时各发一次 GET，同一节点只拉一次、回退清空以允许再拉；服务端 GET/GET 与 PUT/PUT 各自 2 秒限流、两者互不干扰。v1.43.4——修复刷新不发 pull：从 document-idle 延后到主界面就绪后再拉。v1.43.3——云同步 uid 安全加固——覆盖/上传前实时校验当前游戏玩家 uid（pull 请求前后双闸、push 上传前后双闸、flush 检测账号切换丢弃旧状态），防止 A 回退登录页后 B 登录被 A 的云端配置串号覆盖。v1.43.2——云同步与脚本加载并行——4 个 init 立即执行不等网络，服务端不可达/挂起都不影响加载（单次请求 3 秒超时）；启动只 pull 不 push，拉取后与本地比对，一致不覆盖不通知，仅云端覆盖本地 / push 成功 / push 失败三类用通知栏反馈；回退登录页不 push、不 pull；未登录不同步、不等待 uid；设置页云同步开关，本地设置/研究队列/钓鱼预约变化时 2 秒节流自动上传；首次开启云端有数据则二选一，无数据静默启用；钓鱼预约新增 day 日期字段跨日不同步；队列条目去 submitted、本地租约不进 payload；明文 JSON + XOR/Base64 混淆传输。自动收菜按钮 60 秒往返进度 CSS keyframes 动画；研究队列（预留材料与自动结算）、自动接受任务/领奖、市场行情、采集/生产/烹饪详情优化、防呆设置、点金辅助、农业辅助（自动收菜+好友农场预览）、检查更新、定时钓鱼、炼金经验效率与越级计算等，详见脚本正文。
+// @version      1.58.0
+// @description  v1.58.0：库存成本合并采购与生产入库，持续同步背包数量。v1.57.2——历史订单支持录入期初库存成本。v1.57.1——修复库存消耗后的历史采购加权。v1.57.0——新增库存核算页，支持期初录入、采购历史对账、配方成本与云同步。v1.56.0——修复部分成交收购单的库存成本——结算项自带 side/price，改为直接按结算项的求购单价核算（side=2 入库、item=1 金币找零排除），分批成交分别点领取各自按该批成交价入库加权，不再依赖订单列表。v1.55.0——挂单收购物品后库存成本不更新修复：挂单成交先进结算池、领取才入库，领取时按结算 order_id 从订单取真实成交价，入库回包按该价加权（本地有库存但未录成本时直接采用成交价）；移除挂单回包误清空暂存单价与 120 秒过期限制。v1.54.0——成本核算材料树复用游戏原生交互——悬浮材料名显示物品文字说明、点击弹出原生物品菜单（含查看辞典/兑换/库存成本）；成本核算清单与库存成本数据的写入纳入云同步标记（增改条目、录入/清空库存成本、市场买入加权后立即触发上传），不再依赖其他操作顺带上传。v1.53.0——成本核算卡片展开标题左侧加三角指示（展开后旋转）；市场详情只对生产/烹饪成品显示「精算」按钮；成本核算（侧栏入口+精算）改为独立设置开关并纳入云同步；烹饪/生产/采集列表优化、点金辅助、农业辅助五项合并为设置页「生产采集界面优化」一个开关。v1.52.0——库存成本输入限两位小数；小计括号差额为 +0 时不显示；成本核算清单与库存成本纳入云同步（整份覆盖、归一化比对）；云同步改为连续 3 条修改或停止修改 5 秒后上传，云端旧脚本无法本地覆盖的字段暂存并在上传时原样带回。v1.51.0——成本核算卡片改为「直接买入材料」「从基础原料制作」两个可展开块——前者仅列一层直接材料、含库存成本列与按出售/收购小计的括号差额（正数绿字、负数红字），后者列完整逐层树、无库存成本列与括号；展开状态跨重绘保留。v1.50.0——修复小计括号差额：中间产物自身录有库存成本时按它核算，不再误展开子节点显示 +0；成本核算页改为复用主脚本行情 API（含 v1.44.4 单物品强刷修复），缺报价材料恢复行情后自动重绘，不再另拉全量快照自造取数。v1.49.0——修复替换食材按钮尺寸（不再覆盖原生 .btn 字号/内边距）；「仓库成本」改名「库存成本」，录入浮窗改确定/清空/取消三按钮；悬停物品行情新增库存成本行；成本表用量并入材料列（x数字）、第二列改库存成本，最终小计括号显示市场小计−库存合计差额。v1.48.0——物品菜单新增彩色像素图标「仓库成本」（背包无该物品时隐藏，录入浮窗默认填左一价，确定保存、点外部关闭），市场买入后按库存与成交价加权更新本地成本；替换食材按钮与删除按钮等高；面包等战斗掉落物改标「战斗掉落」。v1.47.1——修复成本核算侧栏图标显示样式差异、精算按钮样式，选择浮层筛选点击消失与图标重叠（全部档不显示第二层），采集/掉落类食材误标「配方不可用」，替换食材改用游戏原生选择界面。v1.47.0——成本核算界面改炼金式两层筛选图标网格（全部/生产/烹饪各四分支）；侧栏入口换趋势图表图标；市场详情收藏旁新增「精算」按钮一键加入/剔除清单；成本核算支持烹饪配方与「食材重构」替代食材（研究 126 解锁后显示替换按钮）。v1.46.2——修复全量市场快照漏物品（如无卖单的松露意面）时误判「暂无市场行情」——缺底数先走单物品强刷确认，失败延时重试，快照到达后恢复同物品其他等级。v1.46.1——统一成本核算入口的侧栏文字样式，并换用表格图标。v1.46.0——成本核算支持自选清单与宽屏双列。v1.45.2——收紧成本表，材料用量与双侧报价分列对齐。v1.45.1——修复成本核算页展开长配方后无法滚动的问题。v1.45.0——新增奇点科技生产成本核算，可逐层展开至采集和梳毛原料。v1.44.3——修复云同步开关与预约恢复、研究账号切换、定时钓鱼队列恢复及构建校验。v1.44.2——修复研究队列云同步「已完成研究复活」竞态——云端旧队列覆盖本地时，按游戏实时等级过滤掉目标已达成的条目（与 plan()/settleSubmitted 同口径，含正在研究任务 +1），比对时同口径过滤避免每次刷新误报覆盖。v1.44.1——toolbar「手动云同步」按钮改为与签到按钮同款青色发光样式（文字由「同步」改「手动云同步」）。v1.44.0——云同步新增市场「我的收藏」同步（localStorage.favorite 的 itemId 数组，归一化去重排序后入 payload；挂钩 Utils.setData 自动上传；云端覆盖前弹窗对比两端收藏数量由用户决定整份覆盖）+ toolbar 签到按钮旁新增「同步」按钮（仅上传本地到云端，不拉取）。v1.43.7——修复刷新时误报「云端已覆盖本地」——开关按脚本真实语义归一化比对（null 或 1 都=开、0=关），null 与 1 不再判为不同；研究按钮缺料红框内发光改呼吸动画。v1.43.6——研究队列按钮缺料提示——队首材料确实不足（复用研究队列已有的 researchStatus 判定）时，快捷按钮红边框 + 红色内发光、字保持黑色，title 补注「队首材料不足，等待补充」。v1.43.5——pull 绑定到游戏主界面顶栏 toolbar-container——进入游戏（含刷新、回退登录页后重新进入）时各发一次 GET，同一节点只拉一次、回退清空以允许再拉；服务端 GET/GET 与 PUT/PUT 各自 2 秒限流、两者互不干扰。v1.43.4——修复刷新不发 pull：从 document-idle 延后到主界面就绪后再拉。v1.43.3——云同步 uid 安全加固——覆盖/上传前实时校验当前游戏玩家 uid（pull 请求前后双闸、push 上传前后双闸、flush 检测账号切换丢弃旧状态），防止 A 回退登录页后 B 登录被 A 的云端配置串号覆盖。v1.43.2——云同步与脚本加载并行——4 个 init 立即执行不等网络，服务端不可达/挂起都不影响加载（单次请求 3 秒超时）；启动只 pull 不 push，拉取后与本地比对，一致不覆盖不通知，仅云端覆盖本地 / push 成功 / push 失败三类用通知栏反馈；回退登录页不 push、不 pull；未登录不同步、不等待 uid；设置页云同步开关，本地设置/研究队列/钓鱼预约变化时 2 秒节流自动上传；首次开启云端有数据则二选一，无数据静默启用；钓鱼预约新增 day 日期字段跨日不同步；队列条目去 submitted、本地租约不进 payload；明文 JSON + XOR/Base64 混淆传输。自动收菜按钮 60 秒往返进度 CSS keyframes 动画；研究队列（预留材料与自动结算）、自动接受任务/领奖、市场行情、采集/生产/烹饪详情优化、防呆设置、点金辅助、农业辅助（自动收菜+好友农场预览）、检查更新、定时钓鱼、炼金经验效率与越级计算等，详见脚本正文。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
 // @match        https://nekoidle.net/*
@@ -264,6 +264,7 @@
             '.nek-market { padding: 4px 12px 8px; margin-top: 4px; font-size: 12px; line-height: 1.6;',
             '  color: #37e2d4; border-top: 1px solid rgba(55, 226, 212, .22); white-space: nowrap; }',
             '.nek-market-row { display: grid; grid-template-columns: max-content 1fr max-content 1fr; column-gap: 4px; justify-content: start; }',
+            '.nek-market[data-state="ok"] + .nek-tooltip-cost-pending { display: none; }',
             '.nek-market .nek-mk-next { color: #7fa8a3; grid-column: 1 / -1; }',
             '.nek-market[data-state="ok"] { color: #ffd76e; }',
             '.nek-market[data-state="fail"] { color: #ff8a8a; }',
@@ -2741,6 +2742,11 @@
                 return Number.isFinite(value) && value >= 0 ? value : null;
             } catch (e) { return null; }
         }
+        function mkProductionCost(id, enhancement = 0) {
+            if (Number(enhancement) !== 0) return null;
+            try { return nekEnhancements.warehouseValue(Number(id)); }
+            catch { return null; }
+        }
 
         // 全量快照中是否缺少该物品/强化等级。注意：全量接口会漏物品，
         // 命中此分支只代表「底数缺失」，不等于服务端确实无行情，须经单物品强刷确认。
@@ -2810,12 +2816,13 @@
 
         // 四行行情：行1 左一/右一，行2 刚交价/今日成，行3 库存成本，行4 下次刷新（倒计时单独维护）。
         // 标签与数值分列渲染，配合 CSS 网格让「右一价」「今日成」标签起始位置对齐
-        function mkLineHtml(lv, id) {
+        function mkLineHtml(lv, id, enhancement = 0) {
             const sell = lv && lv.sell_price != null ? fmt(lv.sell_price) : '暂无';
             const buy = lv && lv.demand_price != null ? fmt(lv.demand_price) : '暂无';
             const last = lv && lv.last_price != null ? fmt(lv.last_price) : '暂无';
             const vol = lv && lv.volume != null ? fmt(lv.volume) : '-';
-            const stock = mkStockCost(id);
+            const stock = Number(enhancement) === 0 ? mkStockCost(id) : null;
+            const production = stock == null && typeof mkProductionCost === 'function' ? mkProductionCost(id, enhancement) : null;
             return '<div class="nek-market-row">' +
                 '<span class="nek-mk-lbl">左一价：</span><span class="nek-mk-val">' + sell + '</span>' +
                 '<span class="nek-mk-lbl">右一价：</span><span class="nek-mk-val">' + buy + '</span></div>' +
@@ -2823,7 +2830,8 @@
                 '<span class="nek-mk-lbl">刚交价：</span><span class="nek-mk-val">' + last + '</span>' +
                 '<span class="nek-mk-lbl">今日成：</span><span class="nek-mk-val">' + vol + '</span></div>' +
                 '<div class="nek-market-row nek-mk-stock">' +
-                '<span class="nek-mk-lbl">库存成本：</span><span class="nek-mk-val">' + (stock == null ? '缺报价' : fmt(stock)) + '</span></div>' +
+                (production?.label === '生产成本' ? '<span class="nek-mk-lbl">生产成本：</span>' : '<span class="nek-mk-lbl">库存成本：</span>') +
+                '<span class="nek-mk-val">' + (stock == null && production == null ? '缺报价' : fmt(stock ?? production.price)) + '</span></div>' +
                 '<div class="nek-market-row nek-mk-next">下次刷新：--秒</div>';
         }
 
@@ -2835,7 +2843,7 @@
             document.querySelectorAll('.nek-market[data-nek-key="' + key + '"]').forEach(function (el) {
                 if (!c) { el.textContent = MK_FAILED; el.dataset.state = 'fail'; return; }
                 el.dataset.state = 'ok';
-                el.innerHTML = mkLineHtml(c.lv, el.dataset.nekId);
+                el.innerHTML = mkLineHtml(c.lv, el.dataset.nekId, el.dataset.nekEnh);
             });
             if (c) mkStartCountdown(key);
         }
@@ -2945,11 +2953,16 @@
             const wrapped = function (itemDef, param) {
                 let html = orig.apply(this, arguments);
                 try {
-                    if (itemDef && itemDef.trade && isEnabled() && isMarketEnabled()) {
+                    if (itemDef && isEnabled()) {
                         const item = (param && param.item) || null;
                         const enh = (item && item.enhancement != null) ? (Number(item.enhancement) || 0) : 0;
-                        const marker = '<div class="nek-market" data-nek-id="' + itemDef.id +
-                            '" data-nek-enh="' + enh + '">' + MK_WAITING + '</div>';
+                        const market = itemDef.trade && isMarketEnabled();
+                        const cost = isCostEnabled() ? mkProductionCost(itemDef.id, enh) : null;
+                        if (!market && !cost) return html;
+                        const stock = cost ? '<div class="nek-tooltip-cost' + (market ? ' nek-tooltip-cost-pending' : '') +
+                            '">' + cost.label + '：' + fmt(cost.price) + '</div>' : '';
+                        const marker = market ? '<div class="nek-market" data-nek-id="' + itemDef.id +
+                            '" data-nek-enh="' + enh + '">' + MK_WAITING + '</div>' + stock : stock;
                         const tipTag = '<div class="item-info-tip">';
                         const i = html.indexOf(tipTag);
                         if (i !== -1) {
@@ -3643,7 +3656,7 @@
                     !Number.isFinite(row.since) || row.since <= 0) continue;
                 const purchases = Array.isArray(row.purchases) ? row.purchases.slice(-20).filter(p =>
                     Number.isSafeInteger(p?.quantity) && p.quantity > 0 && Number.isFinite(p.at) && p.at > 0 &&
-                    Number.isFinite(p.price) && p.price > 0 && ['直购', '直购已核对', '求购领取', '历史采购'].includes(p.source))
+                    Number.isFinite(p.price) && p.price >= 0 && ['直购', '直购已核对', '求购领取', '历史采购', '生产入库'].includes(p.source))
                     .map(({ quantity, at, price, source }) => ({ quantity, at, price, source })) : [];
                 items[id] = { quantity: row.quantity, since: row.since, purchases };
             }
@@ -4177,17 +4190,17 @@
                                 let held = before.get(key) || 0;
                                 for (const batch of batches) {
                                     if (ledger.excluded.includes(id)) continue;
-                                    const merged = mergeWarehouseCost(map[id], held, batch.price, batch.quantity);
+                                    const oldCost = map[id] ?? productionUnitCost(id, map);
+                                    const merged = mergeWarehouseCost(oldCost, held, batch.price, batch.quantity);
                                     if (merged == null || batch.price <= 0) continue;
                                     map[id] = merged;
                                     held += batch.quantity;
                                     changed = true;
-                                    if (ledger.items[id]) {
-                                        const knownOrder = Number.isSafeInteger(batch.id) && batch.id > 0;
-                                        addPurchase(ledger.items[id], batch, content.type === 'claim' || claims.length && !direct
-                                            ? '求购领取' : knownOrder ? '直购已核对' : '直购');
-                                        if (knownOrder) ledger.orders[batch.id] = { quantity: (ledger.orders[batch.id]?.quantity || 0) + batch.quantity };
-                                    }
+                                    const entry = ledger.items[id] ??= { quantity: held, since: Date.now(), purchases: [] };
+                                    const knownOrder = Number.isSafeInteger(batch.id) && batch.id > 0;
+                                    addPurchase(entry, batch, content.type === 'claim' || claims.length && !direct
+                                        ? '求购领取' : knownOrder ? '直购已核对' : '直购');
+                                    if (knownOrder) ledger.orders[batch.id] = { quantity: (ledger.orders[batch.id]?.quantity || 0) + batch.quantity };
                                 }
                                 if (batches.length) {
                                     before.set(key, (before.get(key) || 0) + bought);
@@ -4220,7 +4233,12 @@
                     const original = msg.handlers[type];
                     if (typeof original !== 'function') continue;
                     msg.handlers[type] = function (data) {
+                        let production = null;
+                        try { if (type === 'action_complete') production = captureProduction(data?.content); }
+                        catch (e) { console.warn('[小助手] 读取生产批次失败', e); }
                         const result = original.apply(this, arguments);
+                        try { if (production) recordProduction(production); }
+                        catch (e) { console.warn('[小助手] 记录生产批次失败', e); }
                         observeQueue(type, data?.content);
                         return result;
                     };
@@ -4750,6 +4768,100 @@
                 } catch { /* 新建账本 */ }
                 return normalizeInventoryLedger(null);
             }
+            function productionUnitCost(id, costs) {
+                if (!env.data()?.items?.[id]) return null;
+                return inventoryRecipeTotal(recipeCost(env.data(), id, null), costs);
+            }
+            function warehouseValue(id) {
+                const uid = core.view().account;
+                if (!uid || !costEnabled()) return null;
+                const costs = warehouseCosts(uid);
+                if (typeof costs[id] === 'number') return { price: costs[id], label: '库存成本' };
+                const price = productionUnitCost(id, costs);
+                return price == null ? null : { price, label: '生产成本' };
+            }
+            function captureProduction(content) {
+                if (!content || !costEnabled() || !Array.isArray(content.add)) return null;
+                const data = env.data(), game = env.game(), uid = core.view().account;
+                if (!data || !uid) return null;
+                const action = content.type === 'action' ? data.actions?.[content.id] : null;
+                const recipe = content.type === 'cooking' ? data.cookingRecipes?.[content.id] : action?.action === 6 ? action : null;
+                if (!recipe) return null;
+                const ledger = warehouseLedger(uid), costs = warehouseCosts(uid), outputs = new Map();
+                const rewardIds = new Set((recipe.rewards || []).map(reward => Number(reward.itemId)));
+                const received = new Map();
+                for (const row of content.add) {
+                    const id = Number(row.item), quantity = Number(row.quantity);
+                    if (Number(row.enhancement || 0) !== 0 || !rewardIds.has(id) || !(quantity > 0)) continue;
+                    received.set(id, (received.get(id) || 0) + quantity);
+                }
+                let batchCost = null;
+                // 消耗明细含实际食材和用量。用原生背包的堆叠 ID 查出物品 ID，
+                // 可覆盖替换食材、多倍行动和额外产量。
+                if (received.size === 1 && Array.isArray(content.remove) && content.remove.length) {
+                    batchCost = 0;
+                    for (const row of content.remove) {
+                        const item = game.inventory?.find(stack => Number(stack.id) === Number(row.id));
+                        const id = Number(item?.item ?? row.item);
+                        if (!Number.isSafeInteger(id) || !(Number(row.quantity) > 0) || Number(item?.enhancement || 0) !== 0) {
+                            batchCost = null;
+                            break;
+                        }
+                        // 已确认实际用料时，不以原配方价格替代缺价的食材。
+                        const price = costs[id] ?? productionUnitCost(id, costs);
+                        if (price == null) return null;
+                        batchCost += price * Number(row.quantity);
+                    }
+                }
+                for (const [id, quantity] of received) {
+                    if (ledger.excluded.includes(id) || (!ledger.products.includes(id) && !Object.hasOwn(costs, id))) continue;
+                    const estimate = productionUnitCost(id, costs);
+                    const price = batchCost == null ? estimate : batchCost / quantity;
+                    if (price == null) continue;
+                    outputs.set(id, { quantity, price, before: game.getItemQuantity(id), old: costs[id] ?? estimate });
+                }
+                return outputs.size ? { uid, outputs } : null;
+            }
+            function recordProduction({ uid, outputs }) {
+                if (core.view().account !== uid) return;
+                const ledger = warehouseLedger(uid), costs = warehouseCosts(uid), game = env.game();
+                for (const [id, batch] of outputs) {
+                    const actual = game.getItemQuantity(id);
+                    if (actual <= batch.before) continue;
+                    const quantity = Math.min(batch.quantity, actual - batch.before);
+                    costs[id] = mergeWarehouseCost(batch.old, batch.before, batch.price, quantity);
+                    if (!ledger.items[id]) recordWarehouseBase(ledger, id, actual);
+                    ledger.items[id].quantity = actual;
+                    addPurchase(ledger.items[id], { quantity, price: batch.price }, '生产入库');
+                }
+                saveWarehouseLedger(uid, ledger, costs);
+            }
+            let loginInventoryDiffs = new Map(), inventoryDiffUid = null;
+            function captureLoginInventory(uid, hasInventory) {
+                if (core.view().account !== String(uid)) return;
+                inventoryDiffUid = String(uid);
+                loginInventoryDiffs = new Map();
+                if (!hasInventory) return;
+                const game = env.game(), ledger = warehouseLedger(uid);
+                for (const [id, entry] of Object.entries(ledger.items)) {
+                    const actual = game.getItemQuantity(Number(id));
+                    if (entry.quantity !== actual) loginInventoryDiffs.set(Number(id), { book: entry.quantity, actual });
+                }
+                if (loginInventoryDiffs.size) env.ui()?.notifier?.show?.('库存账面数量与背包不一致，可在库存核算中确认或修正单价。', 'tip');
+            }
+            function syncInventoryBalances(uid) {
+                if (!historyReady()) return;
+                const ledger = warehouseLedger(uid), game = env.game();
+                let changed = false;
+                for (const id of new Set([...Object.keys(ledger.items).map(Number), ...ledger.products])) {
+                    const actual = game.getItemQuantity(id);
+                    if (ledger.items[id]?.quantity === actual || !Number.isSafeInteger(actual)) continue;
+                    if (ledger.items[id]) ledger.items[id].quantity = actual;
+                    else recordWarehouseBase(ledger, id, actual);
+                    changed = true;
+                }
+                if (changed) saveWarehouseLedger(uid, ledger);
+            }
             function saveWarehouseLedger(uid, ledger, costs) {
                 try {
                     if (costs && env.saveWarehouseState) env.saveWarehouseState(uid, ledger, costs);
@@ -4826,7 +4938,7 @@
                     // 旧库存视为耗尽，按这些采购批次的加权单价计剩余库存。
                     let balance = Math.max(0, actual - acquired);
                     for (const batch of fresh) {
-                        costs[item] = mergeWarehouseCost(costs[item], balance, batch.price, batch.quantity);
+                        costs[item] = mergeWarehouseCost(costs[item] ?? productionUnitCost(item, costs), balance, batch.price, batch.quantity);
                         balance += batch.quantity;
                         ledger.orders[batch.id] = { quantity: (ledger.orders[batch.id]?.quantity || 0) + batch.quantity };
                         addPurchase(entry, batch, '历史采购');
@@ -4954,7 +5066,8 @@
                 picker.setAttribute('aria-label', '选择物品');
                 const quantity = add(form, 'input', '');
                 const price = add(form, 'input', '');
-                for (const [input, label, inputMode] of [[quantity, '期初数量', 'numeric'], [price, '单件成本', 'decimal']]) {
+                quantity.readOnly = true;
+                for (const [input, label, inputMode] of [[quantity, '背包数量', 'numeric'], [price, '单件成本', 'decimal']]) {
                     input.placeholder = label;
                     input.setAttribute('aria-label', label);
                     input.inputMode = inputMode;
@@ -4971,7 +5084,8 @@
                 function setInputs() {
                     const id = Number(picker.value);
                     quantity.value = id ? String(held(id)) : '';
-                    price.value = warehouseCosts(uid)[id] ?? '';
+                    const costs = warehouseCosts(uid);
+                    price.value = costs[id] ?? round2(productionUnitCost(id, costs) ?? NaN) ?? '';
                     saveButton.disabled = !id;
                 }
                 function updatePicker(selected) {
@@ -4998,11 +5112,12 @@
                     if (panel.hidden || core.view().account !== uid) return;
                     const ledger = warehouseLedger(uid), costs = warehouseCosts(uid);
                     const ids = [...new Set([...Object.keys(costs).map(Number), ...ledger.products])];
-                    const view = JSON.stringify([ledger, costs, ids.map(held)]);
+                    const diffs = inventoryDiffUid === uid ? loginInventoryDiffs : new Map();
+                    const view = JSON.stringify([ledger, costs, ids.map(held), [...diffs]]);
                     if (view === lastView) return;
                     lastView = view;
                     results.replaceChildren();
-                    function cardFor(id, isRecipe) {
+                    function cardFor(id) {
                         const card = add(results, 'section', 'neon-section');
                         const head = add(card, 'div', 'nek-inventory-name');
                         const def = data.items[id];
@@ -5013,7 +5128,7 @@
                         }
                         add(head, 'strong', '', def?.name || '#' + id);
                         const actions = add(card, 'div', 'nek-inventory-actions');
-                        if (!isRecipe) add(actions, 'button', 'btn', '修改').addEventListener('click', () => {
+                        add(actions, 'button', 'btn', '修正单价').addEventListener('click', () => {
                             mode.value = 'stock';
                             search.value = '';
                             updatePicker(id);
@@ -5022,36 +5137,40 @@
                         add(actions, 'button', 'btn', '删除').addEventListener('click', () => {
                             if (!editingAllowed()) return;
                             const next = warehouseLedger(uid), prices = warehouseCosts(uid);
-                            if (isRecipe) next.products = next.products.filter(product => product !== id);
-                            else {
-                                delete next.items[id];
-                                delete prices[id];
-                                if (!next.excluded.includes(id)) next.excluded.push(id);
-                            }
-                            if (!saveWarehouseLedger(uid, next, prices)) status.textContent = '删除失败，请重试。';
+                            next.products = next.products.filter(product => product !== id);
+                            delete next.items[id];
+                            delete prices[id];
+                            if (!next.excluded.includes(id)) next.excluded.push(id);
+                            if (saveWarehouseLedger(uid, next, prices)) { diffs.delete(id); render(); }
+                            else status.textContent = '删除失败，请重试。';
                         });
                         return card;
                     }
-                    for (const id of Object.keys(costs).map(Number)) {
-                        const card = cardFor(id, false), entry = ledger.items[id], actual = held(id);
-                        add(card, 'div', '', '背包 ' + fmt(actual) + ' · 单件 ' + fmt(Number(costs[id])) + ' · 总额 ' + fmt(actual * costs[id]));
-                        if (entry && entry.quantity !== actual) add(card, 'div', '', '账面 ' + fmt(entry.quantity) + '，按背包数量核算');
+                    for (const id of ids) {
+                        const card = cardFor(id), entry = ledger.items[id], actual = held(id);
+                        const derived = ledger.products.includes(id) ? productionUnitCost(id, costs) : null;
+                        const unit = costs[id] ?? derived;
+                        add(card, 'div', '', '背包 ' + fmt(actual) + (unit == null ? ' · 缺少材料单价' :
+                            ' · ' + (costs[id] == null ? '生产单价 ' : '库存单价 ') + fmt(unit) + ' · 库存总额 ' + fmt(actual * unit)));
+                        if (derived != null && costs[id] != null) add(card, 'div', '', '当前配方单价 ' + fmt(derived) + ' 喵点');
+                        const diff = diffs.get(id);
+                        if (diff) {
+                            add(card, 'div', '', '登录同步时账面 ' + fmt(diff.book) + '，背包 ' + fmt(diff.actual));
+                            add(card, 'button', 'btn', '忽略账面数量').addEventListener('click', () => {
+                                diffs.delete(id);
+                                render();
+                            });
+                        }
                         if (entry?.purchases?.length) {
                             const details = add(card, 'details', '');
-                            add(details, 'summary', '', '近期采购');
+                            add(details, 'summary', '', '近期入库');
                             for (const receipt of entry.purchases.slice().reverse()) {
                                 add(details, 'div', '', new Date(receipt.at).toLocaleString() + ' · ' + receipt.source +
                                     ' · ' + fmt(receipt.quantity) + ' 件 × ' + fmt(receipt.price));
                             }
                         }
                     }
-                    for (const id of ledger.products) {
-                        const card = cardFor(id, true);
-                        const node = recipeCost(data, id, null);
-                        const total = inventoryRecipeTotal(node, costs);
-                        add(card, 'div', '', total == null ? '生产成本待核算，部分材料缺少库存单价' : '单件生产成本 ' + fmt(total) + ' 喵点');
-                    }
-                    if (!ids.length) add(results, 'p', '', '添加材料录入期初数量和单价，或选择产物核算生产成本。');
+                    if (!ids.length) add(results, 'p', '', '添加材料录入期初单价，或选择产物核算生产成本。');
                 }
                 saveButton.addEventListener('click', () => {
                     const id = Number(picker.value);
@@ -5060,16 +5179,20 @@
                     if (mode.value === 'recipe') {
                         if (!craftableProduct(data, id) || ledger.products.includes(id)) return;
                         ledger.products.push(id);
+                        if (!ledger.items[id]) recordWarehouseBase(ledger, id, held(id));
                     } else {
-                        const raw = quantity.value.trim(), qty = Number(raw), value = parseStockCost(price.value);
-                        if (!/^\d+$/.test(raw) || !Number.isSafeInteger(qty) || value == null) {
-                            status.textContent = '请输入非负整数数量和最多两位小数的成本单价。';
+                        const value = parseStockCost(price.value);
+                        if (value == null) {
+                            status.textContent = '请输入最多两位小数的非负成本单价。';
                             return;
                         }
-                        recordWarehouseBase(ledger, id, qty);
+                        recordWarehouseBase(ledger, id, held(id));
                         costs[id] = value;
                     }
-                    status.textContent = saveWarehouseLedger(uid, ledger, costs) ? '已保存。' : '保存失败，请重试。';
+                    const saved = saveWarehouseLedger(uid, ledger, costs);
+                    if (saved && mode.value === 'stock' && inventoryDiffUid === uid) loginInventoryDiffs.delete(id);
+                    status.textContent = saved ? '已保存。' : '保存失败，请重试。';
+                    render();
                 });
                 sync.addEventListener('click', () => {
                     if (!editingAllowed()) return;
@@ -5489,9 +5612,12 @@
                     if (installed) {
                         core.tick();
                         decorate();
-                        refreshInventoryPanel?.();
                         const uid = core.view().account;
-                        if (uid) requestWarehouseHistory(uid);
+                        if (uid) {
+                            syncInventoryBalances(uid);
+                            requestWarehouseHistory(uid);
+                        }
+                        refreshInventoryPanel?.();
                     }
                 }
                 catch (e) { console.warn('[小助手] 研究/任务/库存辅助异常:', e); }
@@ -5508,7 +5634,7 @@
                         multiplier: state?.multiplier ?? entry.multiplier ?? entry.item?.multiplier };
                 });
             }
-            return { init, decorate, core, snapshotActions };
+            return { init, decorate, core, snapshotActions, warehouseValue, captureLoginInventory };
         }
         const nekEnhancements = createNekEnhancements({
             game: () => typeof game !== 'undefined' ? game : null,
@@ -6634,7 +6760,7 @@
         // ---------------- 自动检查更新（GitHub raw 头部 @version 对比） ----------------
         // 注意：发布新版本时需同步修改 CURRENT_VERSION（与头部 @version 保持一致）。
         // 页面上下文无 GM_info（@grant none 且经 <script> 注入），只能内置当前版本号。
-        const CURRENT_VERSION = '1.57.2';
+        const CURRENT_VERSION = '1.58.0';
         const LS_UPD_KEY = 'nek_update_check_enabled';        // 检查更新开关，默认开
         const LS_UPD_REMIND = 'nek_update_remind_last';       // 上次提醒时间戳（提醒节流）
         const UPD_REMIND_INTERVAL = 60 * 60 * 1000;           // 提醒节流：距上次提醒超过 60 分钟才再次提醒
@@ -7884,10 +8010,11 @@
                 // 先暂存云端独有的字段（较旧脚本无法本地覆盖的部分），不因「与本地一致」而漏存。
                 cloudStageUnknown(r.data.data, curUid);
                 // 决策2：云端与本地一致则不覆盖、不通知；仅覆盖时反馈。
-                if (cloudSameAsLocal(r.data.data, curUid)) return { found: true, applied: false };
+                const hasInventory = r.data.data.inventoryLedger != null && cloudValidate(r.data.data);
+                if (cloudSameAsLocal(r.data.data, curUid)) return { found: true, applied: false, hasInventory };
                 cloudApply(r.data.data, curUid);
                 cloudNotify('云同步：云端数据已覆盖本地（' + new Date().toLocaleTimeString() + '）', 'tip', 2500);
-                return { found: true, applied: true };
+                return { found: true, applied: true, hasInventory };
             },
             async push(uid, payload) {
                 if (isLoginScreen()) return { skipped: true };
@@ -7988,7 +8115,8 @@
                 if (!uid) return;   // 未登录：静默跳过
                 this.uid = uid;
                 try {
-                    await this.pull(uid);   // 拉取失败/404/429 均静默（仅覆盖本地才反馈）
+                    const result = await this.pull(uid);
+                    nekEnhancements.captureLoginInventory(uid, result?.hasInventory === true);
                 } catch (e) {
                     console.warn('[云同步] pull 失败，使用本地数据', e);
                 }
