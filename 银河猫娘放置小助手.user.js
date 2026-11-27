@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.59.1
-// @description  v1.59.1：库存核算顶部汇总库存总价值。v1.59.0——库存预警、充裕比例和逐层补货核算。v1.58.1——市场出入库即时同步，生产每分钟记账，云同步间隔可设。v1.58.0——库存成本合并采购与生产入库。v1.57.2——历史订单支持录入期初库存成本。v1.57.1——修复库存消耗后的历史采购加权。v1.57.0——新增库存核算页，支持期初录入、采购历史对账、配方成本与云同步。v1.56.0——修复部分成交收购单的库存成本——结算项自带 side/price，改为直接按结算项的求购单价核算（side=2 入库、item=1 金币找零排除），分批成交分别点领取各自按该批成交价入库加权，不再依赖订单列表。v1.55.0——挂单收购物品后库存成本不更新修复：挂单成交先进结算池、领取才入库，领取时按结算 order_id 从订单取真实成交价，入库回包按该价加权（本地有库存但未录成本时直接采用成交价）；移除挂单回包误清空暂存单价与 120 秒过期限制。v1.54.0——成本核算材料树复用游戏原生交互——悬浮材料名显示物品文字说明、点击弹出原生物品菜单（含查看辞典/兑换/库存成本）；成本核算清单与库存成本数据的写入纳入云同步标记（增改条目、录入/清空库存成本、市场买入加权后立即触发上传），不再依赖其他操作顺带上传。v1.53.0——成本核算卡片展开标题左侧加三角指示（展开后旋转）；市场详情只对生产/烹饪成品显示「精算」按钮；成本核算（侧栏入口+精算）改为独立设置开关并纳入云同步；烹饪/生产/采集列表优化、点金辅助、农业辅助五项合并为设置页「生产采集界面优化」一个开关。v1.52.0——库存成本输入限两位小数；小计括号差额为 +0 时不显示；成本核算清单与库存成本纳入云同步（整份覆盖、归一化比对）；云同步改为连续 3 条修改或停止修改 5 秒后上传，云端旧脚本无法本地覆盖的字段暂存并在上传时原样带回。v1.51.0——成本核算卡片改为「直接买入材料」「从基础原料制作」两个可展开块——前者仅列一层直接材料、含库存成本列与按出售/收购小计的括号差额（正数绿字、负数红字），后者列完整逐层树、无库存成本列与括号；展开状态跨重绘保留。v1.50.0——修复小计括号差额：中间产物自身录有库存成本时按它核算，不再误展开子节点显示 +0；成本核算页改为复用主脚本行情 API（含 v1.44.4 单物品强刷修复），缺报价材料恢复行情后自动重绘，不再另拉全量快照自造取数。v1.49.0——修复替换食材按钮尺寸（不再覆盖原生 .btn 字号/内边距）；「仓库成本」改名「库存成本」，录入浮窗改确定/清空/取消三按钮；悬停物品行情新增库存成本行；成本表用量并入材料列（x数字）、第二列改库存成本，最终小计括号显示市场小计−库存合计差额。v1.48.0——物品菜单新增彩色像素图标「仓库成本」（背包无该物品时隐藏，录入浮窗默认填左一价，确定保存、点外部关闭），市场买入后按库存与成交价加权更新本地成本；替换食材按钮与删除按钮等高；面包等战斗掉落物改标「战斗掉落」。v1.47.1——修复成本核算侧栏图标显示样式差异、精算按钮样式，选择浮层筛选点击消失与图标重叠（全部档不显示第二层），采集/掉落类食材误标「配方不可用」，替换食材改用游戏原生选择界面。v1.47.0——成本核算界面改炼金式两层筛选图标网格（全部/生产/烹饪各四分支）；侧栏入口换趋势图表图标；市场详情收藏旁新增「精算」按钮一键加入/剔除清单；成本核算支持烹饪配方与「食材重构」替代食材（研究 126 解锁后显示替换按钮）。v1.46.2——修复全量市场快照漏物品（如无卖单的松露意面）时误判「暂无市场行情」——缺底数先走单物品强刷确认，失败延时重试，快照到达后恢复同物品其他等级。v1.46.1——统一成本核算入口的侧栏文字样式，并换用表格图标。v1.46.0——成本核算支持自选清单与宽屏双列。v1.45.2——收紧成本表，材料用量与双侧报价分列对齐。v1.45.1——修复成本核算页展开长配方后无法滚动的问题。v1.45.0——新增奇点科技生产成本核算，可逐层展开至采集和梳毛原料。v1.44.3——修复云同步开关与预约恢复、研究账号切换、定时钓鱼队列恢复及构建校验。v1.44.2——修复研究队列云同步「已完成研究复活」竞态——云端旧队列覆盖本地时，按游戏实时等级过滤掉目标已达成的条目（与 plan()/settleSubmitted 同口径，含正在研究任务 +1），比对时同口径过滤避免每次刷新误报覆盖。v1.44.1——toolbar「手动云同步」按钮改为与签到按钮同款青色发光样式（文字由「同步」改「手动云同步」）。v1.44.0——云同步新增市场「我的收藏」同步（localStorage.favorite 的 itemId 数组，归一化去重排序后入 payload；挂钩 Utils.setData 自动上传；云端覆盖前弹窗对比两端收藏数量由用户决定整份覆盖）+ toolbar 签到按钮旁新增「同步」按钮（仅上传本地到云端，不拉取）。v1.43.7——修复刷新时误报「云端已覆盖本地」——开关按脚本真实语义归一化比对（null 或 1 都=开、0=关），null 与 1 不再判为不同；研究按钮缺料红框内发光改呼吸动画。v1.43.6——研究队列按钮缺料提示——队首材料确实不足（复用研究队列已有的 researchStatus 判定）时，快捷按钮红边框 + 红色内发光、字保持黑色，title 补注「队首材料不足，等待补充」。v1.43.5——pull 绑定到游戏主界面顶栏 toolbar-container——进入游戏（含刷新、回退登录页后重新进入）时各发一次 GET，同一节点只拉一次、回退清空以允许再拉；服务端 GET/GET 与 PUT/PUT 各自 2 秒限流、两者互不干扰。v1.43.4——修复刷新不发 pull：从 document-idle 延后到主界面就绪后再拉。v1.43.3——云同步 uid 安全加固——覆盖/上传前实时校验当前游戏玩家 uid（pull 请求前后双闸、push 上传前后双闸、flush 检测账号切换丢弃旧状态），防止 A 回退登录页后 B 登录被 A 的云端配置串号覆盖。v1.43.2——云同步与脚本加载并行——4 个 init 立即执行不等网络，服务端不可达/挂起都不影响加载（单次请求 3 秒超时）；启动只 pull 不 push，拉取后与本地比对，一致不覆盖不通知，仅云端覆盖本地 / push 成功 / push 失败三类用通知栏反馈；回退登录页不 push、不 pull；未登录不同步、不等待 uid；设置页云同步开关，本地设置/研究队列/钓鱼预约变化时 2 秒节流自动上传；首次开启云端有数据则二选一，无数据静默启用；钓鱼预约新增 day 日期字段跨日不同步；队列条目去 submitted、本地租约不进 payload；明文 JSON + XOR/Base64 混淆传输。自动收菜按钮 60 秒往返进度 CSS keyframes 动画；研究队列（预留材料与自动结算）、自动接受任务/领奖、市场行情、采集/生产/烹饪详情优化、防呆设置、点金辅助、农业辅助（自动收菜+好友农场预览）、检查更新、定时钓鱼、炼金经验效率与越级计算等，详见脚本正文。
+// @version      1.59.2
+// @description  v1.59.2：新增库存预警汇总，合并采购和生产数量。v1.59.1——库存核算顶部汇总库存总价值。v1.59.0——库存预警、充裕比例和逐层补货核算。v1.58.1——市场出入库即时同步，生产每分钟记账，云同步间隔可设。v1.58.0——库存成本合并采购与生产入库。v1.57.2——历史订单支持录入期初库存成本。v1.57.1——修复库存消耗后的历史采购加权。v1.57.0——新增库存核算页，支持期初录入、采购历史对账、配方成本与云同步。v1.56.0——修复部分成交收购单的库存成本——结算项自带 side/price，改为直接按结算项的求购单价核算（side=2 入库、item=1 金币找零排除），分批成交分别点领取各自按该批成交价入库加权，不再依赖订单列表。v1.55.0——挂单收购物品后库存成本不更新修复：挂单成交先进结算池、领取才入库，领取时按结算 order_id 从订单取真实成交价，入库回包按该价加权（本地有库存但未录成本时直接采用成交价）；移除挂单回包误清空暂存单价与 120 秒过期限制。v1.54.0——成本核算材料树复用游戏原生交互——悬浮材料名显示物品文字说明、点击弹出原生物品菜单（含查看辞典/兑换/库存成本）；成本核算清单与库存成本数据的写入纳入云同步标记（增改条目、录入/清空库存成本、市场买入加权后立即触发上传），不再依赖其他操作顺带上传。v1.53.0——成本核算卡片展开标题左侧加三角指示（展开后旋转）；市场详情只对生产/烹饪成品显示「精算」按钮；成本核算（侧栏入口+精算）改为独立设置开关并纳入云同步；烹饪/生产/采集列表优化、点金辅助、农业辅助五项合并为设置页「生产采集界面优化」一个开关。v1.52.0——库存成本输入限两位小数；小计括号差额为 +0 时不显示；成本核算清单与库存成本纳入云同步（整份覆盖、归一化比对）；云同步改为连续 3 条修改或停止修改 5 秒后上传，云端旧脚本无法本地覆盖的字段暂存并在上传时原样带回。v1.51.0——成本核算卡片改为「直接买入材料」「从基础原料制作」两个可展开块——前者仅列一层直接材料、含库存成本列与按出售/收购小计的括号差额（正数绿字、负数红字），后者列完整逐层树、无库存成本列与括号；展开状态跨重绘保留。v1.50.0——修复小计括号差额：中间产物自身录有库存成本时按它核算，不再误展开子节点显示 +0；成本核算页改为复用主脚本行情 API（含 v1.44.4 单物品强刷修复），缺报价材料恢复行情后自动重绘，不再另拉全量快照自造取数。v1.49.0——修复替换食材按钮尺寸（不再覆盖原生 .btn 字号/内边距）；「仓库成本」改名「库存成本」，录入浮窗改确定/清空/取消三按钮；悬停物品行情新增库存成本行；成本表用量并入材料列（x数字）、第二列改库存成本，最终小计括号显示市场小计−库存合计差额。v1.48.0——物品菜单新增彩色像素图标「仓库成本」（背包无该物品时隐藏，录入浮窗默认填左一价，确定保存、点外部关闭），市场买入后按库存与成交价加权更新本地成本；替换食材按钮与删除按钮等高；面包等战斗掉落物改标「战斗掉落」。v1.47.1——修复成本核算侧栏图标显示样式差异、精算按钮样式，选择浮层筛选点击消失与图标重叠（全部档不显示第二层），采集/掉落类食材误标「配方不可用」，替换食材改用游戏原生选择界面。v1.47.0——成本核算界面改炼金式两层筛选图标网格（全部/生产/烹饪各四分支）；侧栏入口换趋势图表图标；市场详情收藏旁新增「精算」按钮一键加入/剔除清单；成本核算支持烹饪配方与「食材重构」替代食材（研究 126 解锁后显示替换按钮）。v1.46.2——修复全量市场快照漏物品（如无卖单的松露意面）时误判「暂无市场行情」——缺底数先走单物品强刷确认，失败延时重试，快照到达后恢复同物品其他等级。v1.46.1——统一成本核算入口的侧栏文字样式，并换用表格图标。v1.46.0——成本核算支持自选清单与宽屏双列。v1.45.2——收紧成本表，材料用量与双侧报价分列对齐。v1.45.1——修复成本核算页展开长配方后无法滚动的问题。v1.45.0——新增奇点科技生产成本核算，可逐层展开至采集和梳毛原料。v1.44.3——修复云同步开关与预约恢复、研究账号切换、定时钓鱼队列恢复及构建校验。v1.44.2——修复研究队列云同步「已完成研究复活」竞态——云端旧队列覆盖本地时，按游戏实时等级过滤掉目标已达成的条目（与 plan()/settleSubmitted 同口径，含正在研究任务 +1），比对时同口径过滤避免每次刷新误报覆盖。v1.44.1——toolbar「手动云同步」按钮改为与签到按钮同款青色发光样式（文字由「同步」改「手动云同步」）。v1.44.0——云同步新增市场「我的收藏」同步（localStorage.favorite 的 itemId 数组，归一化去重排序后入 payload；挂钩 Utils.setData 自动上传；云端覆盖前弹窗对比两端收藏数量由用户决定整份覆盖）+ toolbar 签到按钮旁新增「同步」按钮（仅上传本地到云端，不拉取）。v1.43.7——修复刷新时误报「云端已覆盖本地」——开关按脚本真实语义归一化比对（null 或 1 都=开、0=关），null 与 1 不再判为不同；研究按钮缺料红框内发光改呼吸动画。v1.43.6——研究队列按钮缺料提示——队首材料确实不足（复用研究队列已有的 researchStatus 判定）时，快捷按钮红边框 + 红色内发光、字保持黑色，title 补注「队首材料不足，等待补充」。v1.43.5——pull 绑定到游戏主界面顶栏 toolbar-container——进入游戏（含刷新、回退登录页后重新进入）时各发一次 GET，同一节点只拉一次、回退清空以允许再拉；服务端 GET/GET 与 PUT/PUT 各自 2 秒限流、两者互不干扰。v1.43.4——修复刷新不发 pull：从 document-idle 延后到主界面就绪后再拉。v1.43.3——云同步 uid 安全加固——覆盖/上传前实时校验当前游戏玩家 uid（pull 请求前后双闸、push 上传前后双闸、flush 检测账号切换丢弃旧状态），防止 A 回退登录页后 B 登录被 A 的云端配置串号覆盖。v1.43.2——云同步与脚本加载并行——4 个 init 立即执行不等网络，服务端不可达/挂起都不影响加载（单次请求 3 秒超时）；启动只 pull 不 push，拉取后与本地比对，一致不覆盖不通知，仅云端覆盖本地 / push 成功 / push 失败三类用通知栏反馈；回退登录页不 push、不 pull；未登录不同步、不等待 uid；设置页云同步开关，本地设置/研究队列/钓鱼预约变化时 2 秒节流自动上传；首次开启云端有数据则二选一，无数据静默启用；钓鱼预约新增 day 日期字段跨日不同步；队列条目去 submitted、本地租约不进 payload；明文 JSON + XOR/Base64 混淆传输。自动收菜按钮 60 秒往返进度 CSS keyframes 动画；研究队列（预留材料与自动结算）、自动接受任务/领奖、市场行情、采集/生产/烹饪详情优化、防呆设置、点金辅助、农业辅助（自动收菜+好友农场预览）、检查更新、定时钓鱼、炼金经验效率与越级计算等，详见脚本正文。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
 // @match        https://nekoidle.net/*
@@ -3886,23 +3886,18 @@
             return node;
         }
 
-        function stockReplenishment(data, item, threshold, buffer, getQuantity, alreadyLow = false) {
-            const held = id => {
-                const quantity = getQuantity(id);
-                return Number.isSafeInteger(quantity) && quantity > 0 ? quantity : 0;
-            };
-            const actual = held(item);
-            if (actual >= threshold && !alreadyLow) return null;
-            const factor = BigInt(10000 + Math.round(normalizeStockBuffer(buffer) * 100));
-            const target = Number((BigInt(threshold) * factor + 9999n) / 10000n);
-            if (actual >= target) return null;
-            const deficit = target - actual;
+        function stockHeld(getQuantity, id) {
+            const quantity = getQuantity(id);
+            return Number.isSafeInteger(quantity) && quantity > 0 ? quantity : 0;
+        }
+
+        function planStockReplenishment(data, shortages, getQuantity) {
             const stock = new Map(), recipes = new Map(), production = new Map(), purchases = new Map();
             const path = new Set();
 
             function fulfill(id, quantity) {
                 if (!Number.isSafeInteger(quantity) || path.has(id) || path.size >= 100) return false;
-                if (!stock.has(id)) stock.set(id, held(id));
+                if (!stock.has(id)) stock.set(id, stockHeld(getQuantity, id));
                 const available = stock.get(id);
                 const used = Math.min(available, quantity);
                 stock.set(id, available - used);
@@ -3930,12 +3925,22 @@
                 return true;
             }
 
-            // 成品现有数量已从目标中扣除。共享材料与整批生产的余量在一次核算中只可使用一次。
-            stock.set(item, 0);
-            const complete = fulfill(item, deficit);
-            return { actual, target, deficit, complete, production: complete ? [...production] : [],
+            // 每个预警物品的现有数量已抵扣自身目标，不得再分给其他配方。
+            for (const [id] of shortages) stock.set(id, 0);
+            const complete = [...shortages].every(([id, deficit]) => fulfill(id, deficit));
+            return { complete, production: complete ? [...production] : [],
                 purchases: complete ? [...purchases].filter(([id]) => data.items[id]?.trade !== false) : [],
                 unavailable: complete ? [...purchases].filter(([id]) => data.items[id]?.trade === false) : [] };
+        }
+
+        function stockReplenishment(data, item, threshold, buffer, getQuantity, alreadyLow = false) {
+            const actual = stockHeld(getQuantity, item);
+            if (actual >= threshold && !alreadyLow) return null;
+            const factor = BigInt(10000 + Math.round(normalizeStockBuffer(buffer) * 100));
+            const target = Number((BigInt(threshold) * factor + 9999n) / 10000n);
+            if (actual >= target) return null;
+            const deficit = target - actual;
+            return { actual, target, deficit, ...planStockReplenishment(data, [[item, deficit]], getQuantity) };
         }
 
         // 该烹饪成品是否支持食材替代：研究「食材重构」(cook_reconstruct) 达 1 级，且配方至少有一味可替代食材。
@@ -4516,6 +4521,7 @@
                     '.nek-inventory-form[hidden]{display:none}',
                     '.nek-inventory-total{margin-bottom:8px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}',
                     '.nek-stock-alert{color:#ffad66;margin-top:6px;overflow-wrap:anywhere}.nek-stock-alert div{margin-top:3px}',
+                    '.nek-stock-overview[hidden]{display:none}.nek-stock-overview{margin:8px 0;overflow-wrap:anywhere}.nek-stock-overview h4{margin:8px 0 4px}.nek-stock-overview ul{margin:0;padding-inline-start:1.4em}',
                     '.nek-cost .page-main{container-type:inline-size}.nek-cost-results{width:100%;max-width:76rem;display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:6px}',
                     '@media(min-width:761px){@container(min-width:44rem){.nek-cost-results{grid-template-columns:repeat(2,minmax(0,1fr))}}}',
                     '.nek-cost-tools,.nek-cost-head{display:flex;flex-wrap:wrap;align-items:center;gap:4px}.nek-cost-head .modal-container-title{margin-right:auto}',
@@ -5299,7 +5305,15 @@
                     input.inputMode = inputMode;
                 }
                 const saveButton = add(form, 'button', 'btn', '录入物品');
-                const sync = add(form, 'button', 'btn', '读取采购历史');
+                const tools = add(form, 'div', 'nek-inventory-actions');
+                const sync = add(tools, 'button', 'btn', '读取采购历史');
+                const showAlerts = add(tools, 'button', 'btn', '查看预警信息');
+                showAlerts.setAttribute('aria-expanded', 'false');
+                showAlerts.setAttribute('aria-controls', 'nek-stock-overview');
+                const overview = add(panel, 'section', 'neon-section nek-stock-overview');
+                overview.id = 'nek-stock-overview';
+                overview.hidden = true;
+                overview.setAttribute('aria-label', '库存预警汇总');
                 const status = add(panel, 'p', '', '');
                 status.setAttribute('role', 'status');
                 const thresholdForm = add(panel, 'form', 'nek-inventory-form');
@@ -5369,10 +5383,53 @@
                 picker.addEventListener('change', setInputs);
                 updatePicker();
                 let lastView = '';
+                let lastOverview = '';
                 const expandedReceipts = new Set();
+                function renderOverview() {
+                    if (overview.hidden) return;
+                    const alerts = [...currentStockAlerts];
+                    const shortages = alerts.filter(([, plan]) => plan.complete).map(([id, plan]) => [id, plan.deficit]);
+                    const combined = planStockReplenishment(data, shortages, held);
+                    const view = JSON.stringify([alerts.map(([id, plan]) => [id, plan.actual, plan.target, plan.deficit, plan.complete]), combined]);
+                    if (view === lastOverview) return;
+                    lastOverview = view;
+                    overview.replaceChildren();
+                    add(overview, 'strong', '', '库存预警汇总');
+                    if (!alerts.length) {
+                        add(overview, 'div', '', '当前没有库存预警。');
+                        return;
+                    }
+                    const targets = add(overview, 'ul', '');
+                    for (const [id, plan] of alerts) {
+                        const name = data.items[id]?.name || '#' + id;
+                        add(targets, 'li', '', name + ' · 库存 ' + fmt(plan.actual) + ' · 目标 ' + fmt(plan.target) +
+                            ' · 缺 ' + fmt(plan.deficit) + (plan.complete ? '' : ' · 需检查配方'));
+                    }
+                    if (!combined.complete) {
+                        add(overview, 'div', '', '无法核算所有物品的合计用量，请查看各物品的预警。');
+                        return;
+                    }
+                    for (const [title, items] of [['建议采购', combined.purchases], ['计划生产', combined.production],
+                        ['需自行获取', combined.unavailable]]) {
+                        if (!items.length) continue;
+                        add(overview, 'h4', '', title);
+                        const list = add(overview, 'ul', '');
+                        for (const entry of items) add(list, 'li', '', stockItemNames(data, [entry]));
+                    }
+                }
+                showAlerts.addEventListener('click', () => {
+                    overview.hidden = !overview.hidden;
+                    showAlerts.textContent = overview.hidden ? '查看预警信息' : '收起预警信息';
+                    showAlerts.setAttribute('aria-expanded', String(!overview.hidden));
+                    if (!overview.hidden) {
+                        refreshStockAlerts(uid);
+                        renderOverview();
+                    }
+                });
                 function render() {
                     if (!page.isConnected) { refreshInventoryPanel = null; return; }
                     if (panel.hidden || core.view().account !== uid) return;
+                    renderOverview();
                     const ledger = warehouseLedger(uid), costs = warehouseCosts(uid);
                     const ids = [...new Set([...Object.keys(costs).map(Number), ...ledger.products])];
                     const diffs = inventoryDiffUid === uid ? loginInventoryDiffs : new Map();
@@ -7095,7 +7152,7 @@
         // ---------------- 自动检查更新（GitHub raw 头部 @version 对比） ----------------
         // 注意：发布新版本时需同步修改 CURRENT_VERSION（与头部 @version 保持一致）。
         // 页面上下文无 GM_info（@grant none 且经 <script> 注入），只能内置当前版本号。
-        const CURRENT_VERSION = '1.59.1';
+        const CURRENT_VERSION = '1.59.2';
         const LS_UPD_KEY = 'nek_update_check_enabled';        // 检查更新开关，默认开
         const LS_UPD_REMIND = 'nek_update_remind_last';       // 上次提醒时间戳（提醒节流）
         const UPD_REMIND_INTERVAL = 60 * 60 * 1000;           // 提醒节流：距上次提醒超过 60 分钟才再次提醒

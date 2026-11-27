@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { Document } = require('./helpers/dom.cjs');
-const { stockReplenishment } = require('../src/enhancements.js');
+const { stockReplenishment, planStockReplenishment } = require('../src/enhancements.js');
 
 // 构造最小 env，加载 enhancement 模块并触发 install()（init 内的 pulse）。
 // 返回 msg / storage，便于模拟「挂单 → 撮合成交进结算池 → 领取 → 入库回包」链路。
@@ -117,6 +117,23 @@ test('库存低于 2000 时按充裕 25% 补到 2500，共用原料只扣一次�
     assert.equal(stockReplenishment(data, 30, 2000, 25, held, true).deficit, 500);
     assert.equal(stockReplenishment(data, 10, 201, 1000, held).target, 2211);
     assert.equal(stockReplenishment(data, 10, 201, 0.01, held).target, 202);
+});
+
+test('汇总预警共用背包材料和整批产量，并为自身触发预警的材料保留补货数量', () => {
+    const items = { 10: {} }, actions = {};
+    for (const [id, output, itemId, quantity] of [[20, 4, 10, 2], [30, 1, 20, 3], [40, 1, 20, 2]]) {
+        items[id] = { sources: { actions: [{ id }] } };
+        actions[id] = { action: 6, rewards: [{ itemId: id, chance: 100, min: output, max: output }],
+            requirements: [{ itemId, quantity }] };
+    }
+    const data = { items, actions };
+    const held = id => ({ 10: 1, 20: 3 }[id] || 0);
+    const combined = planStockReplenishment(data, [[30, 1], [40, 1]], held);
+    assert.deepEqual(combined.purchases, [[10, 1]]);
+    assert.deepEqual(new Map(combined.production), new Map([[20, 4], [30, 1], [40, 1]]));
+    const withYarnTarget = planStockReplenishment(data, [[30, 1], [40, 1], [20, 1]], held);
+    assert.deepEqual(withYarnTarget.purchases, [[10, 3]]);
+    assert.deepEqual(new Map(withYarnTarget.production), new Map([[20, 8], [30, 1], [40, 1]]));
 });
 
 test('预警读取实际库存，提醒采购且同一状态只提示一次，补到目标后重新触发', () => {

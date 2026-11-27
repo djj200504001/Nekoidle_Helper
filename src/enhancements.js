@@ -788,23 +788,18 @@ function recipeCost(data, product, market, quantity = 1, ancestors = new Set(), 
     return node;
 }
 
-function stockReplenishment(data, item, threshold, buffer, getQuantity, alreadyLow = false) {
-    const held = id => {
-        const quantity = getQuantity(id);
-        return Number.isSafeInteger(quantity) && quantity > 0 ? quantity : 0;
-    };
-    const actual = held(item);
-    if (actual >= threshold && !alreadyLow) return null;
-    const factor = BigInt(10000 + Math.round(normalizeStockBuffer(buffer) * 100));
-    const target = Number((BigInt(threshold) * factor + 9999n) / 10000n);
-    if (actual >= target) return null;
-    const deficit = target - actual;
+function stockHeld(getQuantity, id) {
+    const quantity = getQuantity(id);
+    return Number.isSafeInteger(quantity) && quantity > 0 ? quantity : 0;
+}
+
+function planStockReplenishment(data, shortages, getQuantity) {
     const stock = new Map(), recipes = new Map(), production = new Map(), purchases = new Map();
     const path = new Set();
 
     function fulfill(id, quantity) {
         if (!Number.isSafeInteger(quantity) || path.has(id) || path.size >= 100) return false;
-        if (!stock.has(id)) stock.set(id, held(id));
+        if (!stock.has(id)) stock.set(id, stockHeld(getQuantity, id));
         const available = stock.get(id);
         const used = Math.min(available, quantity);
         stock.set(id, available - used);
@@ -832,12 +827,22 @@ function stockReplenishment(data, item, threshold, buffer, getQuantity, alreadyL
         return true;
     }
 
-    // 成品现有数量已从目标中扣除。共享材料与整批生产的余量在一次核算中只可使用一次。
-    stock.set(item, 0);
-    const complete = fulfill(item, deficit);
-    return { actual, target, deficit, complete, production: complete ? [...production] : [],
+    // 每个预警物品的现有数量已抵扣自身目标，不得再分给其他配方。
+    for (const [id] of shortages) stock.set(id, 0);
+    const complete = [...shortages].every(([id, deficit]) => fulfill(id, deficit));
+    return { complete, production: complete ? [...production] : [],
         purchases: complete ? [...purchases].filter(([id]) => data.items[id]?.trade !== false) : [],
         unavailable: complete ? [...purchases].filter(([id]) => data.items[id]?.trade === false) : [] };
+}
+
+function stockReplenishment(data, item, threshold, buffer, getQuantity, alreadyLow = false) {
+    const actual = stockHeld(getQuantity, item);
+    if (actual >= threshold && !alreadyLow) return null;
+    const factor = BigInt(10000 + Math.round(normalizeStockBuffer(buffer) * 100));
+    const target = Number((BigInt(threshold) * factor + 9999n) / 10000n);
+    if (actual >= target) return null;
+    const deficit = target - actual;
+    return { actual, target, deficit, ...planStockReplenishment(data, [[item, deficit]], getQuantity) };
 }
 
 // 该烹饪成品是否支持食材替代：研究「食材重构」(cook_reconstruct) 达 1 级，且配方至少有一味可替代食材。
@@ -1418,6 +1423,7 @@ function createNekEnhancements(env) {
             '.nek-inventory-form[hidden]{display:none}',
             '.nek-inventory-total{margin-bottom:8px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}',
             '.nek-stock-alert{color:#ffad66;margin-top:6px;overflow-wrap:anywhere}.nek-stock-alert div{margin-top:3px}',
+            '.nek-stock-overview[hidden]{display:none}.nek-stock-overview{margin:8px 0;overflow-wrap:anywhere}.nek-stock-overview h4{margin:8px 0 4px}.nek-stock-overview ul{margin:0;padding-inline-start:1.4em}',
             '.nek-cost .page-main{container-type:inline-size}.nek-cost-results{width:100%;max-width:76rem;display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:6px}',
             '@media(min-width:761px){@container(min-width:44rem){.nek-cost-results{grid-template-columns:repeat(2,minmax(0,1fr))}}}',
             '.nek-cost-tools,.nek-cost-head{display:flex;flex-wrap:wrap;align-items:center;gap:4px}.nek-cost-head .modal-container-title{margin-right:auto}',
@@ -2201,7 +2207,15 @@ function createNekEnhancements(env) {
             input.inputMode = inputMode;
         }
         const saveButton = add(form, 'button', 'btn', '录入物品');
-        const sync = add(form, 'button', 'btn', '读取采购历史');
+        const tools = add(form, 'div', 'nek-inventory-actions');
+        const sync = add(tools, 'button', 'btn', '读取采购历史');
+        const showAlerts = add(tools, 'button', 'btn', '查看预警信息');
+        showAlerts.setAttribute('aria-expanded', 'false');
+        showAlerts.setAttribute('aria-controls', 'nek-stock-overview');
+        const overview = add(panel, 'section', 'neon-section nek-stock-overview');
+        overview.id = 'nek-stock-overview';
+        overview.hidden = true;
+        overview.setAttribute('aria-label', '库存预警汇总');
         const status = add(panel, 'p', '', '');
         status.setAttribute('role', 'status');
         const thresholdForm = add(panel, 'form', 'nek-inventory-form');
@@ -2271,10 +2285,53 @@ function createNekEnhancements(env) {
         picker.addEventListener('change', setInputs);
         updatePicker();
         let lastView = '';
+        let lastOverview = '';
         const expandedReceipts = new Set();
+        function renderOverview() {
+            if (overview.hidden) return;
+            const alerts = [...currentStockAlerts];
+            const shortages = alerts.filter(([, plan]) => plan.complete).map(([id, plan]) => [id, plan.deficit]);
+            const combined = planStockReplenishment(data, shortages, held);
+            const view = JSON.stringify([alerts.map(([id, plan]) => [id, plan.actual, plan.target, plan.deficit, plan.complete]), combined]);
+            if (view === lastOverview) return;
+            lastOverview = view;
+            overview.replaceChildren();
+            add(overview, 'strong', '', '库存预警汇总');
+            if (!alerts.length) {
+                add(overview, 'div', '', '当前没有库存预警。');
+                return;
+            }
+            const targets = add(overview, 'ul', '');
+            for (const [id, plan] of alerts) {
+                const name = data.items[id]?.name || '#' + id;
+                add(targets, 'li', '', name + ' · 库存 ' + fmt(plan.actual) + ' · 目标 ' + fmt(plan.target) +
+                    ' · 缺 ' + fmt(plan.deficit) + (plan.complete ? '' : ' · 需检查配方'));
+            }
+            if (!combined.complete) {
+                add(overview, 'div', '', '无法核算所有物品的合计用量，请查看各物品的预警。');
+                return;
+            }
+            for (const [title, items] of [['建议采购', combined.purchases], ['计划生产', combined.production],
+                ['需自行获取', combined.unavailable]]) {
+                if (!items.length) continue;
+                add(overview, 'h4', '', title);
+                const list = add(overview, 'ul', '');
+                for (const entry of items) add(list, 'li', '', stockItemNames(data, [entry]));
+            }
+        }
+        showAlerts.addEventListener('click', () => {
+            overview.hidden = !overview.hidden;
+            showAlerts.textContent = overview.hidden ? '查看预警信息' : '收起预警信息';
+            showAlerts.setAttribute('aria-expanded', String(!overview.hidden));
+            if (!overview.hidden) {
+                refreshStockAlerts(uid);
+                renderOverview();
+            }
+        });
         function render() {
             if (!page.isConnected) { refreshInventoryPanel = null; return; }
             if (panel.hidden || core.view().account !== uid) return;
+            renderOverview();
             const ledger = warehouseLedger(uid), costs = warehouseCosts(uid);
             const ids = [...new Set([...Object.keys(costs).map(Number), ...ledger.products])];
             const diffs = inventoryDiffUid === uid ? loginInventoryDiffs : new Map();
@@ -2846,4 +2903,4 @@ function createNekEnhancements(env) {
 }
 
 // CommonJS test exports (not embedded into the userscript).
-if (typeof module !== 'undefined') module.exports = { createNekController, createNekEnhancements, recipeCost, substituteOptions, mergeWarehouseCost, claimCosts, stockTotalOf, directStockTotal, parseStockCost, round2, craftableProduct, warehouseHistoryBatches, inventoryRecipeTotal, normalizeInventoryLedger, stockReplenishment, normalizeStockBuffer };
+if (typeof module !== 'undefined') module.exports = { createNekController, createNekEnhancements, recipeCost, substituteOptions, mergeWarehouseCost, claimCosts, stockTotalOf, directStockTotal, parseStockCost, round2, craftableProduct, warehouseHistoryBatches, inventoryRecipeTotal, normalizeInventoryLedger, stockReplenishment, planStockReplenishment, normalizeStockBuffer };
