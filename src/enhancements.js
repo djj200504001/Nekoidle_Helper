@@ -906,19 +906,22 @@ function createNekEnhancements(env) {
         }
         whModal.remove(); whModal = null; whOutside = null;
     }
-    function openWarehouseCostModal(def, enh) {
+    function openWarehouseCostModal(def, enh, historyPrice = null) {
         closeWarehouseModal();
         const ui = env.ui(), g = env.game();
         const uid = core.view().account, id = Number(def?.id);
         if (!ui || !uid || !(id > 0)) return;
+        const firstEntry = historyPrice != null;
         const saved = warehouseCosts(uid)[String(id)];
-        const quote = leftPrice(id, enh);
+        if (firstEntry && saved != null) return;
+        const quote = firstEntry ? historyPrice : leftPrice(id, enh);
         const modal = doc.createElement('div');
         modal.className = 'selector neon nek-warehouse-cost-modal';
         const name = doc.createElement('div'); name.className = 'whc-name';
-        name.textContent = '库存成本 · ' + (def.name || '#' + id) + (Number(enh) > 0 ? ' +' + enh : '');
+        name.textContent = (firstEntry ? '期初库存成本 · ' : '库存成本 · ') + (def.name || '#' + id) + (Number(enh) > 0 ? ' +' + enh : '');
         const hint = doc.createElement('div'); hint.className = 'whc-hint';
-        hint.textContent = '背包 ' + Number(g.getItemQuantity(id, enh) || 0).toLocaleString('zh-CN') + ' 个 · 未记录时默认填左一价 · 最多两位小数';
+        hint.textContent = '背包 ' + Number(g.getItemQuantity(id, enh) || 0).toLocaleString('zh-CN') +
+            (firstEntry ? ' 个 · 已填入订单单价 · 最多两位小数' : ' 个 · 未记录时默认填左一价 · 最多两位小数');
         const input = doc.createElement('input'); input.className = 'whc-input'; input.type = 'text';
         input.inputMode = 'decimal';
         input.value = saved != null && Number.isFinite(Number(saved)) && String(saved).trim() !== ''
@@ -931,24 +934,35 @@ function createNekEnhancements(env) {
         clear.textContent = '清空';
         const cancel = doc.createElement('button'); cancel.type = 'button'; cancel.className = 'btn';
         cancel.textContent = '取消';
-        actions.append(confirm, clear, cancel);
+        if (firstEntry) actions.append(confirm, cancel);
+        else actions.append(confirm, clear, cancel);
         modal.append(name, hint, input, actions);
         doc.body.appendChild(modal);
         whModal = modal;
         const commit = () => {
-                    const raw = input.value.trim();
-                    const value = parseStockCost(raw);
-                    if (value == null) {
-                        ui.notifier?.show?.('请输入有效的库存成本（最多两位小数）', 'error'); return;
-                    }
+            const value = parseStockCost(input.value);
+            if (value == null) {
+                ui.notifier?.show?.('请输入有效的库存成本（最多两位小数）', 'error');
+                return;
+            }
             const map = warehouseCosts(uid), ledger = warehouseLedger(uid);
             if (core.view().account !== uid) return;
+            if (firstEntry && map[id] != null) {
+                ui.notifier?.show?.('此物品已有库存成本', 'tip');
+                closeWarehouseModal();
+                return;
+            }
+            if (firstEntry && env.warehouseReady?.() === false) {
+                ui.notifier?.show?.('正在同步库存成本，请稍后再试', 'tip');
+                return;
+            }
             map[id] = value;
             recordWarehouseBase(ledger, id, Number(g.getItemQuantity(id)) || 0);
             if (saveWarehouseLedger(uid, ledger, map)) {
                 publishStockCost(id);
                 ui.notifier?.show?.('已保存「' + (def.name || '#' + id) + '」库存成本：' + value, 'success', 3000);
                 closeWarehouseModal();
+                if (firstEntry) decorateMarketHistoryCosts();
             } else ui.notifier?.show?.('保存失败，请重试', 'error');
         };
         const clearSaved = () => {
@@ -987,6 +1001,14 @@ function createNekEnhancements(env) {
         if (!ui || !msg?.handlers || !env.game()?.character?.uid) return;
         if (installed) return;
         installed = true;
+        const renderMarketHistory = ui.renderMarketHistory;
+        if (typeof renderMarketHistory === 'function') {
+            ui.renderMarketHistory = function () {
+                const result = renderMarketHistory.apply(this, arguments);
+                decorateMarketHistoryCosts();
+                return result;
+            };
+        }
         // 市场买入请求（side=2 求购）暂存单价；成交回包 add 到达时与本地库存成本加权。
         const marketBuys = new Map();
         // 挂单成交先进结算池、领取才入库：领取时按 order_id 从订单取真实成交单价，
@@ -1309,6 +1331,7 @@ function createNekEnhancements(env) {
             '.nek-warehouse-cost-modal .whc-hint{font-size:12px;color:var(--c-text-dim,#83c3c3);margin-bottom:8px}',
             '.nek-warehouse-cost-modal .whc-input{width:100%;box-sizing:border-box}',
             '.nek-warehouse-cost-modal .whc-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}',
+            '.nek-history-cost.btn{margin-top:3px;max-width:100%;white-space:normal}',
             // 替换食材面板复用原生 .cooking-substitute-panel 组件，仅补充分组标题间距。
             '.nek-cost-sub-picker .selector-list{padding:0 6px 6px}',
             '.nek-cost-sub-picker .cooking-sub-ingredient-label{font-size:12px;color:var(--c-main-bright,#74F9BC);margin:6px 0 2px}',
@@ -1749,6 +1772,38 @@ function createNekEnhancements(env) {
     function saveCostProducts(uid, list) {
         try { storage.setItem(costKey(uid), JSON.stringify(list)); return true; }
         catch { return false; }
+    }
+    function decorateMarketHistoryCosts() {
+        const ui = env.ui(), game = env.game();
+        const list = ui?.marketMy?.historyList;
+        if (!list?.isConnected || ui.marketplaceOrderTab !== 'history') return;
+        const uid = core.view().account;
+        const rows = list.querySelectorAll('.marketplace-orderBook-info');
+        // 原生历史列表按游戏订单顺序绘制，跳过找不到物品定义的订单。
+        const orders = (game.orderHistory || []).filter(order => game.getItem(order.item));
+        if (!uid || !costEnabled() || rows.length !== orders.length) {
+            list.querySelectorAll('.nek-history-cost').forEach(button => button.remove());
+            return;
+        }
+        const costs = warehouseCosts(uid);
+        rows.forEach((row, index) => {
+            const order = orders[index], id = Number(order.item), price = Number(order.price);
+            const existing = row.querySelector('.nek-history-cost');
+            if (id <= 1 || Number(order.enhancement || 0) !== 0 || !Number.isFinite(price) || price <= 0 || costs[id] != null) {
+                existing?.remove();
+                return;
+            }
+            if (existing) return;
+            const button = doc.createElement('button');
+            button.type = 'button';
+            button.className = 'btn nek-history-cost';
+            button.textContent = '录入期初成本';
+            button.addEventListener('click', () => {
+                if (core.view().account !== uid || !costEnabled()) return;
+                openWarehouseCostModal(game.getItem(id), 0, price);
+            });
+            row.querySelector('.price')?.appendChild(button);
+        });
     }
     // 市场详情「精算」：切换当前物品是否在成本核算清单中。
     function decorateMarketCost() {
@@ -2338,6 +2393,7 @@ function createNekEnhancements(env) {
         const v = core.view();
         if (!v.account) return;
         style(); decorateResearch(v); decorateSettings(v); decorateHoldings(v); decorateCostEntry(); decorateMarketCost();
+        decorateMarketHistoryCosts();
         doc.querySelectorAll('[data-nek-option]').forEach(input => {
             const checked = v.settings[input.dataset.nekOption]; if (input.checked !== checked) input.checked = checked;
         });
