@@ -537,10 +537,73 @@ function parseStockCost(raw) {
 function mergeWarehouseCost(oldCost, oldQty, buyPrice, buyQty) {
     const price = Number(buyPrice), qty = Number(buyQty);
     if (!Number.isFinite(price) || price < 0 || !Number.isFinite(qty) || qty <= 0) return null;
-    const base = Number(oldCost), held = Number(oldQty);
+    const base = oldCost == null ? NaN : Number(oldCost), held = Number(oldQty);
     // 无有效旧成本（含本地有库存但未录成本）时直接采用本次成交价，不做加权。
     if (!Number.isFinite(base) || base < 0 || !Number.isFinite(held) || held <= 0) return price;
     return Math.round((base * held + price * qty) / (held + qty) * 100) / 100;
+}
+
+function marketTime(value) {
+    const numeric = Number(value);
+    if (numeric > 0 && Number.isFinite(numeric)) return numeric < 1e12 ? numeric * 1000 : numeric;
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function normalizeInventoryLedger(value) {
+    const items = {}, orders = {};
+    const isId = id => /^\d+$/.test(id) && Number.isSafeInteger(Number(id)) && Number(id) > 0;
+    for (const [id, row] of Object.entries(value?.items || {}).slice(0, 500)) {
+        if (!isId(id) || !Number.isSafeInteger(row?.quantity) || row.quantity < 0 ||
+            !Number.isFinite(row.since) || row.since <= 0) continue;
+        const purchases = Array.isArray(row.purchases) ? row.purchases.slice(-20).filter(p =>
+            Number.isSafeInteger(p?.quantity) && p.quantity > 0 && Number.isFinite(p.at) && p.at > 0 &&
+            Number.isFinite(p.price) && p.price > 0 && ['直购', '直购已核对', '求购领取', '历史采购'].includes(p.source))
+            .map(({ quantity, at, price, source }) => ({ quantity, at, price, source })) : [];
+        items[id] = { quantity: row.quantity, since: row.since, incomplete: row.incomplete === true, purchases };
+    }
+    for (const [id, row] of Object.entries(value?.orders || {})) {
+        if (isId(id) && Number.isSafeInteger(row?.quantity) && row.quantity > 0) orders[id] = { quantity: row.quantity };
+    }
+    const products = Array.isArray(value?.products) ? [...new Set(value.products.filter(Number.isSafeInteger).filter(id => id > 0))].slice(0, 500) : [];
+    const excluded = Array.isArray(value?.excluded) ? [...new Set(value.excluded.filter(Number.isSafeInteger).filter(id => id > 0))] : [];
+    return { items, orders, products, excluded };
+}
+
+// History has cumulative fills rather than individual trades. Subtract both
+// unclaimed fills and quantities already recorded by another session/device.
+function warehouseHistoryBatches(history, settlement, ledger) {
+    const unclaimed = new Map();
+    for (const row of settlement) {
+        if (Number(row.side) !== 2 || Number(row.item) <= 1) continue;
+        const key = Number(row.order_id);
+        unclaimed.set(key, (unclaimed.get(key) || 0) + (Number(row.quantity) || 0));
+    }
+    const batches = [];
+    for (const row of history) {
+        const id = Number(row.id), item = Number(row.item), price = Number(row.price);
+        const tracked = ledger.items[item], at = marketTime(row.close_time);
+        const claimed = Number(row.traded) - (unclaimed.get(id) || 0);
+        if (!tracked || Number(row.side) !== 2 || Number(row.enhancement || 0) !== 0 ||
+            !Number.isSafeInteger(id) || id <= 0 || !(price > 0) || !Number.isFinite(price) ||
+            !Number.isSafeInteger(claimed) || claimed <= 0 || at < tracked.since || !at) continue;
+        const quantity = claimed - (ledger.orders[id]?.quantity || 0);
+        if (quantity > 0) batches.push({ id, item, quantity, price, at });
+    }
+    return batches.sort((a, b) => a.at - b.at || a.id - b.id);
+}
+
+function inventoryRecipeTotal(node, costs, root = true) {
+    const price = costs[node.id];
+    if (!root && typeof price === 'number' && Number.isFinite(price)) return price * node.quantity;
+    if (!node.children.length) return null;
+    let total = 0;
+    for (const child of node.children) {
+        const cost = inventoryRecipeTotal(child, costs, false);
+        if (cost == null) return null;
+        total += cost;
+    }
+    return total;
 }
 
 // 结算领取前的待入库成本：挂单（含部分成交）先进结算池，点领取才入库。
@@ -878,19 +941,24 @@ function createNekEnhancements(env) {
                     if (value == null) {
                         ui.notifier?.show?.('请输入有效的库存成本（最多两位小数）', 'error'); return;
                     }
-                    const map = warehouseCosts(uid);
-                    map[String(id)] = value;
-            if (saveWarehouseCosts(uid, map)) {
+            const map = warehouseCosts(uid), ledger = warehouseLedger(uid);
+            if (core.view().account !== uid) return;
+            map[id] = value;
+            recordWarehouseBase(ledger, id, Number(g.getItemQuantity(id)) || 0);
+            if (saveWarehouseLedger(uid, ledger, map)) {
                 publishStockCost(id);
                 ui.notifier?.show?.('已保存「' + (def.name || '#' + id) + '」库存成本：' + value, 'success', 3000);
                 closeWarehouseModal();
             } else ui.notifier?.show?.('保存失败，请重试', 'error');
         };
         const clearSaved = () => {
-            const map = warehouseCosts(uid);
+            if (core.view().account !== uid) return;
+            const map = warehouseCosts(uid), ledger = warehouseLedger(uid);
             if (!(String(id) in map)) { closeWarehouseModal(); return; }
             delete map[String(id)];
-            if (saveWarehouseCosts(uid, map)) {
+            delete ledger.items[id];
+            if (!ledger.excluded.includes(id)) ledger.excluded.push(id);
+            if (saveWarehouseLedger(uid, ledger, map)) {
                 publishStockCost(id);
                 ui.notifier?.show?.('已清空「' + (def.name || '#' + id) + '」库存成本', 'success', 3000);
                 closeWarehouseModal();
@@ -924,13 +992,25 @@ function createNekEnhancements(env) {
         // 挂单成交先进结算池、领取才入库：领取时按 order_id 从订单取真实成交单价，
         // 暂存为待入库映射，领取回包 add 到达时用该单价加权。
         const pendingClaims = new Map();
+        let marketSession = null, marketAccount = null;
+        function alignMarketSession() {
+            const uid = core.view().account;
+            if (marketSession !== msg.ws || marketAccount !== uid) {
+                marketBuys.clear();
+                pendingClaims.clear();
+                marketSession = msg.ws;
+                marketAccount = uid;
+            }
+            return uid;
+        }
         const send = msg.send;
         msg.send = function (type, data) {
+            alignMarketSession();
             const stopping = type === 'queue' && data?.type === 'cancel';
             const head = stopping ? env.game()?.queue?.[0] : null;
             const result = send.apply(this, arguments);
             if (stopping && result === true) cancelRequest = { head, connection: msg.ws };
-            if (result === true && (type === 'market_instant' || type === 'market_order_place') && Number(data?.side) === 2) {
+            if (result === true && type === 'market_instant' && Number(data?.side) === 2) {
                 const id = Number(data.item), enh = Number(data.enhancement) || 0;
                 if (id > 0 && Number(data.quantity) > 0) {
                     marketBuys.set(id + ':' + enh, { price: Number(data.price) || 0, quantity: Number(data.quantity), at: Date.now() });
@@ -938,15 +1018,9 @@ function createNekEnhancements(env) {
             }
             if (result === true && type === 'market_settlement_claim') {
                 const g = env.game();
-                const costs = claimCosts(g?.settlement, data?.id);
-                Object.keys(costs).forEach(key => {
-                    const next = costs[key], prev = pendingClaims.get(key);
-                    if (prev) {
-                        const total = prev.quantity + next.quantity;
-                        prev.price = round2((prev.price * prev.quantity + next.price * next.quantity) / total);
-                        prev.quantity = total;
-                    } else pendingClaims.set(key, { price: next.price, quantity: next.quantity });
-                });
+                const picked = (g?.settlement || []).filter(row => (data?.id == null || Number(data.id) === Number(row.id)) &&
+                    Number(row.side) === 2 && Number(row.item) > 1 && Number(row.price) > 0 && Number(row.quantity) > 0);
+                for (const row of picked) pendingClaims.set(Number(row.id), { ...row, requestedAt: Date.now() });
             }
             core.observeSend(type, data, result === true); return result;
         };
@@ -954,7 +1028,7 @@ function createNekEnhancements(env) {
         if (typeof originalMarketUpdate === 'function') {
             msg.handlers.market_update = function (data) {
                 const content = data?.content || {};
-                const uid = core.view().account;
+                const uid = alignMarketSession();
                 const before = new Map();
                 (content.add || []).forEach(row => {
                     const id = Number(row.item), enh = Number(row.enhancement) || 0;
@@ -962,31 +1036,77 @@ function createNekEnhancements(env) {
                 });
                 const result = originalMarketUpdate.apply(this, arguments);
                 try {
+                    const map = warehouseCosts(uid);
+                    const ledger = warehouseLedger(uid);
+                    let changed = false;
                     (content.add || []).forEach(row => {
                         const id = Number(row.item), enh = Number(row.enhancement) || 0;
-                        if (!(id > 0)) return;
+                        if (id <= 1 || enh !== 0 || !uid) return;
                         const key = id + ':' + enh;
-                        // 结算领取入库优先用领取时暂存的真实成交价；其次直购暂存单价。
-                        const claim = pendingClaims.get(key);
-                        const pending = claim || marketBuys.get(key);
-                        marketBuys.delete(key);
-                        const bought = Number(row.quantity) || 0;
-                        if (claim && bought > 0) {
-                            claim.quantity -= bought;
-                            if (claim.quantity <= 0) pendingClaims.delete(key);
+                        const bought = Number(row.quantity);
+                        if (!Number.isSafeInteger(bought) || bought <= 0) return;
+                        const direct = marketBuys.get(key);
+                        for (const [claimId, claim] of pendingClaims) {
+                            if (Date.now() - claim.requestedAt > 15000) pendingClaims.delete(claimId);
                         }
-                        if (!pending || !uid) return;
-                        const price = Number(content.price) > 0 ? Number(content.price) : pending.price;
-                        if (!(bought > 0) || !(price > 0)) return;
-                        const map = warehouseCosts(uid);
-                        const merged = mergeWarehouseCost(map[String(id)], before.get(key) || 0, price, bought);
-                        if (merged != null) {
-                            map[String(id)] = merged;
-                            if (saveWarehouseCosts(uid, map)) publishStockCost(id);
+                        const claims = [...pendingClaims].filter(([, claim]) => Number(claim.item) === id &&
+                            Number(claim.enhancement || 0) === 0);
+                        let batches = [];
+                        if (content.type === 'claim' || (!content.type && !direct)) {
+                            let remaining = bought;
+                            for (const [claimId, claim] of claims) {
+                                if (!remaining) break;
+                                const quantity = Math.min(remaining, Number(claim.quantity));
+                                batches.push({ id: Number(claim.order_id), price: Number(claim.price), quantity });
+                                remaining -= quantity;
+                                if (quantity === Number(claim.quantity)) pendingClaims.delete(claimId);
+                                else pendingClaims.set(claimId, { ...claim, quantity: Number(claim.quantity) - quantity });
+                            }
+                        } else if ((!content.type || content.type === 'place') && direct &&
+                            Date.now() - direct.at < 15000 && Number(content.side ?? 2) === 2) {
+                            marketBuys.delete(key);
+                            batches = [{ id: Number(content.order_id), price: Number(content.price) || direct.price, quantity: bought }];
+                        }
+                        let held = before.get(key) || 0;
+                        for (const batch of batches) {
+                            if (ledger.excluded.includes(id)) continue;
+                            const merged = mergeWarehouseCost(map[id], held, batch.price, batch.quantity);
+                            if (merged == null || batch.price <= 0) continue;
+                            map[id] = merged;
+                            held += batch.quantity;
+                            changed = true;
+                            if (ledger.items[id]) {
+                                const knownOrder = Number.isSafeInteger(batch.id) && batch.id > 0;
+                                addPurchase(ledger.items[id], batch, content.type === 'claim' || claims.length && !direct
+                                    ? '求购领取' : knownOrder ? '直购已核对' : '直购');
+                                if (knownOrder) ledger.orders[batch.id] = { quantity: (ledger.orders[batch.id]?.quantity || 0) + batch.quantity };
+                            }
+                        }
+                        if (batches.length) {
+                            before.set(key, (before.get(key) || 0) + bought);
+                            if (ledger.items[id]) ledger.items[id].quantity = env.game().getItemQuantity(id);
                         }
                     });
+                    if (changed) saveWarehouseLedger(uid, ledger, map);
                 } catch (e) { /* 成本更新失败不影响原生成交处理 */ }
                 return result;
+            };
+        }
+        const originalMarketHistory = msg.handlers.market_history;
+        if (typeof originalMarketHistory === 'function') {
+            msg.handlers.market_history = function (data) {
+                const result = originalMarketHistory.apply(this, arguments);
+                const uid = alignMarketSession();
+                if (uid && Array.isArray(data?.content) && historyReady()) importWarehouseHistory(uid, data.content);
+                return result;
+            };
+        }
+        const marketError = msg.handlers.market_error;
+        if (typeof marketError === 'function') {
+            msg.handlers.market_error = function () {
+                marketBuys.clear();
+                pendingClaims.clear();
+                return marketError.apply(this, arguments);
             };
         }
         for (const type of ['action_added', 'action_update', 'action_complete', 'action_canceled']) {
@@ -1166,6 +1286,9 @@ function createNekEnhancements(env) {
             '.marketplace-favorite.nek-market-cost{margin-left:0}',
             '.marketplace-favorite.nek-market-cost:before{background-image:none;background-color:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20viewBox=%270%200%2024%2024%27%20fill=%27none%27%20stroke=%27black%27%20stroke-width=%272%27%20stroke-linecap=%27round%27%20stroke-linejoin=%27round%27%3E%3Cpath%20d=%27M14%202H6a2%202%200%200%200-2%202v16a2%202%200%200%200%202%202h12a2%202%200%200%200%202-2V8z%27/%3E%3Cpath%20d=%27M14%202v6h6M8%2013h8M8%2017h8%27/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20viewBox=%270%200%2024%2024%27%20fill=%27none%27%20stroke=%27black%27%20stroke-width=%272%27%20stroke-linecap=%27round%27%20stroke-linejoin=%27round%27%3E%3Cpath%20d=%27M14%202H6a2%202%200%200%200-2%202v16a2%202%200%200%200%202%202h12a2%202%200%200%200%202-2V8z%27/%3E%3Cpath%20d=%27M14%202v6h6M8%2013h8M8%2017h8%27/%3E%3C/svg%3E") center/contain no-repeat}',
             '.nek-cost > .page-body > .page-main{overflow-y:auto}',
+            '.nek-cost button.page-tab-item{appearance:none;background:none;border:0;font-family:inherit;font-size:inherit}',
+            '.nek-inventory-form,.nek-inventory-actions{display:flex;flex-wrap:wrap;align-items:center;gap:6px}',
+            '.nek-inventory-form input{width:8em}.nek-inventory-form select{max-width:100%}.nek-inventory-name{display:flex;align-items:center;gap:5px}.nek-inventory-name>.item{flex:none}.nek-cost .page-main[hidden]{display:none}',
             '.nek-cost .page-main{container-type:inline-size}.nek-cost-results{width:100%;max-width:76rem;display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:6px}',
             '@media(min-width:761px){@container(min-width:44rem){.nek-cost-results{grid-template-columns:repeat(2,minmax(0,1fr))}}}',
             '.nek-cost-tools,.nek-cost-head{display:flex;flex-wrap:wrap;align-items:center;gap:4px}.nek-cost-head .modal-container-title{margin-right:auto}',
@@ -1511,9 +1634,106 @@ function createNekEnhancements(env) {
             return raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
         } catch { return {}; }
     }
-    function saveWarehouseCosts(uid, map) {
-        try { storage.setItem(warehouseKey(uid), JSON.stringify(map)); return true; }
-        catch { return false; }
+    const ledgerKey = uid => 'nek_inventory_ledger_v1:' + uid;
+    function warehouseLedger(uid) {
+        try {
+            const saved = JSON.parse(storage.getItem(ledgerKey(uid)) || 'null');
+            if (saved) return normalizeInventoryLedger(saved);
+        } catch { /* 新建账本 */ }
+        return normalizeInventoryLedger(null);
+    }
+    function saveWarehouseLedger(uid, ledger, costs) {
+        try {
+            if (costs && env.saveWarehouseState) env.saveWarehouseState(uid, ledger, costs);
+            else {
+                if (costs) storage.setItem(warehouseKey(uid), JSON.stringify(costs));
+                storage.setItem(ledgerKey(uid), JSON.stringify(ledger));
+            }
+        } catch { return false; }
+        publishStockCost(0);
+        return true;
+    }
+    function recordWarehouseBase(ledger, id, quantity) {
+        const game = env.game();
+        const now = Date.now();
+        ledger.excluded = ledger.excluded.filter(item => item !== id);
+        ledger.items[id] = { ...ledger.items[id], quantity, since: now, incomplete: false };
+        for (const order of game.order || []) {
+            if (Number(order.item) !== id || Number(order.side) !== 2 || Number(order.enhancement || 0) !== 0) continue;
+            const pending = (game.settlement || []).filter(row => Number(row.order_id) === Number(order.id) && Number(row.item) === id)
+                .reduce((total, row) => total + (Number(row.quantity) || 0), 0);
+            const claimed = Number(order.traded) - pending;
+            if (Number.isSafeInteger(claimed) && claimed > 0) ledger.orders[order.id] = { quantity: claimed };
+        }
+    }
+    function addPurchase(entry, batch, source) {
+        entry.purchases = [...(entry.purchases || []), {
+            at: batch.at || Date.now(), quantity: batch.quantity, price: batch.price, source
+        }].slice(-20);
+    }
+    const historyReady = () => costEnabled() && (env.warehouseReady?.() ?? true);
+    let historyRequest = null;
+    function requestWarehouseHistory(uid, force = false) {
+        const msg = env.msg();
+        if (!historyReady() || msg?.ws?.readyState !== 1 || typeof msg.handlers?.market_history !== 'function') return;
+        const now = Date.now();
+        if (historyRequest?.uid === uid && historyRequest.socket === msg.ws && now - historyRequest.at < (force ? 3000 : 60000)) return;
+        const ledger = warehouseLedger(uid), costs = warehouseCosts(uid);
+        let migrated = false;
+        for (const id of Object.keys(costs).map(Number)) {
+            if (ledger.items[id]) continue;
+            recordWarehouseBase(ledger, id, Number(env.game().getItemQuantity(id)) || 0);
+            migrated = true;
+        }
+        if (migrated) saveWarehouseLedger(uid, ledger);
+        if (!force && !Object.keys(ledger.items).length) return;
+        if (msg.send('market_history', {}) !== true) return false;
+        historyRequest = { uid, socket: msg.ws, at: now };
+        return true;
+    }
+    function importWarehouseHistory(uid, history) {
+        const ledger = warehouseLedger(uid), costs = warehouseCosts(uid), g = env.game();
+        const groups = new Map();
+        for (const batch of warehouseHistoryBatches(history, g.settlement || [], ledger)) {
+            if (!groups.has(batch.item)) groups.set(batch.item, []);
+            groups.get(batch.item).push(batch);
+        }
+        let changed = false;
+        for (const [item, batches] of groups) {
+            const entry = ledger.items[item];
+            // Direct fills can arrive without an order ID. Match an identical nearby
+            // receipt once, when the game later exposes its historical order ID.
+            const fresh = batches.filter(batch => {
+                const receipt = (entry.purchases || []).find(r => r.source === '直购' &&
+                    Math.abs(r.at - batch.at) <= 5000 && r.quantity === batch.quantity && r.price === batch.price);
+                if (!receipt) return true;
+                receipt.source = '直购已核对';
+                ledger.orders[batch.id] = { quantity: (ledger.orders[batch.id]?.quantity || 0) + batch.quantity };
+                changed = true;
+                return false;
+            });
+            const actual = Number(g.getItemQuantity(item)) || 0;
+            const acquired = fresh.reduce((sum, batch) => sum + batch.quantity, 0);
+            // If purchases cannot fit in today's stock, intervening consumption
+            // makes the opening balance unknowable. Keep the cost and flag it.
+            if (entry.incomplete || acquired > actual) {
+                if (!entry.incomplete) { entry.incomplete = true; changed = true; }
+                continue;
+            }
+            let balance = actual - acquired;
+            for (const batch of fresh) {
+                costs[item] = mergeWarehouseCost(costs[item], balance, batch.price, batch.quantity);
+                balance += batch.quantity;
+                ledger.orders[batch.id] = { quantity: (ledger.orders[batch.id]?.quantity || 0) + batch.quantity };
+                addPurchase(entry, batch, '历史采购');
+                changed = true;
+            }
+            if (fresh.length) {
+                entry.quantity = actual;
+                delete entry.incomplete;
+            }
+        }
+        if (changed) saveWarehouseLedger(uid, ledger, costs);
     }
     // 通知主脚本刷新悬停行情里的「库存成本」行（成本页自身在 render 时直接读取）。
     function publishStockCost(id) {
@@ -1575,6 +1795,164 @@ function createNekEnhancements(env) {
         btn.classList.toggle('active', !!on);
         btn.title = on ? '从成本核算清单剔除' : '加入成本核算清单';
     }
+    let refreshInventoryPanel = null;
+    function mountInventoryCost(page, uid, data, game, ui) {
+        const main = page.querySelector('.page-main');
+        const tabs = page.querySelectorAll('.page-tab-item');
+        function add(parent, tag, name, text) {
+            const el = doc.createElement(tag);
+            el.className = name;
+            if (text != null) el.textContent = text;
+            parent.appendChild(el);
+            return el;
+        }
+        const panel = add(main.parentNode, 'div', 'page-main nek-inventory-panel');
+        panel.hidden = true;
+        const form = add(panel, 'div', 'nek-inventory-form');
+        const mode = add(form, 'select', '');
+        mode.setAttribute('aria-label', '核算方式');
+        add(mode, 'option', '', '录入库存成本').value = 'stock';
+        add(mode, 'option', '', '按材料成本核算产物').value = 'recipe';
+        const search = add(form, 'input', '');
+        search.type = 'search';
+        search.placeholder = '物品名或 ID';
+        search.setAttribute('aria-label', search.placeholder);
+        const picker = add(form, 'select', '');
+        picker.setAttribute('aria-label', '选择物品');
+        const quantity = add(form, 'input', '');
+        const price = add(form, 'input', '');
+        for (const [input, label, inputMode] of [[quantity, '期初数量', 'numeric'], [price, '单件成本', 'decimal']]) {
+            input.placeholder = label;
+            input.setAttribute('aria-label', label);
+            input.inputMode = inputMode;
+        }
+        const saveButton = add(form, 'button', 'btn', '录入物品');
+        const sync = add(form, 'button', 'btn', '读取采购历史');
+        const status = add(panel, 'p', '', '');
+        status.setAttribute('role', 'status');
+        const results = add(panel, 'div', 'nek-cost-results');
+        const choices = Object.values(data.items).filter(item => item.id > 1);
+        const held = id => Number(game.getItemQuantity(id)) || 0;
+        const fmt = value => value.toLocaleString('zh-CN', { maximumFractionDigits: 2 });
+        const editingAllowed = () => core.view().account === uid && (env.warehouseReady?.() ?? true);
+        function setInputs() {
+            const id = Number(picker.value);
+            quantity.value = id ? String(held(id)) : '';
+            price.value = warehouseCosts(uid)[id] ?? '';
+            saveButton.disabled = !id;
+        }
+        function updatePicker(selected) {
+            picker.replaceChildren();
+            const query = search.value.trim().toLowerCase();
+            const isRecipe = mode.value === 'recipe';
+            quantity.hidden = price.hidden = isRecipe;
+            saveButton.textContent = isRecipe ? '添加产物' : '录入物品';
+            for (const item of choices) {
+                if (!item.name.toLowerCase().includes(query) && !String(item.id).includes(query)) continue;
+                if (isRecipe && !craftableProduct(data, item.id)) continue;
+                add(picker, 'option', '', item.name).value = String(item.id);
+            }
+            if (selected) picker.value = String(selected);
+            setInputs();
+        }
+        search.addEventListener('input', () => updatePicker());
+        mode.addEventListener('change', () => updatePicker());
+        picker.addEventListener('change', setInputs);
+        updatePicker();
+        let lastView = '';
+        function render() {
+            if (!page.isConnected) { refreshInventoryPanel = null; return; }
+            if (panel.hidden || core.view().account !== uid) return;
+            const ledger = warehouseLedger(uid), costs = warehouseCosts(uid);
+            const ids = [...new Set([...Object.keys(costs).map(Number), ...ledger.products])];
+            const view = JSON.stringify([ledger, costs, ids.map(held)]);
+            if (view === lastView) return;
+            lastView = view;
+            results.replaceChildren();
+            function cardFor(id, isRecipe) {
+                const card = add(results, 'section', 'neon-section');
+                const head = add(card, 'div', 'nek-inventory-name');
+                const def = data.items[id];
+                if (def && typeof ui.showItem === 'function') {
+                    const icon = add(head, 'div', '');
+                    ui.showItem(icon, def, { enhancement: 0 });
+                    ui.bindItemTooltip?.(icon, def, { item: { id, enhancement: 0, quantity: held(id) } });
+                }
+                add(head, 'strong', '', def?.name || '#' + id);
+                const actions = add(card, 'div', 'nek-inventory-actions');
+                if (!isRecipe) add(actions, 'button', 'btn', '修改').addEventListener('click', () => {
+                    mode.value = 'stock';
+                    search.value = '';
+                    updatePicker(id);
+                    price.focus();
+                });
+                add(actions, 'button', 'btn', '删除').addEventListener('click', () => {
+                    if (!editingAllowed()) return;
+                    const next = warehouseLedger(uid), prices = warehouseCosts(uid);
+                    if (isRecipe) next.products = next.products.filter(product => product !== id);
+                    else {
+                        delete next.items[id];
+                        delete prices[id];
+                        if (!next.excluded.includes(id)) next.excluded.push(id);
+                    }
+                    if (!saveWarehouseLedger(uid, next, prices)) status.textContent = '删除失败，请重试。';
+                });
+                return card;
+            }
+            for (const id of Object.keys(costs).map(Number)) {
+                const card = cardFor(id, false), entry = ledger.items[id], actual = held(id);
+                add(card, 'div', '', '背包 ' + fmt(actual) + ' · 单件 ' + fmt(Number(costs[id])) + ' · 总额 ' + fmt(actual * costs[id]));
+                if (entry && entry.quantity !== actual) add(card, 'div', '', '账面 ' + fmt(entry.quantity) + '，按背包数量核算');
+                if (entry?.incomplete) add(card, 'div', '', '历史采购超过当前库存，请核对后重新录入成本。');
+                if (entry?.purchases?.length) {
+                    const details = add(card, 'details', '');
+                    add(details, 'summary', '', '近期采购');
+                    for (const receipt of entry.purchases.slice().reverse()) {
+                        add(details, 'div', '', new Date(receipt.at).toLocaleString() + ' · ' + receipt.source +
+                            ' · ' + fmt(receipt.quantity) + ' 件 × ' + fmt(receipt.price));
+                    }
+                }
+            }
+            for (const id of ledger.products) {
+                const card = cardFor(id, true);
+                const node = recipeCost(data, id, null);
+                const total = inventoryRecipeTotal(node, costs);
+                add(card, 'div', '', total == null ? '生产成本待核算，部分材料缺少库存单价' : '单件生产成本 ' + fmt(total) + ' 喵点');
+            }
+            if (!ids.length) add(results, 'p', '', '添加材料录入期初数量和单价，或选择产物核算生产成本。');
+        }
+        saveButton.addEventListener('click', () => {
+            const id = Number(picker.value);
+            if (!editingAllowed() || !data.items[id]) return;
+            const ledger = warehouseLedger(uid), costs = warehouseCosts(uid);
+            if (mode.value === 'recipe') {
+                if (!craftableProduct(data, id) || ledger.products.includes(id)) return;
+                ledger.products.push(id);
+            } else {
+                const raw = quantity.value.trim(), qty = Number(raw), value = parseStockCost(price.value);
+                if (!/^\d+$/.test(raw) || !Number.isSafeInteger(qty) || value == null) {
+                    status.textContent = '请输入非负整数数量和最多两位小数的成本单价。';
+                    return;
+                }
+                recordWarehouseBase(ledger, id, qty);
+                costs[id] = value;
+            }
+            status.textContent = saveWarehouseLedger(uid, ledger, costs) ? '已保存。' : '保存失败，请重试。';
+        });
+        sync.addEventListener('click', () => {
+            if (!editingAllowed()) return;
+            status.textContent = requestWarehouseHistory(uid, true)
+                ? '已请求采购历史，结果会自动更新。' : '暂时无法再次请求，请稍后重试。';
+        });
+        tabs.forEach((tab, index) => tab.addEventListener('click', () => {
+            main.hidden = index !== 0;
+            panel.hidden = index === 0;
+            tabs.forEach((other, i) => other.classList.toggle('active', i === index));
+            render();
+        }));
+        refreshInventoryPanel = render;
+    }
+
     function decorateCostEntry() {
         const entry = doc.querySelector('.nek-cost-entry');
         if (!costEnabled()) { entry?.remove(); return; }
@@ -1598,7 +1976,7 @@ function createNekEnhancements(env) {
             const page = doc.querySelector('.page.nek-cost');
             if (!page) return;
             button.classList.add('active');
-            page.innerHTML = '<div class="page-body neon"><div class="page-tab"><div class="page-tab-item active">成本核算</div></div><div class="page-main"><div class="nek-cost-tools"><button type="button" class="btn nek-cost-pick">选择物品</button><button type="button" class="btn">刷新行情</button></div><p role="status"></p><div class="nek-cost-results"></div></div></div>';
+            page.innerHTML = '<div class="page-body neon"><div class="page-tab"><button type="button" class="page-tab-item active">市场成本</button><button type="button" class="page-tab-item">库存核算</button></div><div class="page-main"><div class="nek-cost-tools"><button type="button" class="btn nek-cost-pick">选择物品</button><button type="button" class="btn">刷新行情</button></div><p role="status"></p><div class="nek-cost-results"></div></div></div>';
             const refresh = page.querySelector('.nek-cost-tools button:not(.nek-cost-pick)');
             const pickBtn = page.querySelector('.nek-cost-pick');
             const status = page.querySelector('[role="status"]');
@@ -1606,6 +1984,7 @@ function createNekEnhancements(env) {
             const uid = core.view().account;
             const data = env.data();
             const game = env.game(), ui = env.ui();
+            mountInventoryCost(page, uid, data, game, ui);
             // 可核算物品 = 有可展开配方的生产/烹饪成品。
             const choices = Object.values(data.items).filter(item => craftableProduct(data, item.id));
             const allowed = new Set(choices.map(item => item.id));
@@ -1972,7 +2351,16 @@ function createNekEnhancements(env) {
         });
     }
     function pulse() {
-        try { install(); if (installed) { core.tick(); decorate(); } }
+        try {
+            install();
+            if (installed) {
+                core.tick();
+                decorate();
+                refreshInventoryPanel?.();
+                const uid = core.view().account;
+                if (uid) requestWarehouseHistory(uid);
+            }
+        }
         catch (e) { console.warn('[小助手] 研究/任务/库存辅助异常:', e); }
     }
     function init() {
@@ -1991,4 +2379,4 @@ function createNekEnhancements(env) {
 }
 
 // CommonJS test exports (not embedded into the userscript).
-if (typeof module !== 'undefined') module.exports = { createNekController, createNekEnhancements, recipeCost, substituteOptions, mergeWarehouseCost, claimCosts, stockTotalOf, directStockTotal, parseStockCost, round2, craftableProduct };
+if (typeof module !== 'undefined') module.exports = { createNekController, createNekEnhancements, recipeCost, substituteOptions, mergeWarehouseCost, claimCosts, stockTotalOf, directStockTotal, parseStockCost, round2, craftableProduct, warehouseHistoryBatches, inventoryRecipeTotal, normalizeInventoryLedger };

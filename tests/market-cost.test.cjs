@@ -43,6 +43,8 @@ function setup() {
                 quantities[key] = (quantities[key] || 0) + (Number(row.quantity) || 0);
             });
             return 'native';
+        }, market_history: function (message) {
+            game.orderHistory = message.content;
         } }
     };
     const storage = {
@@ -131,4 +133,43 @@ test('直购仍按回包成交价加权，结算领取映射不干扰直购', ()
     h.msg.send('market_instant', { side: 2, item: 10, enhancement: 0, price: 50, quantity: 10, fill_or_kill: 1 });
     marketUpdate({ content: { type: 'place', side: 2, item: 10, filled: 10, price: 50, add: [{ id: 3, item: 10, enhancement: 0, quantity: 10 }] } });
     assert.equal(stockCost(h.store, uid)[10], 31.82, '直购按旧库存 100@30 + 买入 10@50 加权');
+});
+
+test('带云端账本的历史补账按实际库存与入账顺序计算，排除未领取与重复记录', () => {
+    const h = setup(), uid = 669;
+    const base = Date.now() - 60000, key = 'nek_inventory_ledger_v1:' + uid;
+    h.store.set(key, JSON.stringify({ items: { 10: { quantity: 100, since: base } }, orders: {}, products: [] }));
+    h.store.set('nek_warehouse_cost_v1:' + uid, JSON.stringify({ 10: 30 }));
+    h.setQty(10, 30);
+    h.game.settlement = [{ item: 10, side: 2, order_id: 8, quantity: 4 }];
+    const orders = [
+        { id: 9, item: 10, side: 2, traded: 5, price: 200, close_time: base + 2000 },
+        { id: 8, item: 10, side: 2, traded: 9, price: 100, close_time: base + 1000 },
+        { id: 7, item: 10, side: 1, traded: 10, price: 500, close_time: base + 1000 }
+    ];
+    h.msg.handlers.market_history({ content: orders });
+    assert.equal(stockCost(h.store, uid)[10], 70);
+    const entry = JSON.parse(h.store.get(key)).items[10];
+    assert.equal(entry.quantity, 30);
+    assert.deepEqual(entry.purchases.map(r => [r.quantity, r.price]), [[5, 100], [5, 200]]);
+    h.msg.handlers.market_history({ content: orders });
+    assert.equal(stockCost(h.store, uid)[10], 70);
+    assert.equal(JSON.parse(h.store.get(key)).items[10].purchases.length, 2);
+});
+
+test('同一求购单实时领取后，历史只补算另一端已领取的增量', () => {
+    const h = setup(), uid = 669;
+    const now = Date.now(), key = 'nek_inventory_ledger_v1:' + uid;
+    h.store.set(key, JSON.stringify({ items: { 10: { quantity: 10, since: now - 60000 } }, orders: {}, products: [] }));
+    h.store.set('nek_warehouse_cost_v1:' + uid, JSON.stringify({ 10: 20 }));
+    h.setQty(10, 10);
+    h.game.settlement = [{ id: 100, item: 10, side: 2, order_id: 25, quantity: 5, price: 50 }];
+    h.msg.send('market_settlement_claim', { id: 100 });
+    h.msg.handlers.market_update({ content: { type: 'claim', add: [{ item: 10, quantity: 5 }] } });
+    assert.equal(stockCost(h.store, uid)[10], 30);
+    h.game.settlement = [];
+    h.setQty(10, 20);
+    h.msg.handlers.market_history({ content: [{ id: 25, item: 10, side: 2, traded: 10, price: 50, close_time: now }] });
+    assert.equal(stockCost(h.store, uid)[10], 35);
+    assert.equal(JSON.parse(h.store.get(key)).orders[25].quantity, 10);
 });

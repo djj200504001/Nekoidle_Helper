@@ -28,11 +28,14 @@ test('定时钓鱼补回缺失配置，使用剩余次数、原倍率，并跳�
 
 test('云同步保留默认开关、已关闭的开关和进行中的钓鱼链，只同步有效预约', () => {
     const storage = new Map(), uid = '7', key = 'nek_enhancements_v1:7';
+    const { normalizeInventoryLedger } = require('../src/enhancements.js');
+    const ledger = { items: { 10: { quantity: 8, since: 1700000000000 } }, orders: { 3: { quantity: 2 } }, products: [21] };
     const context = { localStorage: {
         getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v), removeItem: k => storage.delete(k)
     }, LS_FISH_STATE_KEY: 'fish', CLOUD_ENH_SETTING_KEYS: ['holdings', 'researchQueue'], CLOUD_SETTING_KEYS: { harvest: 'hv' },
     currentFishPeriod: () => 32, cloudFavorites: () => [], cloudUidGuard() {}, cloudQueueAlive: q => q,
-    cloudStaged: () => ({}), cloudCostItems: () => [], cloudWarehouseCost: () => ({}),
+    cloudStaged: () => ({}), cloudCostItems: () => [], cloudWarehouseCost: () => ({ 10: 2.5 }),
+    cloudInventoryLedger: () => normalizeInventoryLedger(ledger), normalizeInventoryLedger,
     cloudNormalizeCostItems: v => v, cloudNormalizeWarehouseCost: v => v, cloudStageUnknown() {},
     document: { dispatchEvent() {} }, CustomEvent: function () {} };
     const api = vm.runInNewContext(section('function cloudBuildPayload(', '// 收藏整份覆盖前的确认') +
@@ -50,6 +53,8 @@ test('云同步保留默认开关、已关闭的开关和进行中的钓鱼链�
     delete payload.favorites;
     payload.settings.harvest = null;
     api.cloudApply(payload, uid);
+    assert.deepEqual(JSON.parse(storage.get('nek_inventory_ledger_v1:7')), normalizeInventoryLedger(ledger));
+    assert.deepEqual(JSON.parse(storage.get('nek_warehouse_cost_v1:7')), { 10: 2.5 });
     assert.equal(storage.has('hv'), false);
     const fish = JSON.parse(storage.get('fish'));
     assert.deepEqual(fish.chain.snapshot, [2]);
