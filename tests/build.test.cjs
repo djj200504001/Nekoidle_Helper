@@ -14,9 +14,9 @@ test('安装文件与模块源码一致，入口、版本号和单次初始化�
     assert.equal((script.match(/\/\/ NEK_ENHANCEMENTS_END/g) || []).length, 1);
     assert.equal((script.match(/nekEnhancements\.init\(\);/g) || []).length, 1);
     assert.equal((script.match(/function \(\) \{ nekEnhancements\.decorate\(\); \}/g) || []).length, 1);
-    assert.match(script, /@version\s+1\.58\.0\n/);
-    assert.match(script, /@description\s+v1\.58\.0：/);
-    assert.match(script, /const CURRENT_VERSION = '1\.58\.0';/);
+    assert.match(script, /@version\s+1\.58\.1\n/);
+    assert.match(script, /@description\s+v1\.58\.1：/);
+    assert.match(script, /const CURRENT_VERSION = '1\.58\.1';/);
     assert.doesNotThrow(() => new vm.Script(script));
 });
 
@@ -133,7 +133,7 @@ test('云同步加载顺序：启动只 pull 不 push，一致不覆盖不通知
     assert.match(script, /const uid = readUidCloud\(\);[\s\S]{0,120}if \(this\.uid && String\(this\.uid\) !== String\(uid\)\) \{/);
     // 启动阶段 booting 封禁 push；pull 结束（finally）才解除，覆盖所有路径
     assert.match(script, /booting: true,/);
-    assert.match(script, /markDirty\(\) \{[\s\S]{0,120}this\.booting/);
+    assert.match(script, /markDirty\(immediate = false\) \{[\s\S]{0,120}this\.booting/);
     assert.match(script, /async flush\(force\) \{[\s\S]{0,140}this\.booting/);
     assert.match(script, /catch \(e\) \{ console\.warn\('\[云同步\] 启动拉取异常', e\); \}\s*finally \{ bootPullBusy = false; cloud\.booting = false; \}/);
     // 单次请求超时：服务端挂起也不阻塞启动 / 不永久封禁 push
@@ -324,7 +324,7 @@ test('云同步 v1.52：成本数据纳入 payload、3 条/5 秒上传、未知�
     // 成本核算条目与库存成本纳入 payload / 校验 / 覆盖 / 比对
     assert.match(script, /function cloudNormalizeCostItems\(v\)/);
     assert.match(script, /function cloudNormalizeWarehouseCost\(v\)/);
-    assert.match(script, /costItems: cloudCostItems\(uid\), warehouseCost: cloudWarehouseCost\(uid\)/);
+    assert.match(script, /costItems: cloudCostItems\(uid\), warehouseCost: inventory\.costs/);
     assert.match(script, /p\.costItems != null && \(!Array\.isArray\(p\.costItems\)/);
     assert.match(script, /p\.warehouseCost != null && \(!p\.warehouseCost \|\| typeof p\.warehouseCost/);
     assert.match(script, /localStorage\.setItem\('nek_cost_items_v1:' \+ uid/);
@@ -340,7 +340,7 @@ test('云同步 v1.52：成本数据纳入 payload、3 条/5 秒上传、未知�
     assert.match(script, /const CLOUD_DIRTY_BATCH = 3/);
     assert.match(script, /const CLOUD_DIRTY_DELAY = 5000/);
     assert.match(script, /this\.edits\+\+;/);
-    assert.match(script, /if \(this\.edits >= CLOUD_DIRTY_BATCH\) this\.flush\(\);/);
+    assert.match(script, /if \(immediate \|\| this\.edits >= CLOUD_DIRTY_BATCH\) this\.flush\(\);/);
     assert.match(script, /}, CLOUD_DIRTY_DELAY\);/);
     assert.doesNotMatch(script, /markDirty\(\) \{[\s\S]{0,400}if \(!this\.running\) this\.flush\(\);/);
     // 多版本容错：未识别字段暂存，上传原样带回

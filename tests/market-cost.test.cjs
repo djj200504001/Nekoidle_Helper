@@ -7,11 +7,14 @@ const { Document } = require('./helpers/dom.cjs');
 
 // 构造最小 env，加载 enhancement 模块并触发 install()（init 内的 pulse）。
 // 返回 msg / storage，便于模拟「挂单 → 撮合成交进结算池 → 领取 → 入库回包」链路。
-function setup() {
+function setup(minutes = 5) {
     const document = new Document();
     const intervals = [], store = new Map();
     const data = { items: { 10: { id: 10, name: '绒毛' } }, quests: {}, research: { facilities: [] } };
     const quantities = { '10-0': 0 };
+    let now = Date.now();
+    class TestDate extends Date { static now() { return now; } }
+    let uploads = 0;
     const game = {
         character: { uid: 669 }, quests: {}, queue: [], order: [], orderHistory: [], settlement: [],
         getItem: id => data.items[id],
@@ -38,6 +41,10 @@ function setup() {
         send(type, data) { this.sent.push({ type, data }); return true; },
         // 原生 handler 模拟真正入库（在脚本记录 before 库存之后执行）
         handlers: { market_update: function (message) {
+            for (const row of message.content.remove || []) {
+                const stack = game.inventory.find(item => item.id === row.id);
+                quantities[stack.item + '-0'] -= row.quantity;
+            }
             (message?.content?.add || []).forEach(row => {
                 const key = row.item + '-' + (row.enhancement || 0);
                 quantities[key] = (quantities[key] || 0) + (Number(row.quantity) || 0);
@@ -64,17 +71,19 @@ function setup() {
         setTimeout: fn => { fn(); return 1; }, clearTimeout: () => {},
         getComputedStyle: () => ({ borderTopWidth: '0px', paddingTop: '0px' }),
         CustomEvent: function (type, opts) { this.type = type; this.detail = opts?.detail; },
-        Date, Math, Number, String, Object, Array, JSON, Set, Map, WeakMap, RegExp, isNaN
+        Date: TestDate, Math, Number, String, Object, Array, JSON, Set, Map, WeakMap, RegExp, isNaN
     };
     sandbox.window = { addEventListener: () => {}, removeEventListener: () => {}, matchMedia: () => ({ matches: false, addEventListener: () => {} }), innerWidth: 1200, innerHeight: 800 };
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/enhancements.js'), 'utf8'), sandbox);
     const feature = sandbox.module.exports.createNekEnhancements({
         document, window: sandbox.window, storage, game: () => game, ui: () => ui, msg: () => msg,
         data: () => data, enabled: () => true, costEnabled: () => true,
+        productionCloudMinutes: () => minutes, canSyncWarehouse: () => true, syncWarehouseNow: () => uploads++,
         identifyAction: () => ({}), cookingChestDivisor: 21600
     });
     feature.init();
     return { feature, msg, game, store, document, data, ui, pulse: intervals[0],
+        advance: ms => { now += ms; intervals[0](); }, uploads: () => uploads,
         setQty: (id, qty, enh = 0) => { quantities[id + '-' + enh] = qty; } };
 }
 
@@ -82,7 +91,7 @@ function stockCost(store, uid) {
     return JSON.parse(store.get('nek_warehouse_cost_v1:' + uid) || '{}');
 }
 
-test('产物先显示配方成本，实际生产和采购依次加权，消耗只更新账面数量', () => {
+test('生产批次每分钟记账，无生产流水，同物品交易实时加权并同步', () => {
     const h = setup(), uid = 669, key = 'nek_inventory_ledger_v1:' + uid;
     h.data.items[20] = { id: 20, name: '面料', sources: { actions: [{ id: 220 }] } };
     h.data.actions = { 220: { action: 6, requirements: [{ itemId: 10, quantity: 3 }],
@@ -96,17 +105,60 @@ test('产物先显示配方成本，实际生产和采购依次加权，消耗�
     assert.equal(h.feature.warehouseValue(20).label, '生产成本');
     h.msg.handlers.action_complete({ content: { type: 'action', id: 220,
         add: [{ item: 20, quantity: 2 }], remove: [{ id: 1, quantity: 3 }] } });
+    assert.equal(stockCost(h.store, uid)[20], undefined);
+    h.advance(59999);
+    assert.equal(stockCost(h.store, uid)[20], undefined);
+    h.advance(1);
     assert.equal(stockCost(h.store, uid)[20], 22.5, '实际多产一件，本批单价 15');
+    assert.equal(h.uploads(), 0);
+    const payloadLedger = JSON.parse(h.store.get(key));
+    assert.equal(h.feature.warehouseForCloud(String(uid), payloadLedger, stockCost(h.store, uid)).costs[20], undefined);
     h.msg.send('market_instant', { side: 2, item: 20, price: 60, quantity: 1 });
     h.msg.handlers.market_update({ content: { type: 'place', side: 2, price: 60, add: [{ item: 20, quantity: 1 }] } });
     assert.equal(h.feature.warehouseValue(20).price, 30);
     assert.equal(h.feature.warehouseValue(20).label, '库存成本');
+    assert.equal(h.uploads(), 1);
     h.setQty(20, 3);
     h.pulse();
+    assert.equal(JSON.parse(h.store.get(key)).items[20].quantity, 5);
+    h.advance(60000);
     const ledger = JSON.parse(h.store.get(key));
     assert.equal(ledger.items[20].quantity, 3);
-    assert.deepEqual(ledger.items[20].purchases.map(p => p.source), ['生产入库', '直购']);
+    assert.deepEqual(ledger.items[20].purchases.map(p => p.source), ['直购']);
     assert.equal(stockCost(h.store, uid)[20], 30);
+    h.advance(299999 - 120000);
+    assert.equal(h.uploads(), 1);
+    h.advance(1);
+    assert.equal(h.uploads(), 2, '剩余库存的生产变化默认五分钟才同步');
+});
+
+test('生产数量按设定间隔上传，市场出库不带走其他物品待同步的生产数据', () => {
+    const h = setup(2), uid = 669, key = 'nek_inventory_ledger_v1:' + uid;
+    h.game.inventory = [{ id: 11, item: 10 }];
+    h.setQty(10, 10);
+    h.setQty(20, 10);
+    h.store.set('nek_warehouse_cost_v1:' + uid, JSON.stringify({ 10: 15, 20: 5 }));
+    h.store.set(key, JSON.stringify({ items: { 10: { quantity: 10, since: Date.now() },
+        20: { quantity: 10, since: Date.now(), purchases: [{ source: '生产入库', quantity: 1, price: 5, at: Date.now() }] } } }));
+    h.setQty(20, 12);
+    h.advance(60000);
+    h.msg.handlers.market_update({ content: { type: 'place', side: 1, remove: [{ id: 11, quantity: 3 }] } });
+    assert.equal(h.uploads(), 1);
+    const local = JSON.parse(h.store.get(key));
+    assert.equal(local.items[20].quantity, 12);
+    assert.deepEqual(local.items[20].purchases, []);
+    const pending = h.feature.warehouseForCloud(String(uid), local, stockCost(h.store, uid)).ledger;
+    assert.equal(pending.items[10].quantity, 7);
+    assert.equal(pending.items[10].purchases[0].source, '市场出库');
+    assert.equal(pending.items[20].quantity, 10);
+    h.advance(59999);
+    assert.equal(h.uploads(), 1);
+    h.advance(1);
+    assert.equal(h.uploads(), 2);
+    const synced = h.feature.warehouseForCloud(String(uid), JSON.parse(h.store.get(key)), stockCost(h.store, uid));
+    assert.equal(synced.ledger.items[20].quantity, 12);
+    h.advance(120000);
+    assert.equal(h.uploads(), 2, '库存无变化时不发重复上传');
 });
 
 test('挂单收购：挂单成功回包不再清空暂存单价，结算领取后入库按真实成交价记成本', () => {

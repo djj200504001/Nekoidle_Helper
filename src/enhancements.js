@@ -556,9 +556,11 @@ function normalizeInventoryLedger(value) {
     for (const [id, row] of Object.entries(value?.items || {}).slice(0, 500)) {
         if (!isId(id) || !Number.isSafeInteger(row?.quantity) || row.quantity < 0 ||
             !Number.isFinite(row.since) || row.since <= 0) continue;
-        const purchases = Array.isArray(row.purchases) ? row.purchases.slice(-20).filter(p =>
+        const purchases = Array.isArray(row.purchases) ? row.purchases.filter(p =>
             Number.isSafeInteger(p?.quantity) && p.quantity > 0 && Number.isFinite(p.at) && p.at > 0 &&
-            Number.isFinite(p.price) && p.price >= 0 && ['直购', '直购已核对', '求购领取', '历史采购', '生产入库'].includes(p.source))
+            (['市场出库', '市场返还'].includes(p.source) ? p.price === null :
+                Number.isFinite(p.price) && p.price >= 0 && ['直购', '直购已核对', '求购领取', '历史采购'].includes(p.source)))
+            .slice(-20)
             .map(({ quantity, at, price, source }) => ({ quantity, at, price, source })) : [];
         items[id] = { quantity: row.quantity, since: row.since, purchases };
     }
@@ -1051,16 +1053,24 @@ function createNekEnhancements(env) {
             msg.handlers.market_update = function (data) {
                 const content = data?.content || {};
                 const uid = alignMarketSession();
-                const before = new Map();
+                const before = new Map(), outgoing = new Map();
+                const game = env.game();
+                for (const row of content.remove || []) {
+                    const item = game.inventory?.find(stack => Number(stack.id) === Number(row.id));
+                    const id = Number(item?.item ?? row.item);
+                    if (!(id > 1) || Number(item?.enhancement ?? row.enhancement ?? 0) !== 0) continue;
+                    outgoing.set(id, game.getItemQuantity(id));
+                }
                 (content.add || []).forEach(row => {
                     const id = Number(row.item), enh = Number(row.enhancement) || 0;
                     before.set(id + ':' + enh, Number(env.game().getItemQuantity(id, enh, true)) || 0);
                 });
                 const result = originalMarketUpdate.apply(this, arguments);
                 try {
+                    if (!uid || !historyReady()) return result;
                     const map = warehouseCosts(uid);
                     const ledger = warehouseLedger(uid);
-                    let changed = false;
+                    const traded = new Set();
                     (content.add || []).forEach(row => {
                         const id = Number(row.item), enh = Number(row.enhancement) || 0;
                         if (id <= 1 || enh !== 0 || !uid) return;
@@ -1092,24 +1102,42 @@ function createNekEnhancements(env) {
                         let held = before.get(key) || 0;
                         for (const batch of batches) {
                             if (ledger.excluded.includes(id)) continue;
-                            const oldCost = map[id] ?? productionUnitCost(id, map);
+                            const oldCost = (traded.has(id) ? map[id] : productionPrices(uid).get(id) ?? map[id]) ??
+                                productionUnitCost(id, effectiveWarehouseCosts(uid, map));
                             const merged = mergeWarehouseCost(oldCost, held, batch.price, batch.quantity);
                             if (merged == null || batch.price <= 0) continue;
                             map[id] = merged;
                             held += batch.quantity;
-                            changed = true;
+                            traded.add(id);
                             const entry = ledger.items[id] ??= { quantity: held, since: Date.now(), purchases: [] };
                             const knownOrder = Number.isSafeInteger(batch.id) && batch.id > 0;
                             addPurchase(entry, batch, content.type === 'claim' || claims.length && !direct
                                 ? '求购领取' : knownOrder ? '直购已核对' : '直购');
                             if (knownOrder) ledger.orders[batch.id] = { quantity: (ledger.orders[batch.id]?.quantity || 0) + batch.quantity };
                         }
-                        if (batches.length) {
-                            before.set(key, (before.get(key) || 0) + bought);
-                            if (ledger.items[id]) ledger.items[id].quantity = env.game().getItemQuantity(id);
+                        before.set(key, (before.get(key) || 0) + bought);
+                        if (content.type === 'cancel' && !ledger.excluded.includes(id) &&
+                            (ledger.items[id] || Object.hasOwn(map, id) || ledger.products.includes(id))) {
+                            const entry = ledger.items[id] ??= { quantity: held, since: Date.now(), purchases: [] };
+                            addPurchase(entry, { quantity: bought, price: null }, '市场返还');
+                            if (productionPrices(uid).has(id)) map[id] = productionPrices(uid).get(id);
+                            traded.add(id);
                         }
                     });
-                    if (changed) saveWarehouseLedger(uid, ledger, map);
+                    for (const [id, previous] of outgoing) {
+                        if (ledger.excluded.includes(id) || (!ledger.items[id] && !Object.hasOwn(map, id) && !ledger.products.includes(id))) continue;
+                        const actual = game.getItemQuantity(id);
+                        if (actual >= previous) continue;
+                        const entry = ledger.items[id] ??= { quantity: actual, since: Date.now(), purchases: [] };
+                        addPurchase(entry, { quantity: previous - actual, price: null }, '市场出库');
+                        if (!traded.has(id) && productionPrices(uid).has(id)) map[id] = productionPrices(uid).get(id);
+                        traded.add(id);
+                    }
+                    for (const id of traded) {
+                        if (!Object.hasOwn(map, id) && productionPrices(uid).has(id)) map[id] = productionPrices(uid).get(id);
+                        ledger.items[id].quantity = game.getItemQuantity(id);
+                    }
+                    if (traded.size) saveWarehouseLedger(uid, ledger, map, 'trade', traded);
                 } catch (e) { /* 成本更新失败不影响原生成交处理 */ }
                 return result;
             };
@@ -1670,6 +1698,38 @@ function createNekEnhancements(env) {
         } catch { /* 新建账本 */ }
         return normalizeInventoryLedger(null);
     }
+    const warehouseBatches = new Map();
+    const deferredWarehouseKey = uid => 'nek_warehouse_deferred_v1:' + uid;
+    function warehouseBatch(uid) {
+        if (!warehouseBatches.has(uid)) {
+            const state = { prices: new Map(), deferred: new Map(), checkedAt: Date.now(), dirtySince: null };
+            try {
+                const saved = JSON.parse(storage.getItem(deferredWarehouseKey(uid)) || 'null');
+                if (Number.isFinite(saved?.since)) {
+                    state.deferred = new Map(saved.items);
+                    state.dirtySince = saved.since;
+                }
+            } catch { /* 本地待同步数据不可用 */ }
+            warehouseBatches.set(uid, state);
+        }
+        return warehouseBatches.get(uid);
+    }
+    function persistWarehouseDeferral(uid, state) {
+        try {
+            if (state.deferred.size) storage.setItem(deferredWarehouseKey(uid), JSON.stringify({
+                since: state.dirtySince, items: [...state.deferred]
+            }));
+            else storage.removeItem(deferredWarehouseKey(uid));
+        } catch { /* 当前会话仍可同步 */ }
+    }
+    function resetWarehouseBatch(uid) {
+        warehouseBatches.delete(String(uid));
+        try { storage.removeItem(deferredWarehouseKey(uid)); } catch { /* 忽略 */ }
+    }
+    const productionPrices = uid => warehouseBatch(uid).prices;
+    function effectiveWarehouseCosts(uid, costs = warehouseCosts(uid)) {
+        return { ...costs, ...Object.fromEntries(productionPrices(uid)) };
+    }
     function productionUnitCost(id, costs) {
         if (!env.data()?.items?.[id]) return null;
         return inventoryRecipeTotal(recipeCost(env.data(), id, null), costs);
@@ -1689,7 +1749,7 @@ function createNekEnhancements(env) {
         const action = content.type === 'action' ? data.actions?.[content.id] : null;
         const recipe = content.type === 'cooking' ? data.cookingRecipes?.[content.id] : action?.action === 6 ? action : null;
         if (!recipe) return null;
-        const ledger = warehouseLedger(uid), costs = warehouseCosts(uid), outputs = new Map();
+        const ledger = warehouseLedger(uid), costs = effectiveWarehouseCosts(uid), outputs = new Map();
         const rewardIds = new Set((recipe.rewards || []).map(reward => Number(reward.itemId)));
         const received = new Map();
         for (const row of content.add) {
@@ -1726,17 +1786,13 @@ function createNekEnhancements(env) {
     }
     function recordProduction({ uid, outputs }) {
         if (core.view().account !== uid) return;
-        const ledger = warehouseLedger(uid), costs = warehouseCosts(uid), game = env.game();
+        const state = warehouseBatch(uid), game = env.game();
         for (const [id, batch] of outputs) {
             const actual = game.getItemQuantity(id);
             if (actual <= batch.before) continue;
             const quantity = Math.min(batch.quantity, actual - batch.before);
-            costs[id] = mergeWarehouseCost(batch.old, batch.before, batch.price, quantity);
-            if (!ledger.items[id]) recordWarehouseBase(ledger, id, actual);
-            ledger.items[id].quantity = actual;
-            addPurchase(ledger.items[id], { quantity, price: batch.price }, '生产入库');
+            state.prices.set(id, mergeWarehouseCost(batch.old, batch.before, batch.price, quantity));
         }
-        saveWarehouseLedger(uid, ledger, costs);
     }
     let loginInventoryDiffs = new Map(), inventoryDiffUid = null;
     function captureLoginInventory(uid, hasInventory) {
@@ -1751,28 +1807,83 @@ function createNekEnhancements(env) {
         }
         if (loginInventoryDiffs.size) env.ui()?.notifier?.show?.('库存账面数量与背包不一致，可在库存核算中确认或修正单价。', 'tip');
     }
-    function syncInventoryBalances(uid) {
+    function syncInventoryBalances(uid, force = false) {
         if (!historyReady()) return;
-        const ledger = warehouseLedger(uid), game = env.game();
-        let changed = false;
-        for (const id of new Set([...Object.keys(ledger.items).map(Number), ...ledger.products])) {
-            const actual = game.getItemQuantity(id);
-            if (ledger.items[id]?.quantity === actual || !Number.isSafeInteger(actual)) continue;
-            if (ledger.items[id]) ledger.items[id].quantity = actual;
-            else recordWarehouseBase(ledger, id, actual);
-            changed = true;
+        const state = warehouseBatch(uid), now = Date.now();
+        if (force || now - state.checkedAt >= 60000) {
+            const ledger = warehouseLedger(uid), costs = warehouseCosts(uid), game = env.game();
+            const changed = new Set();
+            const ids = new Set([...Object.keys(ledger.items).map(Number), ...Object.keys(costs).map(Number), ...ledger.products]);
+            for (const id of ids) {
+                if (ledger.excluded.includes(id)) continue;
+                const actual = game.getItemQuantity(id);
+                if (!Number.isSafeInteger(actual) || actual < 0) continue;
+                const price = state.prices.get(id);
+                if (ledger.items[id]?.quantity === actual && (price == null || price === costs[id])) continue;
+                const entry = ledger.items[id] ??= { quantity: actual, since: now, purchases: [] };
+                entry.quantity = actual;
+                if (price != null) costs[id] = price;
+                changed.add(id);
+            }
+            if (!changed.size || saveWarehouseLedger(uid, ledger, costs, 'production', changed)) {
+                state.prices.clear();
+                state.checkedAt = now;
+            }
         }
-        if (changed) saveWarehouseLedger(uid, ledger);
+        const minutes = env.productionCloudMinutes?.() ?? 5;
+        if (!force && state.deferred.size && now - state.dirtySince >= minutes * 60000 &&
+            (env.canSyncWarehouse?.() ?? false)) {
+            releaseWarehouseDeferral(uid);
+            env.syncWarehouseNow?.();
+        }
     }
-    function saveWarehouseLedger(uid, ledger, costs) {
+    function releaseWarehouseDeferral(uid) {
+        const state = warehouseBatch(uid);
+        state.deferred.clear();
+        state.dirtySince = null;
+        persistWarehouseDeferral(uid, state);
+    }
+    // 普通配置上传也会带账本。把尚未到时间的生产变更留在本地。
+    function warehouseForCloud(uid, ledger, costs) {
+        for (const [id, saved] of warehouseBatch(uid).deferred) {
+            if (saved.entry) ledger.items[id] = saved.entry;
+            else delete ledger.items[id];
+            if (saved.price == null) delete costs[id];
+            else costs[id] = saved.price;
+        }
+        return { ledger, costs };
+    }
+    function saveWarehouseLedger(uid, ledger, costs, mode, touched = new Set()) {
+        const state = warehouseBatch(uid);
+        const previousLedger = warehouseLedger(uid), previousCosts = warehouseCosts(uid);
+        const nextCosts = costs ?? previousCosts;
+        for (const id of new Set([...Object.keys(previousLedger.items), ...Object.keys(ledger.items),
+            ...Object.keys(previousCosts), ...Object.keys(nextCosts)].map(Number))) {
+            if (previousCosts[id] !== nextCosts[id] ||
+                JSON.stringify(previousLedger.items[id]) !== JSON.stringify(ledger.items[id])) touched.add(id);
+        }
         try {
-            if (costs && env.saveWarehouseState) env.saveWarehouseState(uid, ledger, costs);
+            if (env.saveWarehouseState) env.saveWarehouseState(uid, ledger, nextCosts);
             else {
                 if (costs) storage.setItem(warehouseKey(uid), JSON.stringify(costs));
                 storage.setItem(ledgerKey(uid), JSON.stringify(ledger));
             }
         } catch { return false; }
+        for (const id of touched) {
+            if (mode === 'production') {
+                if (!state.deferred.has(id)) state.deferred.set(id, { entry: previousLedger.items[id], price: previousCosts[id] });
+            } else {
+                state.deferred.delete(id);
+                state.prices.delete(id);
+            }
+        }
+        if (state.deferred.size) state.dirtySince ??= state.checkedAt;
+        else state.dirtySince = null;
+        if (touched.size) persistWarehouseDeferral(uid, state);
+        if (mode === 'trade') env.syncWarehouseNow?.();
+        else if (mode !== 'production') env.warehouseChanged?.();
         publishStockCost(0);
+        refreshInventoryPanel?.();
         return true;
     }
     function recordWarehouseBase(ledger, id, quantity) {
@@ -1807,7 +1918,7 @@ function createNekEnhancements(env) {
             recordWarehouseBase(ledger, id, Number(env.game().getItemQuantity(id)) || 0);
             migrated = true;
         }
-        if (migrated) saveWarehouseLedger(uid, ledger);
+        if (migrated) saveWarehouseLedger(uid, ledger, costs, 'production');
         if (!force && !Object.keys(ledger.items).length) return;
         if (msg.send('market_history', {}) !== true) return false;
         historyRequest = { uid, socket: msg.ws, at: now };
@@ -1839,8 +1950,9 @@ function createNekEnhancements(env) {
             // 剩余旧库存沿用旧单价。背包数量少于未入账采购量时，
             // 旧库存视为耗尽，按这些采购批次的加权单价计剩余库存。
             let balance = Math.max(0, actual - acquired);
+            if (fresh.length && productionPrices(uid).has(item)) costs[item] = productionPrices(uid).get(item);
             for (const batch of fresh) {
-                costs[item] = mergeWarehouseCost(costs[item] ?? productionUnitCost(item, costs), balance, batch.price, batch.quantity);
+                costs[item] = mergeWarehouseCost(costs[item] ?? productionUnitCost(item, effectiveWarehouseCosts(uid, costs)), balance, batch.price, batch.quantity);
                 balance += batch.quantity;
                 ledger.orders[batch.id] = { quantity: (ledger.orders[batch.id]?.quantity || 0) + batch.quantity };
                 addPurchase(entry, batch, '历史采购');
@@ -1848,7 +1960,7 @@ function createNekEnhancements(env) {
             }
             if (fresh.length) entry.quantity = actual;
         }
-        if (changed) saveWarehouseLedger(uid, ledger, costs);
+        if (changed) saveWarehouseLedger(uid, ledger, costs, 'trade');
     }
     // 通知主脚本刷新悬停行情里的「库存成本」行（成本页自身在 render 时直接读取）。
     function publishStockCost(id) {
@@ -2009,13 +2121,14 @@ function createNekEnhancements(env) {
         picker.addEventListener('change', setInputs);
         updatePicker();
         let lastView = '';
+        const expandedReceipts = new Set();
         function render() {
             if (!page.isConnected) { refreshInventoryPanel = null; return; }
             if (panel.hidden || core.view().account !== uid) return;
             const ledger = warehouseLedger(uid), costs = warehouseCosts(uid);
             const ids = [...new Set([...Object.keys(costs).map(Number), ...ledger.products])];
             const diffs = inventoryDiffUid === uid ? loginInventoryDiffs : new Map();
-            const view = JSON.stringify([ledger, costs, ids.map(held), [...diffs]]);
+            const view = JSON.stringify([ledger, costs, [...diffs]]);
             if (view === lastView) return;
             lastView = view;
             results.replaceChildren();
@@ -2049,7 +2162,7 @@ function createNekEnhancements(env) {
                 return card;
             }
             for (const id of ids) {
-                const card = cardFor(id), entry = ledger.items[id], actual = held(id);
+                const card = cardFor(id), entry = ledger.items[id], actual = entry?.quantity ?? held(id);
                 const derived = ledger.products.includes(id) ? productionUnitCost(id, costs) : null;
                 const unit = costs[id] ?? derived;
                 add(card, 'div', '', '背包 ' + fmt(actual) + (unit == null ? ' · 缺少材料单价' :
@@ -2065,10 +2178,15 @@ function createNekEnhancements(env) {
                 }
                 if (entry?.purchases?.length) {
                     const details = add(card, 'details', '');
-                    add(details, 'summary', '', '近期入库');
+                    details.open = expandedReceipts.has(id);
+                    details.addEventListener('toggle', () => {
+                        if (details.open) expandedReceipts.add(id);
+                        else expandedReceipts.delete(id);
+                    });
+                    add(details, 'summary', '', '近期交易出入库');
                     for (const receipt of entry.purchases.slice().reverse()) {
                         add(details, 'div', '', new Date(receipt.at).toLocaleString() + ' · ' + receipt.source +
-                            ' · ' + fmt(receipt.quantity) + ' 件 × ' + fmt(receipt.price));
+                            ' · ' + fmt(receipt.quantity) + ' 件' + (receipt.price == null ? '' : ' × ' + fmt(receipt.price)));
                     }
                 }
             }
@@ -2527,7 +2645,11 @@ function createNekEnhancements(env) {
     function init() {
         if (timer) return;
         pulse(); timer = setInterval(pulse, 2000);
-        env.window.addEventListener('pagehide', core.release);
+        env.window.addEventListener('pagehide', () => {
+            const uid = core.view().account;
+            if (uid) syncInventoryBalances(uid, true);
+            core.release();
+        });
     }
     function snapshotActions() {
         return (env.game()?.queue || []).map(entry => {
@@ -2536,7 +2658,8 @@ function createNekEnhancements(env) {
                 multiplier: state?.multiplier ?? entry.multiplier ?? entry.item?.multiplier };
         });
     }
-    return { init, decorate, core, snapshotActions, warehouseValue, captureLoginInventory };
+    return { init, decorate, core, snapshotActions, warehouseValue, captureLoginInventory,
+        warehouseForCloud, resetWarehouseBatch, syncInventoryBalances, releaseWarehouseDeferral };
 }
 
 // CommonJS test exports (not embedded into the userscript).

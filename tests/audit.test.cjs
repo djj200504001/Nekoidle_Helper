@@ -34,10 +34,12 @@ test('云同步保留默认开关、已关闭的开关和进行中的钓鱼链�
         getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v), removeItem: k => storage.delete(k)
     }, LS_FISH_STATE_KEY: 'fish', CLOUD_ENH_SETTING_KEYS: ['holdings', 'researchQueue'], CLOUD_SETTING_KEYS: { harvest: 'hv' },
     currentFishPeriod: () => 32, cloudFavorites: () => [], cloudUidGuard() {}, cloudQueueAlive: q => q,
-    cloudStaged: () => ({}), cloudCostItems: () => [], cloudWarehouseCost: () => ({ 10: 2.5 }),
-    cloudInventoryLedger: () => normalizeInventoryLedger(ledger), normalizeInventoryLedger,
+    cloudStaged: () => ({}), cloudCostItems: () => [],
+    cloudWarehouseCost: () => JSON.parse(storage.get('nek_warehouse_cost_v1:7') ?? '{}'),
+    cloudInventoryLedger: () => normalizeInventoryLedger(JSON.parse(storage.get('nek_inventory_ledger_v1:7') ?? 'null')), normalizeInventoryLedger,
+    nekEnhancements: { warehouseForCloud: (_uid, ledger, costs) => ({ ledger, costs }), resetWarehouseBatch() {} },
     cloudNormalizeCostItems: v => v, cloudNormalizeWarehouseCost: v => v, cloudStageUnknown() {},
-    document: { dispatchEvent() {} }, CustomEvent: function () {} };
+    document: { dispatchEvent() {}, querySelector: () => null }, CustomEvent: function () {} };
     const api = vm.runInNewContext(section('function cloudBuildPayload(', '// 收藏整份覆盖前的确认') +
         '\n;({ cloudBuildPayload, cloudApply, todayLocal })', context);
     const today = api.todayLocal();
@@ -52,6 +54,8 @@ test('云同步保留默认开关、已关闭的开关和进行中的钓鱼链�
     assert.deepEqual(Array.from(payload.fish.bookings, b => b.pondId), [2]);
     delete payload.favorites;
     payload.settings.harvest = null;
+    payload.warehouseCost = { 10: 2.5 };
+    payload.inventoryLedger = normalizeInventoryLedger(ledger);
     api.cloudApply(payload, uid);
     assert.deepEqual(JSON.parse(storage.get('nek_inventory_ledger_v1:7')), normalizeInventoryLedger(ledger));
     assert.deepEqual(JSON.parse(storage.get('nek_warehouse_cost_v1:7')), { 10: 2.5 });
