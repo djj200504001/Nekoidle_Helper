@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.59.2
-// @description  v1.59.2：新增库存预警汇总，合并采购和生产数量。v1.59.1——库存核算顶部汇总库存总价值。v1.59.0——库存预警、充裕比例和逐层补货核算。v1.58.1——市场出入库即时同步，生产每分钟记账，云同步间隔可设。v1.58.0——库存成本合并采购与生产入库。v1.57.2——历史订单支持录入期初库存成本。v1.57.1——修复库存消耗后的历史采购加权。v1.57.0——新增库存核算页，支持期初录入、采购历史对账、配方成本与云同步。v1.56.0——修复部分成交收购单的库存成本——结算项自带 side/price，改为直接按结算项的求购单价核算（side=2 入库、item=1 金币找零排除），分批成交分别点领取各自按该批成交价入库加权，不再依赖订单列表。v1.55.0——挂单收购物品后库存成本不更新修复：挂单成交先进结算池、领取才入库，领取时按结算 order_id 从订单取真实成交价，入库回包按该价加权（本地有库存但未录成本时直接采用成交价）；移除挂单回包误清空暂存单价与 120 秒过期限制。v1.54.0——成本核算材料树复用游戏原生交互——悬浮材料名显示物品文字说明、点击弹出原生物品菜单（含查看辞典/兑换/库存成本）；成本核算清单与库存成本数据的写入纳入云同步标记（增改条目、录入/清空库存成本、市场买入加权后立即触发上传），不再依赖其他操作顺带上传。v1.53.0——成本核算卡片展开标题左侧加三角指示（展开后旋转）；市场详情只对生产/烹饪成品显示「精算」按钮；成本核算（侧栏入口+精算）改为独立设置开关并纳入云同步；烹饪/生产/采集列表优化、点金辅助、农业辅助五项合并为设置页「生产采集界面优化」一个开关。v1.52.0——库存成本输入限两位小数；小计括号差额为 +0 时不显示；成本核算清单与库存成本纳入云同步（整份覆盖、归一化比对）；云同步改为连续 3 条修改或停止修改 5 秒后上传，云端旧脚本无法本地覆盖的字段暂存并在上传时原样带回。v1.51.0——成本核算卡片改为「直接买入材料」「从基础原料制作」两个可展开块——前者仅列一层直接材料、含库存成本列与按出售/收购小计的括号差额（正数绿字、负数红字），后者列完整逐层树、无库存成本列与括号；展开状态跨重绘保留。v1.50.0——修复小计括号差额：中间产物自身录有库存成本时按它核算，不再误展开子节点显示 +0；成本核算页改为复用主脚本行情 API（含 v1.44.4 单物品强刷修复），缺报价材料恢复行情后自动重绘，不再另拉全量快照自造取数。v1.49.0——修复替换食材按钮尺寸（不再覆盖原生 .btn 字号/内边距）；「仓库成本」改名「库存成本」，录入浮窗改确定/清空/取消三按钮；悬停物品行情新增库存成本行；成本表用量并入材料列（x数字）、第二列改库存成本，最终小计括号显示市场小计−库存合计差额。v1.48.0——物品菜单新增彩色像素图标「仓库成本」（背包无该物品时隐藏，录入浮窗默认填左一价，确定保存、点外部关闭），市场买入后按库存与成交价加权更新本地成本；替换食材按钮与删除按钮等高；面包等战斗掉落物改标「战斗掉落」。v1.47.1——修复成本核算侧栏图标显示样式差异、精算按钮样式，选择浮层筛选点击消失与图标重叠（全部档不显示第二层），采集/掉落类食材误标「配方不可用」，替换食材改用游戏原生选择界面。v1.47.0——成本核算界面改炼金式两层筛选图标网格（全部/生产/烹饪各四分支）；侧栏入口换趋势图表图标；市场详情收藏旁新增「精算」按钮一键加入/剔除清单；成本核算支持烹饪配方与「食材重构」替代食材（研究 126 解锁后显示替换按钮）。v1.46.2——修复全量市场快照漏物品（如无卖单的松露意面）时误判「暂无市场行情」——缺底数先走单物品强刷确认，失败延时重试，快照到达后恢复同物品其他等级。v1.46.1——统一成本核算入口的侧栏文字样式，并换用表格图标。v1.46.0——成本核算支持自选清单与宽屏双列。v1.45.2——收紧成本表，材料用量与双侧报价分列对齐。v1.45.1——修复成本核算页展开长配方后无法滚动的问题。v1.45.0——新增奇点科技生产成本核算，可逐层展开至采集和梳毛原料。v1.44.3——修复云同步开关与预约恢复、研究账号切换、定时钓鱼队列恢复及构建校验。v1.44.2——修复研究队列云同步「已完成研究复活」竞态——云端旧队列覆盖本地时，按游戏实时等级过滤掉目标已达成的条目（与 plan()/settleSubmitted 同口径，含正在研究任务 +1），比对时同口径过滤避免每次刷新误报覆盖。v1.44.1——toolbar「手动云同步」按钮改为与签到按钮同款青色发光样式（文字由「同步」改「手动云同步」）。v1.44.0——云同步新增市场「我的收藏」同步（localStorage.favorite 的 itemId 数组，归一化去重排序后入 payload；挂钩 Utils.setData 自动上传；云端覆盖前弹窗对比两端收藏数量由用户决定整份覆盖）+ toolbar 签到按钮旁新增「同步」按钮（仅上传本地到云端，不拉取）。v1.43.7——修复刷新时误报「云端已覆盖本地」——开关按脚本真实语义归一化比对（null 或 1 都=开、0=关），null 与 1 不再判为不同；研究按钮缺料红框内发光改呼吸动画。v1.43.6——研究队列按钮缺料提示——队首材料确实不足（复用研究队列已有的 researchStatus 判定）时，快捷按钮红边框 + 红色内发光、字保持黑色，title 补注「队首材料不足，等待补充」。v1.43.5——pull 绑定到游戏主界面顶栏 toolbar-container——进入游戏（含刷新、回退登录页后重新进入）时各发一次 GET，同一节点只拉一次、回退清空以允许再拉；服务端 GET/GET 与 PUT/PUT 各自 2 秒限流、两者互不干扰。v1.43.4——修复刷新不发 pull：从 document-idle 延后到主界面就绪后再拉。v1.43.3——云同步 uid 安全加固——覆盖/上传前实时校验当前游戏玩家 uid（pull 请求前后双闸、push 上传前后双闸、flush 检测账号切换丢弃旧状态），防止 A 回退登录页后 B 登录被 A 的云端配置串号覆盖。v1.43.2——云同步与脚本加载并行——4 个 init 立即执行不等网络，服务端不可达/挂起都不影响加载（单次请求 3 秒超时）；启动只 pull 不 push，拉取后与本地比对，一致不覆盖不通知，仅云端覆盖本地 / push 成功 / push 失败三类用通知栏反馈；回退登录页不 push、不 pull；未登录不同步、不等待 uid；设置页云同步开关，本地设置/研究队列/钓鱼预约变化时 2 秒节流自动上传；首次开启云端有数据则二选一，无数据静默启用；钓鱼预约新增 day 日期字段跨日不同步；队列条目去 submitted、本地租约不进 payload；明文 JSON + XOR/Base64 混淆传输。自动收菜按钮 60 秒往返进度 CSS keyframes 动画；研究队列（预留材料与自动结算）、自动接受任务/领奖、市场行情、采集/生产/烹饪详情优化、防呆设置、点金辅助、农业辅助（自动收菜+好友农场预览）、检查更新、定时钓鱼、炼金经验效率与越级计算等，详见脚本正文。
+// @version      1.59.3
+// @description  v1.59.3：按交易与生产事件更新库存预警，汇总支持手动刷新。v1.59.2——新增库存预警汇总，合并采购和生产数量。v1.59.1——库存核算顶部汇总库存总价值。v1.59.0——库存预警、充裕比例和逐层补货核算。v1.58.1——市场出入库即时同步，生产每分钟记账，云同步间隔可设。v1.58.0——库存成本合并采购与生产入库。v1.57.2——历史订单支持录入期初库存成本。v1.57.1——修复库存消耗后的历史采购加权。v1.57.0——新增库存核算页，支持期初录入、采购历史对账、配方成本与云同步。v1.56.0——修复部分成交收购单的库存成本——结算项自带 side/price，改为直接按结算项的求购单价核算（side=2 入库、item=1 金币找零排除），分批成交分别点领取各自按该批成交价入库加权，不再依赖订单列表。v1.55.0——挂单收购物品后库存成本不更新修复：挂单成交先进结算池、领取才入库，领取时按结算 order_id 从订单取真实成交价，入库回包按该价加权（本地有库存但未录成本时直接采用成交价）；移除挂单回包误清空暂存单价与 120 秒过期限制。v1.54.0——成本核算材料树复用游戏原生交互——悬浮材料名显示物品文字说明、点击弹出原生物品菜单（含查看辞典/兑换/库存成本）；成本核算清单与库存成本数据的写入纳入云同步标记（增改条目、录入/清空库存成本、市场买入加权后立即触发上传），不再依赖其他操作顺带上传。v1.53.0——成本核算卡片展开标题左侧加三角指示（展开后旋转）；市场详情只对生产/烹饪成品显示「精算」按钮；成本核算（侧栏入口+精算）改为独立设置开关并纳入云同步；烹饪/生产/采集列表优化、点金辅助、农业辅助五项合并为设置页「生产采集界面优化」一个开关。v1.52.0——库存成本输入限两位小数；小计括号差额为 +0 时不显示；成本核算清单与库存成本纳入云同步（整份覆盖、归一化比对）；云同步改为连续 3 条修改或停止修改 5 秒后上传，云端旧脚本无法本地覆盖的字段暂存并在上传时原样带回。v1.51.0——成本核算卡片改为「直接买入材料」「从基础原料制作」两个可展开块——前者仅列一层直接材料、含库存成本列与按出售/收购小计的括号差额（正数绿字、负数红字），后者列完整逐层树、无库存成本列与括号；展开状态跨重绘保留。v1.50.0——修复小计括号差额：中间产物自身录有库存成本时按它核算，不再误展开子节点显示 +0；成本核算页改为复用主脚本行情 API（含 v1.44.4 单物品强刷修复），缺报价材料恢复行情后自动重绘，不再另拉全量快照自造取数。v1.49.0——修复替换食材按钮尺寸（不再覆盖原生 .btn 字号/内边距）；「仓库成本」改名「库存成本」，录入浮窗改确定/清空/取消三按钮；悬停物品行情新增库存成本行；成本表用量并入材料列（x数字）、第二列改库存成本，最终小计括号显示市场小计−库存合计差额。v1.48.0——物品菜单新增彩色像素图标「仓库成本」（背包无该物品时隐藏，录入浮窗默认填左一价，确定保存、点外部关闭），市场买入后按库存与成交价加权更新本地成本；替换食材按钮与删除按钮等高；面包等战斗掉落物改标「战斗掉落」。v1.47.1——修复成本核算侧栏图标显示样式差异、精算按钮样式，选择浮层筛选点击消失与图标重叠（全部档不显示第二层），采集/掉落类食材误标「配方不可用」，替换食材改用游戏原生选择界面。v1.47.0——成本核算界面改炼金式两层筛选图标网格（全部/生产/烹饪各四分支）；侧栏入口换趋势图表图标；市场详情收藏旁新增「精算」按钮一键加入/剔除清单；成本核算支持烹饪配方与「食材重构」替代食材（研究 126 解锁后显示替换按钮）。v1.46.2——修复全量市场快照漏物品（如无卖单的松露意面）时误判「暂无市场行情」——缺底数先走单物品强刷确认，失败延时重试，快照到达后恢复同物品其他等级。v1.46.1——统一成本核算入口的侧栏文字样式，并换用表格图标。v1.46.0——成本核算支持自选清单与宽屏双列。v1.45.2——收紧成本表，材料用量与双侧报价分列对齐。v1.45.1——修复成本核算页展开长配方后无法滚动的问题。v1.45.0——新增奇点科技生产成本核算，可逐层展开至采集和梳毛原料。v1.44.3——修复云同步开关与预约恢复、研究账号切换、定时钓鱼队列恢复及构建校验。v1.44.2——修复研究队列云同步「已完成研究复活」竞态——云端旧队列覆盖本地时，按游戏实时等级过滤掉目标已达成的条目（与 plan()/settleSubmitted 同口径，含正在研究任务 +1），比对时同口径过滤避免每次刷新误报覆盖。v1.44.1——toolbar「手动云同步」按钮改为与签到按钮同款青色发光样式（文字由「同步」改「手动云同步」）。v1.44.0——云同步新增市场「我的收藏」同步（localStorage.favorite 的 itemId 数组，归一化去重排序后入 payload；挂钩 Utils.setData 自动上传；云端覆盖前弹窗对比两端收藏数量由用户决定整份覆盖）+ toolbar 签到按钮旁新增「同步」按钮（仅上传本地到云端，不拉取）。v1.43.7——修复刷新时误报「云端已覆盖本地」——开关按脚本真实语义归一化比对（null 或 1 都=开、0=关），null 与 1 不再判为不同；研究按钮缺料红框内发光改呼吸动画。v1.43.6——研究队列按钮缺料提示——队首材料确实不足（复用研究队列已有的 researchStatus 判定）时，快捷按钮红边框 + 红色内发光、字保持黑色，title 补注「队首材料不足，等待补充」。v1.43.5——pull 绑定到游戏主界面顶栏 toolbar-container——进入游戏（含刷新、回退登录页后重新进入）时各发一次 GET，同一节点只拉一次、回退清空以允许再拉；服务端 GET/GET 与 PUT/PUT 各自 2 秒限流、两者互不干扰。v1.43.4——修复刷新不发 pull：从 document-idle 延后到主界面就绪后再拉。v1.43.3——云同步 uid 安全加固——覆盖/上传前实时校验当前游戏玩家 uid（pull 请求前后双闸、push 上传前后双闸、flush 检测账号切换丢弃旧状态），防止 A 回退登录页后 B 登录被 A 的云端配置串号覆盖。v1.43.2——云同步与脚本加载并行——4 个 init 立即执行不等网络，服务端不可达/挂起都不影响加载（单次请求 3 秒超时）；启动只 pull 不 push，拉取后与本地比对，一致不覆盖不通知，仅云端覆盖本地 / push 成功 / push 失败三类用通知栏反馈；回退登录页不 push、不 pull；未登录不同步、不等待 uid；设置页云同步开关，本地设置/研究队列/钓鱼预约变化时 2 秒节流自动上传；首次开启云端有数据则二选一，无数据静默启用；钓鱼预约新增 day 日期字段跨日不同步；队列条目去 submitted、本地租约不进 payload；明文 JSON + XOR/Base64 混淆传输。自动收菜按钮 60 秒往返进度 CSS keyframes 动画；研究队列（预留材料与自动结算）、自动接受任务/领奖、市场行情、采集/生产/烹饪详情优化、防呆设置、点金辅助、农业辅助（自动收菜+好友农场预览）、检查更新、定时钓鱼、炼金经验效率与越级计算等，详见脚本正文。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
 // @match        https://nekoidle.net/*
@@ -3891,8 +3891,16 @@
             return Number.isSafeInteger(quantity) && quantity > 0 ? quantity : 0;
         }
 
+        const stockRecipes = new WeakMap();
+        function stockRecipe(data, id) {
+            if (!stockRecipes.has(data)) stockRecipes.set(data, new Map());
+            const recipes = stockRecipes.get(data);
+            if (!recipes.has(id)) recipes.set(id, recipeCost(data, id, null, 1, new Set(), { directRecipe: true }));
+            return recipes.get(id);
+        }
+
         function planStockReplenishment(data, shortages, getQuantity) {
-            const stock = new Map(), recipes = new Map(), production = new Map(), purchases = new Map();
+            const stock = new Map(), production = new Map(), purchases = new Map();
             const path = new Set();
 
             function fulfill(id, quantity) {
@@ -3903,8 +3911,7 @@
                 stock.set(id, available - used);
                 const missing = quantity - used;
                 if (!missing) return true;
-                if (!recipes.has(id)) recipes.set(id, recipeCost(data, id, null, 1, new Set(), { directRecipe: true }));
-                const recipe = recipes.get(id);
+                const recipe = stockRecipe(data, id);
                 if (!recipe) {
                     const total = (purchases.get(id) || 0) + missing;
                     if (!Number.isSafeInteger(total)) return false;
@@ -4311,7 +4318,10 @@
                                 if (!Object.hasOwn(map, id) && productionPrices(uid).has(id)) map[id] = productionPrices(uid).get(id);
                                 ledger.items[id].quantity = game.getItemQuantity(id);
                             }
-                            if (traded.size) saveWarehouseLedger(uid, ledger, map, 'trade', traded);
+                            const affected = inventoryMessageItems({ add: content.add }, game);
+                            for (const id of outgoing.keys()) affected.add(id);
+                            for (const id of traded) affected.add(id);
+                            if (affected.size) updateInventoryItems(uid, affected, 'trade', ledger, map, traded);
                         } catch (e) { /* 成本更新失败不影响原生成交处理 */ }
                         return result;
                     };
@@ -4333,10 +4343,14 @@
                         return marketError.apply(this, arguments);
                     };
                 }
-                for (const type of ['action_added', 'action_update', 'action_complete', 'action_canceled']) {
+                for (const type of ['action_added', 'action_update', 'action_complete', 'action_canceled', 'update_queue']) {
                     const original = msg.handlers[type];
                     if (typeof original !== 'function') continue;
                     msg.handlers[type] = function (data) {
+                        const uid = core.view().account;
+                        const game = env.game(), head = game?.queue?.[0];
+                        const affected = type === 'action_complete' && historyReady() ? inventoryMessageItems(data?.content, game) : null;
+                        const canceled = cancelRequest?.head || head;
                         let production = null;
                         try { if (type === 'action_complete') production = captureProduction(data?.content); }
                         catch (e) { console.warn('[小助手] 读取生产批次失败', e); }
@@ -4344,6 +4358,22 @@
                         try { if (production) recordProduction(production); }
                         catch (e) { console.warn('[小助手] 记录生产批次失败', e); }
                         observeQueue(type, data?.content);
+                        if (uid && historyReady()) {
+                            const state = warehouseBatch(uid);
+                            if (affected) for (const id of affected) state.pending.add(id);
+                            const next = game?.queue?.[0];
+                            const matches = head && head.type === data?.content?.type && String(head.id) === String(data?.content?.id) &&
+                                (head.token == null || data?.content?.token == null || head.token === data.content.token);
+                            const finished = (type === 'action_complete' || type === 'action_update') &&
+                                (matches || (!head && affected)) && data?.content?.remaining != null &&
+                                Number(data.content.remaining) === 0;
+                            if (finished || (type === 'action_canceled' && canceled === head) ||
+                                (type === 'update_queue' && head && !sameInventoryAction(head, next))) {
+                                flushProductionInventory(uid, head);
+                            } else if (type === 'update_queue' && !head && next) {
+                                state.checkedAt = Date.now();
+                            }
+                        }
                         return result;
                     };
                 }
@@ -4361,6 +4391,7 @@
                         try { result = original.apply(this, arguments); }
                         finally { silentReward = false; }
                         core.message(type, data?.content);
+                        if (type === 'init_character_data') initializedInventory = null;
                         if (autoReward) ui.notifier?.show('小助手：已领取任务奖励', 'success', 3000);
                         return result;
                     };
@@ -4880,7 +4911,7 @@
             const deferredWarehouseKey = uid => 'nek_warehouse_deferred_v1:' + uid;
             function warehouseBatch(uid) {
                 if (!warehouseBatches.has(uid)) {
-                    const state = { prices: new Map(), deferred: new Map(), checkedAt: Date.now(), dirtySince: null };
+                    const state = { prices: new Map(), pending: new Set(), deferred: new Map(), checkedAt: Date.now(), dirtySince: null };
                     try {
                         const saved = JSON.parse(storage.getItem(deferredWarehouseKey(uid)) || 'null');
                         if (Number.isFinite(saved?.since)) {
@@ -4902,6 +4933,7 @@
             }
             function resetWarehouseBatch(uid) {
                 warehouseBatches.delete(String(uid));
+                if (initializedInventory === String(uid)) initializedInventory = null;
                 try { storage.removeItem(deferredWarehouseKey(uid)); } catch { /* 忽略 */ }
             }
             const productionPrices = uid => warehouseBatch(uid).prices;
@@ -4985,28 +5017,78 @@
                 }
                 if (loginInventoryDiffs.size) env.ui()?.notifier?.show?.('库存账面数量与背包不一致，可在库存核算中确认或修正单价。', 'tip');
             }
+            function inventoryMessageItems(content, game) {
+                const ids = new Set();
+                for (const row of content?.add || []) {
+                    if (!Number(row.enhancement || 0) && Number(row.item) > 1) ids.add(Number(row.item));
+                }
+                for (const row of content?.remove || []) {
+                    const item = game?.inventory?.find(stack => Number(stack.id) === Number(row.id));
+                    const id = Number(item?.item ?? row.item);
+                    if (!Number(item?.enhancement ?? row.enhancement ?? 0) && id > 1) ids.add(id);
+                }
+                return ids;
+            }
+            function sameInventoryAction(a, b) {
+                if (!a || !b) return a === b;
+                if (a.token != null && b.token != null) return a.token === b.token;
+                return a.type === b.type && String(a.id) === String(b.id) &&
+                    JSON.stringify(a.item ?? null) === JSON.stringify(b.item ?? null);
+            }
+            function flushProductionInventory(uid, head) {
+                if (!historyReady()) return;
+                const state = warehouseBatch(uid), game = env.game(), data = env.data();
+                const affected = new Set([...state.pending, ...state.prices.keys()]);
+                const recipe = head?.type === 'action' ? data?.actions?.[head.id] :
+                    head?.type === 'cooking' ? data?.cookingRecipes?.[head.id] : null;
+                for (const reward of recipe?.rewards || []) affected.add(Number(reward.itemId));
+                for (const [index, item] of (recipe?.ingredients || recipe?.requirements || []).entries()) {
+                    const id = head?.type === 'cooking'
+                        ? queueIngredient(game, data, item, head.item?.choices?.[index], 1, 0).itemId : item.itemId;
+                    affected.add(Number(id));
+                }
+                if (affected.size && updateInventoryItems(uid, affected)) state.pending.clear();
+                state.checkedAt = Date.now();
+            }
+            function updateInventoryItems(uid, affected, mode = 'production',
+                ledger = warehouseLedger(uid), costs = warehouseCosts(uid), changed = new Set()) {
+                const state = warehouseBatch(uid), now = Date.now();
+                const game = env.game();
+                const reading = id => game.getItemQuantity(id);
+                const quantities = new Map();
+                const ids = affected ?? new Set([...Object.keys(ledger.items).map(Number), ...Object.keys(costs).map(Number), ...ledger.products]);
+                for (const id of ids) {
+                    if (ledger.excluded.includes(id) || (!ledger.items[id] && !Object.hasOwn(costs, id) && !ledger.products.includes(id))) continue;
+                    const actual = reading(id);
+                    if (!Number.isSafeInteger(actual) || actual < 0) continue;
+                    quantities.set(id, actual);
+                    const price = changed.has(id) ? null : state.prices.get(id);
+                    if (ledger.items[id]?.quantity === actual && (price == null || price === costs[id])) continue;
+                    const entry = ledger.items[id] ??= { quantity: actual, since: now, purchases: [] };
+                    entry.quantity = actual;
+                    if (price != null) costs[id] = price;
+                    changed.add(id);
+                }
+                if (changed.size && !saveWarehouseLedger(uid, ledger, costs, mode, changed)) return false;
+                for (const id of ids) state.prices.delete(id);
+                refreshStockAlerts(uid, affected, ledger, quantities);
+                refreshInventoryPanel?.();
+                return true;
+            }
+            let initializedInventory = null;
             function syncInventoryBalances(uid, force = false) {
                 if (!historyReady()) return;
                 const state = warehouseBatch(uid), now = Date.now();
-                if (force || now - state.checkedAt >= 60000) {
-                    const ledger = warehouseLedger(uid), costs = warehouseCosts(uid), game = env.game();
-                    const changed = new Set();
-                    const ids = new Set([...Object.keys(ledger.items).map(Number), ...Object.keys(costs).map(Number), ...ledger.products]);
-                    for (const id of ids) {
-                        if (ledger.excluded.includes(id)) continue;
-                        const actual = game.getItemQuantity(id);
-                        if (!Number.isSafeInteger(actual) || actual < 0) continue;
-                        const price = state.prices.get(id);
-                        if (ledger.items[id]?.quantity === actual && (price == null || price === costs[id])) continue;
-                        const entry = ledger.items[id] ??= { quantity: actual, since: now, purchases: [] };
-                        entry.quantity = actual;
-                        if (price != null) costs[id] = price;
-                        changed.add(id);
-                    }
-                    if (!changed.size || saveWarehouseLedger(uid, ledger, costs, 'production', changed)) {
-                        state.prices.clear();
+                if (force || initializedInventory !== uid) {
+                    if (updateInventoryItems(uid)) {
+                        initializedInventory = uid;
+                        state.pending.clear();
                         state.checkedAt = now;
                     }
+                } else if (now - state.checkedAt >= 120000) {
+                    const head = env.game()?.queue?.[0];
+                    const active = head && Number(queueMetadata.get(head)?.remaining ?? head.remaining) !== 0 ? head : null;
+                    if (active || state.pending.size || state.prices.size) flushProductionInventory(uid, active);
                 }
                 const minutes = env.productionCloudMinutes?.() ?? 5;
                 if (!force && state.deferred.size && now - state.dirtySince >= minutes * 60000 &&
@@ -5060,8 +5142,11 @@
                 if (touched.size) persistWarehouseDeferral(uid, state);
                 if (mode === 'trade') env.syncWarehouseNow?.();
                 else if (mode !== 'production') env.warehouseChanged?.();
+                if (mode !== 'production' && JSON.stringify(previousLedger.thresholds) !== JSON.stringify(ledger.thresholds)) {
+                    refreshStockAlerts(uid, null, ledger);
+                }
                 publishStockCost(0);
-                refreshInventoryPanel?.();
+                if (mode !== 'production') refreshInventoryPanel?.();
                 return true;
             }
             function recordWarehouseBase(ledger, id, quantity) {
@@ -5084,41 +5169,85 @@
             }
             const historyReady = () => costEnabled() && (env.warehouseReady?.() ?? true);
             let alertAccount = null, alertedItems = new Map(), currentStockAlerts = new Map();
+            let alertQuantities = new Map(), alertDependents = new Map(), alertBuffer, alertRevision = 0;
+            let combinedAlerts = null;
             const stockNumber = value => value.toLocaleString('zh-CN');
             function stockItemNames(data, entries) {
                 return entries.map(([id, quantity]) => (data.items[id]?.name || '#' + id) + ' × ' + stockNumber(quantity)).join('、');
             }
-            function refreshStockAlerts(uid, ledger) {
+            function refreshStockAlerts(uid, affected, ledger, readings = new Map()) {
                 if (uid !== alertAccount) {
                     alertAccount = uid;
                     alertedItems = new Map();
                     currentStockAlerts = new Map();
+                    alertDependents = new Map();
+                    alertQuantities = new Map();
+                    affected = null;
                 }
-                const previousAlerts = currentStockAlerts;
-                currentStockAlerts = new Map();
                 const data = env.data(), game = env.game();
                 if (!uid || !data?.items || !game || !historyReady()) return;
+                ledger ??= warehouseLedger(uid);
                 const notify = env.ui()?.notifier;
                 const changed = [];
-                const buffer = env.stockBufferPercentage?.();
-                const nextAlerted = new Map();
-                for (const [key, threshold] of Object.entries((ledger ?? warehouseLedger(uid)).thresholds)) {
-                    const id = Number(key);
-                    const plan = stockReplenishment(data, id, threshold, buffer, item => game.getItemQuantity(item),
-                        previousAlerts.get(id)?.threshold === threshold);
-                    if (!plan) continue;
+                const buffer = normalizeStockBuffer(env.stockBufferPercentage?.());
+                if (alertBuffer !== buffer) affected = null;
+                alertBuffer = buffer;
+                if (!affected) {
+                    alertDependents.clear();
+                    alertQuantities.clear();
+                    for (const key of Object.keys(ledger.thresholds)) {
+                        const id = Number(key), dependencies = new Set();
+                        function collect(item) {
+                            if (dependencies.has(item)) return;
+                            dependencies.add(item);
+                            if (!alertDependents.has(item)) alertDependents.set(item, new Set());
+                            alertDependents.get(item).add(id);
+                            for (const req of stockRecipe(data, item)?.requirements || []) collect(req.itemId);
+                        }
+                        collect(id);
+                    }
+                    for (const id of currentStockAlerts.keys()) {
+                        if (!ledger.thresholds[id]) currentStockAlerts.delete(id);
+                    }
+                    for (const id of alertedItems.keys()) {
+                        if (!ledger.thresholds[id]) alertedItems.delete(id);
+                    }
+                }
+                const readCached = id => alertQuantities.get(id) ?? 0;
+                const affectedAlerts = new Set(affected ? [] : Object.keys(ledger.thresholds).map(Number));
+                for (const id of affected ?? alertDependents.keys()) {
+                    const dependents = alertDependents.get(id);
+                    if (!dependents) continue;
+                    if (!readings.has(id)) readings.set(id, game.getItemQuantity(id));
+                    const quantity = stockHeld(item => readings.get(item), id);
+                    if (quantity === alertQuantities.get(id)) continue;
+                    alertQuantities.set(id, quantity);
+                    for (const product of dependents) affectedAlerts.add(product);
+                }
+                if (affected && !affectedAlerts.size) return;
+                alertRevision++;
+                combinedAlerts = null;
+                for (const id of affectedAlerts) {
+                    const threshold = ledger.thresholds[id];
+                    if (!threshold) continue;
+                    const plan = stockReplenishment(data, id, threshold, buffer, readCached,
+                        currentStockAlerts.get(id)?.threshold === threshold);
+                    if (!plan) {
+                        currentStockAlerts.delete(id);
+                        alertedItems.delete(id);
+                        continue;
+                    }
                     currentStockAlerts.set(id, { ...plan, threshold });
                     const type = !plan.complete ? 'unknown' : plan.unavailable.length ? 'unavailable' :
                         plan.purchases.length ? 'purchase' : 'produce';
                     if (!notify?.show) continue;
-                    nextAlerted.set(id, type);
                     if (alertedItems.get(id) === type) continue;
+                    alertedItems.set(id, type);
                     const name = data.items[id]?.name || '#' + id;
                     changed.push(name + (type === 'purchase' ? '需采购 ' + stockItemNames(data, plan.purchases.slice(0, 2)) +
                         (plan.purchases.length > 2 ? '等' : '') : type === 'produce' ? '可生产补货' :
                         type === 'unavailable' ? '缺少不可交易物资' : '需检查配方'));
                 }
-                alertedItems = nextAlerted;
                 if (changed.length) notify.show('库存预警：' + changed.slice(0, 3).join('；') +
                     (changed.length > 3 ? '等 ' + changed.length + ' 项' : '') + '。详情见库存核算。', 'tip');
             }
@@ -5177,7 +5306,11 @@
                     }
                     if (fresh.length) entry.quantity = actual;
                 }
-                if (changed) saveWarehouseLedger(uid, ledger, costs, 'trade');
+                if (changed) {
+                    saveWarehouseLedger(uid, ledger, costs, 'trade');
+                    refreshStockAlerts(uid, new Set(groups.keys()), ledger);
+                    refreshInventoryPanel?.();
+                }
             }
             // 通知主脚本刷新悬停行情里的「库存成本」行（成本页自身在 render 时直接读取）。
             function publishStockCost(id) {
@@ -5353,8 +5486,6 @@
                     if (saveWarehouseLedger(uid, ledger, costs)) {
                         thresholdForm.hidden = true;
                         status.textContent = value ? '已保存库存预警。' : '已关闭库存预警。';
-                        refreshStockAlerts(uid, ledger);
-                        render();
                     } else status.textContent = '保存失败，请重试。';
                 });
                 function setInputs() {
@@ -5383,37 +5514,47 @@
                 picker.addEventListener('change', setInputs);
                 updatePicker();
                 let lastView = '';
-                let lastOverview = '';
+                let lastOverview = -1;
+                let overviewRendered = false;
                 const expandedReceipts = new Set();
+                const overviewControls = add(overview, 'div', 'nek-inventory-actions');
+                add(overviewControls, 'strong', '', '库存预警汇总');
+                const refreshAlerts = add(overviewControls, 'button', 'btn', '刷新');
+                refreshAlerts.type = 'button';
+                refreshAlerts.addEventListener('click', () => {
+                    if (editingAllowed()) syncInventoryBalances(uid, true);
+                });
+                const overviewBody = add(overview, 'div', '');
                 function renderOverview() {
-                    if (overview.hidden) return;
+                    if (overview.hidden || (overviewRendered && lastOverview === alertRevision)) return;
+                    overviewRendered = true;
+                    lastOverview = alertRevision;
                     const alerts = [...currentStockAlerts];
-                    const shortages = alerts.filter(([, plan]) => plan.complete).map(([id, plan]) => [id, plan.deficit]);
-                    const combined = planStockReplenishment(data, shortages, held);
-                    const view = JSON.stringify([alerts.map(([id, plan]) => [id, plan.actual, plan.target, plan.deficit, plan.complete]), combined]);
-                    if (view === lastOverview) return;
-                    lastOverview = view;
-                    overview.replaceChildren();
-                    add(overview, 'strong', '', '库存预警汇总');
+                    if (!combinedAlerts) {
+                        const shortages = alerts.filter(([, plan]) => plan.complete).map(([id, plan]) => [id, plan.deficit]);
+                        combinedAlerts = planStockReplenishment(data, shortages, id => alertQuantities.get(id) ?? 0);
+                    }
+                    const combined = combinedAlerts;
+                    overviewBody.replaceChildren();
                     if (!alerts.length) {
-                        add(overview, 'div', '', '当前没有库存预警。');
+                        add(overviewBody, 'div', '', '当前没有库存预警。');
                         return;
                     }
-                    const targets = add(overview, 'ul', '');
+                    const targets = add(overviewBody, 'ul', '');
                     for (const [id, plan] of alerts) {
                         const name = data.items[id]?.name || '#' + id;
                         add(targets, 'li', '', name + ' · 库存 ' + fmt(plan.actual) + ' · 目标 ' + fmt(plan.target) +
                             ' · 缺 ' + fmt(plan.deficit) + (plan.complete ? '' : ' · 需检查配方'));
                     }
                     if (!combined.complete) {
-                        add(overview, 'div', '', '无法核算所有物品的合计用量，请查看各物品的预警。');
+                        add(overviewBody, 'div', '', '无法核算所有物品的合计用量，请查看各物品的预警。');
                         return;
                     }
                     for (const [title, items] of [['建议采购', combined.purchases], ['计划生产', combined.production],
                         ['需自行获取', combined.unavailable]]) {
                         if (!items.length) continue;
-                        add(overview, 'h4', '', title);
-                        const list = add(overview, 'ul', '');
+                        add(overviewBody, 'h4', '', title);
+                        const list = add(overviewBody, 'ul', '');
                         for (const entry of items) add(list, 'li', '', stockItemNames(data, [entry]));
                     }
                 }
@@ -5421,10 +5562,7 @@
                     overview.hidden = !overview.hidden;
                     showAlerts.textContent = overview.hidden ? '查看预警信息' : '收起预警信息';
                     showAlerts.setAttribute('aria-expanded', String(!overview.hidden));
-                    if (!overview.hidden) {
-                        refreshStockAlerts(uid);
-                        renderOverview();
-                    }
+                    if (!overview.hidden) renderOverview();
                 });
                 function render() {
                     if (!page.isConnected) { refreshInventoryPanel = null; return; }
@@ -5433,7 +5571,7 @@
                     const ledger = warehouseLedger(uid), costs = warehouseCosts(uid);
                     const ids = [...new Set([...Object.keys(costs).map(Number), ...ledger.products])];
                     const diffs = inventoryDiffUid === uid ? loginInventoryDiffs : new Map();
-                    const view = JSON.stringify([ledger, costs, [...diffs], [...currentStockAlerts]]);
+                    const view = JSON.stringify([ledger, costs, [...diffs], alertRevision]);
                     if (view === lastView) return;
                     lastView = view;
                     results.replaceChildren();
@@ -5444,7 +5582,8 @@
                         if (def && typeof ui.showItem === 'function') {
                             const icon = add(head, 'div', '');
                             ui.showItem(icon, def, { enhancement: 0 });
-                            ui.bindItemTooltip?.(icon, def, { item: { id, enhancement: 0, quantity: held(id) } });
+                            ui.bindItemTooltip?.(icon, def, { item: { id, enhancement: 0,
+                                quantity: ledger.items[id]?.quantity ?? alertQuantities.get(id) ?? 0 } });
                         }
                         add(head, 'strong', '', def?.name || '#' + id);
                         const actions = add(card, 'div', 'nek-inventory-actions');
@@ -5972,10 +6111,14 @@
                         const uid = core.view().account;
                         if (uid) {
                             syncInventoryBalances(uid);
+                            if (historyReady() && alertBuffer !== normalizeStockBuffer(env.stockBufferPercentage?.())) {
+                                refreshStockAlerts(uid);
+                                refreshInventoryPanel?.();
+                            }
                             requestWarehouseHistory(uid);
+                        } else {
+                            initializedInventory = null;
                         }
-                        refreshStockAlerts(uid);
-                        refreshInventoryPanel?.();
                     }
                 }
                 catch (e) { console.warn('[小助手] 研究/任务/库存辅助异常:', e); }
@@ -5985,7 +6128,7 @@
                 pulse(); timer = setInterval(pulse, 2000);
                 env.window.addEventListener('pagehide', () => {
                     const uid = core.view().account;
-                    if (uid) syncInventoryBalances(uid, true);
+                    if (uid) flushProductionInventory(uid);
                     core.release();
                 });
             }
@@ -5997,7 +6140,8 @@
                 });
             }
             return { init, decorate, core, snapshotActions, warehouseValue, captureLoginInventory,
-                warehouseForCloud, resetWarehouseBatch, syncInventoryBalances, releaseWarehouseDeferral };
+                warehouseForCloud, resetWarehouseBatch, syncInventoryBalances, releaseWarehouseDeferral,
+                invalidateInventorySnapshot: () => { initializedInventory = null; } };
         }
         const nekEnhancements = createNekEnhancements({
             game: () => typeof game !== 'undefined' ? game : null,
@@ -7152,7 +7296,7 @@
         // ---------------- 自动检查更新（GitHub raw 头部 @version 对比） ----------------
         // 注意：发布新版本时需同步修改 CURRENT_VERSION（与头部 @version 保持一致）。
         // 页面上下文无 GM_info（@grant none 且经 <script> 注入），只能内置当前版本号。
-        const CURRENT_VERSION = '1.59.2';
+        const CURRENT_VERSION = '1.59.3';
         const LS_UPD_KEY = 'nek_update_check_enabled';        // 检查更新开关，默认开
         const LS_UPD_REMIND = 'nek_update_remind_last';       // 上次提醒时间戳（提醒节流）
         const UPD_REMIND_INTERVAL = 60 * 60 * 1000;           // 提醒节流：距上次提醒超过 60 分钟才再次提醒
@@ -8366,6 +8510,7 @@
                 const localLedger = cloudInventoryLedger(uid);
                 localLedger.thresholds = remoteLedger.thresholds;
                 localStorage.setItem('nek_inventory_ledger_v1:' + uid, JSON.stringify(localLedger));
+                nekEnhancements.invalidateInventorySnapshot();
             }
             if ((ledgerChanged || costsChanged) && remoteCosts) {
                 localStorage.setItem('nek_warehouse_cost_v1:' + uid, JSON.stringify(cloudNormalizeWarehouseCost(p.warehouseCost)));

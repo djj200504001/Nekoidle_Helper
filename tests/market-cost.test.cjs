@@ -17,10 +17,11 @@ function setup(minutes = 5, buffer = 0) {
     class TestDate extends Date { static now() { return now; } }
     let uploads = 0;
     const notices = [];
+    const reads = [];
     const game = {
         character: { uid: 669 }, quests: {}, queue: [], order: [], orderHistory: [], settlement: [],
         getItem: id => data.items[id],
-        getItemQuantity: (id, enh = 0, raw) => quantities[id + '-' + enh] || 0,
+        getItemQuantity: (id, enh = 0) => { reads.push(id); return quantities[id + '-' + enh] || 0; },
         getQuest: () => null, getAction: () => null, getLifeBonusActionType: s => s,
         getResearchFacilityIdForAction: a => a.action, getResearchEffectPct: () => 0,
         getOverLevelProductMultiplier: () => 1
@@ -52,6 +53,8 @@ function setup(minutes = 5, buffer = 0) {
                 quantities[key] = (quantities[key] || 0) + (Number(row.quantity) || 0);
             });
             return 'native';
+        }, update_queue: function (message) {
+            game.queue = message.content;
         }, action_complete: function (message) {
             for (const row of message.content.add) quantities[row.item + '-0'] = (quantities[row.item + '-0'] || 0) + row.quantity;
             for (const row of message.content.remove || []) {
@@ -86,7 +89,7 @@ function setup(minutes = 5, buffer = 0) {
     });
     feature.init();
     return { feature, msg, game, store, document, data, ui, pulse: intervals[0],
-        advance: ms => { now += ms; intervals[0](); }, uploads: () => uploads, notices,
+        advance: ms => { now += ms; intervals[0](); }, uploads: () => uploads, notices, reads,
         setQty: (id, qty, enh = 0) => { quantities[id + '-' + enh] = qty; } };
 }
 
@@ -142,17 +145,20 @@ test('预警读取实际库存，提醒采购且同一状态只提示一次，�
         items: { 10: { quantity: 2300, since: Date.now() } }, thresholds: { 10: 2000 }
     }));
     h.setQty(10, 1900);
+    h.feature.syncInventoryBalances('669', true);
+    h.reads.length = 0;
     h.pulse();
-    h.pulse();
+    h.advance(120000);
+    assert.deepEqual(h.reads, [], '空闲时不读取预警物品库存');
     assert.equal(h.notices.length, 1);
     assert.match(h.notices[0], /绒毛需采购 绒毛 × 600/);
     h.setQty(10, 2000);
-    h.pulse();
+    h.feature.syncInventoryBalances('669', true);
     assert.equal(h.notices.length, 1);
     h.setQty(10, 2500);
-    h.pulse();
+    h.feature.syncInventoryBalances('669', true);
     h.setQty(10, 1999);
-    h.pulse();
+    h.feature.syncInventoryBalances('669', true);
     assert.equal(h.notices.length, 2);
     assert.match(h.notices[1], /绒毛 × 501/);
 });
@@ -161,7 +167,7 @@ function stockCost(store, uid) {
     return JSON.parse(store.get('nek_warehouse_cost_v1:' + uid) || '{}');
 }
 
-test('生产批次每分钟记账，无生产流水，同物品交易实时加权并同步', () => {
+test('生产批次每两分钟记账，无生产流水，同物品交易实时加权并同步', () => {
     const h = setup(), uid = 669, key = 'nek_inventory_ledger_v1:' + uid;
     h.data.items[20] = { id: 20, name: '面料', sources: { actions: [{ id: 220 }] } };
     h.data.actions = { 220: { action: 6, requirements: [{ itemId: 10, quantity: 3 }],
@@ -171,12 +177,14 @@ test('生产批次每分钟记账，无生产流水，同物品交易实时加�
     h.setQty(20, 2);
     h.store.set('nek_warehouse_cost_v1:' + uid, JSON.stringify({ 10: 10 }));
     h.store.set(key, JSON.stringify({ products: [20] }));
+    h.feature.syncInventoryBalances('669', true);
+    h.msg.handlers.update_queue({ content: [{ type: 'action', id: 220 }] });
     assert.equal(h.feature.warehouseValue(20).price, 30);
     assert.equal(h.feature.warehouseValue(20).label, '生产成本');
     h.msg.handlers.action_complete({ content: { type: 'action', id: 220,
         add: [{ item: 20, quantity: 2 }], remove: [{ id: 1, quantity: 3 }] } });
     assert.equal(stockCost(h.store, uid)[20], undefined);
-    h.advance(59999);
+    h.advance(119999);
     assert.equal(stockCost(h.store, uid)[20], undefined);
     h.advance(1);
     assert.equal(stockCost(h.store, uid)[20], 22.5, '实际多产一件，本批单价 15');
@@ -188,18 +196,50 @@ test('生产批次每分钟记账，无生产流水，同物品交易实时加�
     assert.equal(h.feature.warehouseValue(20).price, 30);
     assert.equal(h.feature.warehouseValue(20).label, '库存成本');
     assert.equal(h.uploads(), 1);
+    h.msg.handlers.action_complete({ content: { type: 'action', id: 220, add: [], remove: [] } });
     h.setQty(20, 3);
     h.pulse();
     assert.equal(JSON.parse(h.store.get(key)).items[20].quantity, 5);
-    h.advance(60000);
+    h.advance(120000);
     const ledger = JSON.parse(h.store.get(key));
     assert.equal(ledger.items[20].quantity, 3);
     assert.deepEqual(ledger.items[20].purchases.map(p => p.source), ['直购']);
     assert.equal(stockCost(h.store, uid)[20], 30);
-    h.advance(299999 - 120000);
+    h.advance(299999 - 240000);
     assert.equal(h.uploads(), 1);
     h.advance(1);
     assert.equal(h.uploads(), 2, '剩余库存的生产变化默认五分钟才同步');
+});
+
+test('交易刷新下游预警，队首切换立即入账，两个路径都不读取无关库存', () => {
+    const h = setup();
+    h.data.items[20] = { id: 20, name: '面料', sources: { actions: [{ id: 220 }] } };
+    h.data.items[30] = { id: 30, name: '其他材料' };
+    h.data.actions = { 220: { action: 6, requirements: [{ itemId: 10, quantity: 2 }],
+        rewards: [{ itemId: 20, min: 1, max: 1, chance: 100 }] } };
+    h.game.inventory = [{ id: 11, item: 10 }];
+    h.setQty(10, 8);
+    h.setQty(30, 99);
+    h.store.set('nek_warehouse_cost_v1:669', JSON.stringify({ 10: 2, 30: 7 }));
+    const key = 'nek_inventory_ledger_v1:669';
+    h.store.set(key, JSON.stringify({ products: [20], thresholds: { 20: 4, 30: 1 } }));
+    h.feature.syncInventoryBalances('669', true);
+    assert.match(h.notices.at(-1), /面料可生产补货/);
+    h.reads.length = 0;
+    h.msg.handlers.market_update({ content: { type: 'place', side: 1, remove: [{ id: 11, quantity: 2 }] } });
+    assert.deepEqual([...new Set(h.reads)], [10]);
+    assert.match(h.notices.at(-1), /面料需采购 绒毛 × 2/);
+    h.msg.handlers.update_queue({ content: [{ type: 'action', id: 220, token: 1 }] });
+    h.msg.handlers.action_complete({ content: { type: 'action', id: 220,
+        add: [{ item: 20, quantity: 1 }], remove: [{ id: 11, quantity: 2 }] } });
+    assert.equal(JSON.parse(h.store.get(key)).items[20].quantity, 0);
+    h.reads.length = 0;
+    h.msg.handlers.update_queue({ content: [] });
+    const ledger = JSON.parse(h.store.get(key));
+    assert.equal(ledger.items[10].quantity, 4);
+    assert.equal(ledger.items[20].quantity, 1);
+    assert.equal(stockCost(h.store, 669)[20], 4);
+    assert.deepEqual([...new Set(h.reads)].sort(), [10, 20]);
 });
 
 test('生产数量按设定间隔上传，市场出库不带走其他物品待同步的生产数据', () => {
@@ -210,8 +250,7 @@ test('生产数量按设定间隔上传，市场出库不带走其他物品待�
     h.store.set('nek_warehouse_cost_v1:' + uid, JSON.stringify({ 10: 15, 20: 5 }));
     h.store.set(key, JSON.stringify({ items: { 10: { quantity: 10, since: Date.now() },
         20: { quantity: 10, since: Date.now(), purchases: [{ source: '生产入库', quantity: 1, price: 5, at: Date.now() }] } } }));
-    h.setQty(20, 12);
-    h.advance(60000);
+    h.msg.handlers.action_complete({ content: { type: 'action', id: 999, remaining: 0, add: [{ item: 20, quantity: 2 }] } });
     h.msg.handlers.market_update({ content: { type: 'place', side: 1, remove: [{ id: 11, quantity: 3 }] } });
     assert.equal(h.uploads(), 1);
     const local = JSON.parse(h.store.get(key));
@@ -221,7 +260,7 @@ test('生产数量按设定间隔上传，市场出库不带走其他物品待�
     assert.equal(pending.items[10].quantity, 7);
     assert.equal(pending.items[10].purchases[0].source, '市场出库');
     assert.equal(pending.items[20].quantity, 10);
-    h.advance(59999);
+    h.advance(119999);
     assert.equal(h.uploads(), 1);
     h.advance(1);
     assert.equal(h.uploads(), 2);
