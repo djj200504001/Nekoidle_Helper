@@ -82,7 +82,7 @@ test('挂单收购：挂单成功回包不再清空暂存单价，结算领取�
     marketUpdate({ content: { type: 'place', side: 2, item: 10, enhancement: 0, placed: 5, filled: 0 } });
     // 3) 撮合成交：进结算池（尚未入库），背包仍为 0
     h.game.order = [{ id: 1, side: 2, item: 10, enhancement: 0, price: 100, quantity: 5, traded: 5, residue: 0, status: 0 }];
-    h.game.settlement = [{ id: 501, order_id: 1, item: 10, enhancement: 0, quantity: 5 }];
+    h.game.settlement = [{ id: 501, order_id: 1, side: 2, item: 10, enhancement: 0, quantity: 5, price: 100, order_item: 10 }];
     // 4) 用户领取结算
     h.msg.send('market_settlement_claim', { id: 501 });
     // 5) 领取回包：物品入库（原生 handler 加库存）
@@ -96,11 +96,32 @@ test('挂单收购：无旧成本但有库存时，领取入库直接以本次�
     // 本地已有 8 个 10 号物品，但没有录入库存成本
     h.setQty(10, 8);
     h.game.order = [{ id: 2, side: 2, item: 10, enhancement: 0, price: 120, quantity: 4, traded: 4, residue: 0, status: 0 }];
-    h.game.settlement = [{ id: 601, order_id: 2, item: 10, enhancement: 0, quantity: 4 }];
+    h.game.settlement = [{ id: 601, order_id: 2, side: 2, item: 10, enhancement: 0, quantity: 4, price: 120, order_item: 10 }];
     h.msg.send('market_settlement_claim', { id: 601 });
     marketUpdate({ content: { add: [{ id: 2, item: 10, enhancement: 0, quantity: 4 }] } });
 
     assert.equal(stockCost(h.store, uid)[10], 120, '有库存无成本时直接采用本次成交价 120，不做加权');
+});
+
+test('部分成交：两批结算分别点领取，各自按该批成交价入库加权', () => {
+    const h = setup(), uid = 669, marketUpdate = h.msg.handlers.market_update;
+    // 求购金粒(id=1401) 500 个，分两批成交：先 200@100，再 300@120
+    h.game.settlement = [
+        { id: 701, order_id: 90, side: 2, item: 1401, enhancement: 0, quantity: 200, price: 100, order_item: 1401 },
+        { id: 702, order_id: 90, side: 2, item: 1, enhancement: 0, quantity: 30000, price: 100, order_item: 1401 } // 找零
+    ];
+    h.setQty(1401, 0);
+    h.msg.send('market_settlement_claim', { id: 701 });   // 第一批：点单条领取
+    marketUpdate({ content: { add: [{ id: 1, item: 1401, enhancement: 0, quantity: 200 }] } });
+    assert.equal(stockCost(h.store, uid)[1401], 100, '第一批按 100 记');
+
+    h.game.settlement = [
+        { id: 703, order_id: 90, side: 2, item: 1401, enhancement: 0, quantity: 300, price: 120, order_item: 1401 }
+    ];
+    h.msg.send('market_settlement_claim', { id: 703 });   // 第二批：另一批成交、另一单价
+    marketUpdate({ content: { add: [{ id: 2, item: 1401, enhancement: 0, quantity: 300 }] } });
+    // 200@100 + 300@120 → (20000+36000)/500 = 112
+    assert.equal(stockCost(h.store, uid)[1401], 112, '第二批 120 入库后按两批数量加权到 112');
 });
 
 test('直购仍按回包成交价加权，结算领取映射不干扰直购', () => {

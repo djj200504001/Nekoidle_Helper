@@ -543,26 +543,20 @@ function mergeWarehouseCost(oldCost, oldQty, buyPrice, buyQty) {
     return Math.round((base * held + price * qty) / (held + qty) * 100) / 100;
 }
 
-// 结算领取前的待入库成本：挂单成交先进结算池，领取时才入库。
-// 用 settlement.order_id 从订单（当前+历史）取求购单价，生成 'item:enh' -> {price, quantity}。
-// 同一物品多行按数量加权单价；wantedId 为领取的单条结算 id（不传表示全部领取）。
-function claimCosts(settlements, orders, wantedId) {
+// 结算领取前的待入库成本：挂单（含部分成交）先进结算池，点领取才入库。
+// 结算项自带 side/price/item：side=2 为求购入库，price 即该批成交单价；
+// item=1 是金币（找零/退款），不记库存成本。生成 'item:enh' -> {price, quantity}。
+// 部分成交会分批产生多条结算项，同一物品按数量加权单价；wantedId 为单条领取 id（不传=全部）。
+function claimCosts(settlements, wantedId) {
     const result = {};
-    const orderOf = new Map();
-    (orders || []).forEach(o => {
-        if (o && Number(o.side) === 2 && Number(o.price) > 0) orderOf.set(Number(o.id), o);
-    });
     const wanted = wantedId == null ? null : Number(wantedId);
     (settlements || []).forEach(s => {
         if (!s) return;
         if (wanted != null && Number(s.id) !== wanted) return;
+        if (Number(s.side) !== 2) return;               // 求购入库才计入；出售结算是收到金币
         const id = Number(s.item), enh = Number(s.enhancement) || 0, qty = Number(s.quantity) || 0;
-        const order = orderOf.get(Number(s.order_id));
-        if (!order) return;
-        // 结算项须与求购订单是同一物品/强化等级，避免把单价误记到同订单的其它结算物上。
-        if (Number(order.item) !== id || (Number(order.enhancement) || 0) !== enh) return;
-        const price = Number(order.price) || 0;
-        if (!(id > 0) || !(qty > 0) || !(price > 0)) return;
+        const price = Number(s.price) || 0;
+        if (!(id > 1) || !(qty > 0) || !(price > 0)) return;  // item=1 金币找零排除
         const key = id + ':' + enh;
         const prev = result[key];
         if (prev) {
@@ -944,8 +938,7 @@ function createNekEnhancements(env) {
             }
             if (result === true && type === 'market_settlement_claim') {
                 const g = env.game();
-                const orders = [...(Array.isArray(g?.order) ? g.order : []), ...(Array.isArray(g?.orderHistory) ? g.orderHistory : [])];
-                const costs = claimCosts(g?.settlement, orders, data?.id);
+                const costs = claimCosts(g?.settlement, data?.id);
                 Object.keys(costs).forEach(key => {
                     const next = costs[key], prev = pendingClaims.get(key);
                     if (prev) {
