@@ -1416,6 +1416,7 @@ function createNekEnhancements(env) {
             '.nek-inventory-form,.nek-inventory-actions{display:flex;flex-wrap:wrap;align-items:center;gap:6px}',
             '.nek-inventory-form input{width:8em}.nek-inventory-form select{max-width:100%}.nek-inventory-name{display:flex;align-items:center;gap:5px}.nek-inventory-name>.item{flex:none}.nek-cost .page-main[hidden]{display:none}',
             '.nek-inventory-form[hidden]{display:none}',
+            '.nek-inventory-total{margin-bottom:8px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}',
             '.nek-stock-alert{color:#ffad66;margin-top:6px;overflow-wrap:anywhere}.nek-stock-alert div{margin-top:3px}',
             '.nek-cost .page-main{container-type:inline-size}.nek-cost-results{width:100%;max-width:76rem;display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:6px}',
             '@media(min-width:761px){@container(min-width:44rem){.nek-cost-results{grid-template-columns:repeat(2,minmax(0,1fr))}}}',
@@ -2179,6 +2180,7 @@ function createNekEnhancements(env) {
         }
         const panel = add(main.parentNode, 'div', 'page-main nek-inventory-panel');
         panel.hidden = true;
+        const inventoryTotal = add(panel, 'div', 'neon-section nek-inventory-total');
         const form = add(panel, 'div', 'nek-inventory-form');
         const mode = add(form, 'select', '');
         mode.setAttribute('aria-label', '核算方式');
@@ -2322,12 +2324,15 @@ function createNekEnhancements(env) {
                 });
                 return card;
             }
+            let totalValue = 0;
             for (const id of ids) {
                 const card = cardFor(id), entry = ledger.items[id], actual = entry?.quantity ?? held(id);
                 const derived = ledger.products.includes(id) ? productionUnitCost(id, costs) : null;
                 const unit = costs[id] ?? derived;
+                const value = unit == null ? null : actual * unit;
+                totalValue += value ?? 0;
                 add(card, 'div', '', '背包 ' + fmt(actual) + (unit == null ? ' · 缺少材料单价' :
-                    ' · ' + (costs[id] == null ? '生产单价 ' : '库存单价 ') + fmt(unit) + ' · 库存总额 ' + fmt(actual * unit)));
+                    ' · ' + (costs[id] == null ? '生产单价 ' : '库存单价 ') + fmt(unit) + ' · 库存总额 ' + fmt(value)));
                 if (derived != null && costs[id] != null) add(card, 'div', '', '当前配方单价 ' + fmt(derived) + ' 喵点');
                 const threshold = ledger.thresholds[id], plan = currentStockAlerts.get(id);
                 if (threshold) add(card, 'div', '', '预警阈值 ' + fmt(threshold));
@@ -2366,6 +2371,7 @@ function createNekEnhancements(env) {
                     }
                 }
             }
+            inventoryTotal.textContent = '库存总价值 ' + fmt(totalValue) + ' 喵点';
             if (!ids.length) add(results, 'p', '', '添加材料录入期初单价，或选择产物核算生产成本。');
         }
         saveButton.addEventListener('click', () => {
