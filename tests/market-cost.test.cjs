@@ -173,3 +173,24 @@ test('同一求购单实时领取后，历史只补算另一端已领取的增�
     assert.equal(stockCost(h.store, uid)[10], 35);
     assert.equal(JSON.parse(h.store.get(key)).orders[25].quantity, 10);
 });
+
+test('旧库存耗尽后按采购批次加权，账面数量以实际剩余库存为准', () => {
+    const h = setup(), uid = 669, base = Date.now() - 60000;
+    const key = 'nek_inventory_ledger_v1:' + uid;
+    h.store.set(key, JSON.stringify({ items: { 10: { quantity: 100, since: base, incomplete: true } } }));
+    h.store.set('nek_warehouse_cost_v1:' + uid, JSON.stringify({ 10: 30 }));
+    h.setQty(10, 3);
+    const orders = [
+        { id: 5, item: 10, side: 2, traded: 2, price: 100, close_time: base + 1000 },
+        { id: 6, item: 10, side: 2, traded: 6, price: 200, close_time: base + 2000 }
+    ];
+    h.msg.handlers.market_history({ content: orders });
+    assert.equal(stockCost(h.store, uid)[10], 175);
+    const ledger = JSON.parse(h.store.get(key));
+    assert.equal(ledger.items[10].quantity, 3);
+    assert.equal(ledger.orders[5].quantity, 2);
+    assert.equal(ledger.orders[6].quantity, 6);
+    h.msg.handlers.market_history({ content: orders });
+    assert.equal(stockCost(h.store, uid)[10], 175);
+    assert.equal(JSON.parse(h.store.get(key)).items[10].purchases.length, 2);
+});

@@ -560,7 +560,7 @@ function normalizeInventoryLedger(value) {
             Number.isSafeInteger(p?.quantity) && p.quantity > 0 && Number.isFinite(p.at) && p.at > 0 &&
             Number.isFinite(p.price) && p.price > 0 && ['直购', '直购已核对', '求购领取', '历史采购'].includes(p.source))
             .map(({ quantity, at, price, source }) => ({ quantity, at, price, source })) : [];
-        items[id] = { quantity: row.quantity, since: row.since, incomplete: row.incomplete === true, purchases };
+        items[id] = { quantity: row.quantity, since: row.since, purchases };
     }
     for (const [id, row] of Object.entries(value?.orders || {})) {
         if (isId(id) && Number.isSafeInteger(row?.quantity) && row.quantity > 0) orders[id] = { quantity: row.quantity };
@@ -1657,7 +1657,7 @@ function createNekEnhancements(env) {
         const game = env.game();
         const now = Date.now();
         ledger.excluded = ledger.excluded.filter(item => item !== id);
-        ledger.items[id] = { ...ledger.items[id], quantity, since: now, incomplete: false };
+        ledger.items[id] = { ...ledger.items[id], quantity, since: now };
         for (const order of game.order || []) {
             if (Number(order.item) !== id || Number(order.side) !== 2 || Number(order.enhancement || 0) !== 0) continue;
             const pending = (game.settlement || []).filter(row => Number(row.order_id) === Number(order.id) && Number(row.item) === id)
@@ -1714,13 +1714,9 @@ function createNekEnhancements(env) {
             });
             const actual = Number(g.getItemQuantity(item)) || 0;
             const acquired = fresh.reduce((sum, batch) => sum + batch.quantity, 0);
-            // If purchases cannot fit in today's stock, intervening consumption
-            // makes the opening balance unknowable. Keep the cost and flag it.
-            if (entry.incomplete || acquired > actual) {
-                if (!entry.incomplete) { entry.incomplete = true; changed = true; }
-                continue;
-            }
-            let balance = actual - acquired;
+            // 剩余旧库存沿用旧单价。背包数量少于未入账采购量时，
+            // 旧库存视为耗尽，按这些采购批次的加权单价计剩余库存。
+            let balance = Math.max(0, actual - acquired);
             for (const batch of fresh) {
                 costs[item] = mergeWarehouseCost(costs[item], balance, batch.price, batch.quantity);
                 balance += batch.quantity;
@@ -1728,10 +1724,7 @@ function createNekEnhancements(env) {
                 addPurchase(entry, batch, '历史采购');
                 changed = true;
             }
-            if (fresh.length) {
-                entry.quantity = actual;
-                delete entry.incomplete;
-            }
+            if (fresh.length) entry.quantity = actual;
         }
         if (changed) saveWarehouseLedger(uid, ledger, costs);
     }
@@ -1903,7 +1896,6 @@ function createNekEnhancements(env) {
                 const card = cardFor(id, false), entry = ledger.items[id], actual = held(id);
                 add(card, 'div', '', '背包 ' + fmt(actual) + ' · 单件 ' + fmt(Number(costs[id])) + ' · 总额 ' + fmt(actual * costs[id]));
                 if (entry && entry.quantity !== actual) add(card, 'div', '', '账面 ' + fmt(entry.quantity) + '，按背包数量核算');
-                if (entry?.incomplete) add(card, 'div', '', '历史采购超过当前库存，请核对后重新录入成本。');
                 if (entry?.purchases?.length) {
                     const details = add(card, 'details', '');
                     add(details, 'summary', '', '近期采购');
