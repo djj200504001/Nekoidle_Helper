@@ -550,6 +550,13 @@ function marketTime(value) {
     return Number.isFinite(parsed) ? parsed : 0;
 }
 
+const MAX_STOCK_THRESHOLD = Math.floor(Number.MAX_SAFE_INTEGER / 11);
+function normalizeStockBuffer(value) {
+    const percentage = value == null || value === '' ? NaN : Number(value);
+    return Number.isFinite(percentage) && percentage >= 0 && percentage <= 1000
+        ? Math.round(percentage * 100) / 100 : 25;
+}
+
 function normalizeInventoryLedger(value) {
     const items = {}, orders = {};
     const isId = id => /^\d+$/.test(id) && Number.isSafeInteger(Number(id)) && Number(id) > 0;
@@ -569,7 +576,12 @@ function normalizeInventoryLedger(value) {
     }
     const products = Array.isArray(value?.products) ? [...new Set(value.products.filter(Number.isSafeInteger).filter(id => id > 0))].slice(0, 500) : [];
     const excluded = Array.isArray(value?.excluded) ? [...new Set(value.excluded.filter(Number.isSafeInteger).filter(id => id > 0))] : [];
-    return { items, orders, products, excluded };
+    const thresholds = {};
+    for (const [id, quantity] of Object.entries(value?.thresholds || {}).slice(0, 500)) {
+        if (isId(id) && Number.isSafeInteger(quantity) && quantity > 0 && quantity <= MAX_STOCK_THRESHOLD &&
+            !excluded.includes(Number(id))) thresholds[id] = quantity;
+    }
+    return { items, orders, products, excluded, thresholds };
 }
 
 // History has cumulative fills rather than individual trades. Subtract both
@@ -696,7 +708,7 @@ function recipeCost(data, product, market, quantity = 1, ancestors = new Set(), 
         node[side + 'Quote'] = Number.isFinite(price) && price > 0 ? price * quantity : null;
     }
     const raw = actions.find(action => action.action === 1 || action.action === 2);
-    if (raw) {
+    if (raw && !options.directRecipe) {
         node.source = raw.action === 1 ? '梳毛' : '采集';
         node.sell = node.sellQuote;
         node.demand = node.demandQuote;
@@ -740,6 +752,12 @@ function recipeCost(data, product, market, quantity = 1, ancestors = new Set(), 
             }
         }
     }
+    if (options.directRecipe) {
+        const usable = reward?.chance === 100 && Number.isSafeInteger(reward.min) && reward.min > 0 &&
+            requirements?.length && requirements.every(r => Number.isSafeInteger(r.itemId) && r.itemId > 0 &&
+                Number.isSafeInteger(r.quantity) && r.quantity > 0);
+        return usable ? { output: reward.min, requirements } : null;
+    }
     if (ancestors.has(product)) {
         node.source = '配方循环';
         return node;
@@ -768,6 +786,58 @@ function recipeCost(data, product, market, quantity = 1, ancestors = new Set(), 
         node[side + 'Direct'] = total(side + 'Quote');
     }
     return node;
+}
+
+function stockReplenishment(data, item, threshold, buffer, getQuantity, alreadyLow = false) {
+    const held = id => {
+        const quantity = getQuantity(id);
+        return Number.isSafeInteger(quantity) && quantity > 0 ? quantity : 0;
+    };
+    const actual = held(item);
+    if (actual >= threshold && !alreadyLow) return null;
+    const factor = BigInt(10000 + Math.round(normalizeStockBuffer(buffer) * 100));
+    const target = Number((BigInt(threshold) * factor + 9999n) / 10000n);
+    if (actual >= target) return null;
+    const deficit = target - actual;
+    const stock = new Map(), recipes = new Map(), production = new Map(), purchases = new Map();
+    const path = new Set();
+
+    function fulfill(id, quantity) {
+        if (!Number.isSafeInteger(quantity) || path.has(id) || path.size >= 100) return false;
+        if (!stock.has(id)) stock.set(id, held(id));
+        const available = stock.get(id);
+        const used = Math.min(available, quantity);
+        stock.set(id, available - used);
+        const missing = quantity - used;
+        if (!missing) return true;
+        if (!recipes.has(id)) recipes.set(id, recipeCost(data, id, null, 1, new Set(), { directRecipe: true }));
+        const recipe = recipes.get(id);
+        if (!recipe) {
+            const total = (purchases.get(id) || 0) + missing;
+            if (!Number.isSafeInteger(total)) return false;
+            purchases.set(id, total);
+            return true;
+        }
+        const batches = Math.ceil(missing / recipe.output);
+        const output = batches * recipe.output;
+        const total = (production.get(id) || 0) + output;
+        if (!Number.isSafeInteger(total)) return false;
+        path.add(id);
+        for (const requirement of recipe.requirements) {
+            if (!fulfill(requirement.itemId, requirement.quantity * batches)) return false;
+        }
+        path.delete(id);
+        stock.set(id, output - missing);
+        production.set(id, total);
+        return true;
+    }
+
+    // 成品现有数量已从目标中扣除。共享材料与整批生产的余量在一次核算中只可使用一次。
+    stock.set(item, 0);
+    const complete = fulfill(item, deficit);
+    return { actual, target, deficit, complete, production: complete ? [...production] : [],
+        purchases: complete ? [...purchases].filter(([id]) => data.items[id]?.trade !== false) : [],
+        unavailable: complete ? [...purchases].filter(([id]) => data.items[id]?.trade === false) : [] };
 }
 
 // 该烹饪成品是否支持食材替代：研究「食材重构」(cook_reconstruct) 达 1 级，且配方至少有一味可替代食材。
@@ -973,6 +1043,7 @@ function createNekEnhancements(env) {
             if (!(String(id) in map)) { closeWarehouseModal(); return; }
             delete map[String(id)];
             delete ledger.items[id];
+            delete ledger.thresholds[id];
             if (!ledger.excluded.includes(id)) ledger.excluded.push(id);
             if (saveWarehouseLedger(uid, ledger, map)) {
                 publishStockCost(id);
@@ -1344,6 +1415,8 @@ function createNekEnhancements(env) {
             '.nek-cost button.page-tab-item{appearance:none;background:none;border:0;font-family:inherit;font-size:inherit}',
             '.nek-inventory-form,.nek-inventory-actions{display:flex;flex-wrap:wrap;align-items:center;gap:6px}',
             '.nek-inventory-form input{width:8em}.nek-inventory-form select{max-width:100%}.nek-inventory-name{display:flex;align-items:center;gap:5px}.nek-inventory-name>.item{flex:none}.nek-cost .page-main[hidden]{display:none}',
+            '.nek-inventory-form[hidden]{display:none}',
+            '.nek-stock-alert{color:#ffad66;margin-top:6px;overflow-wrap:anywhere}.nek-stock-alert div{margin-top:3px}',
             '.nek-cost .page-main{container-type:inline-size}.nek-cost-results{width:100%;max-width:76rem;display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:6px}',
             '@media(min-width:761px){@container(min-width:44rem){.nek-cost-results{grid-template-columns:repeat(2,minmax(0,1fr))}}}',
             '.nek-cost-tools,.nek-cost-head{display:flex;flex-wrap:wrap;align-items:center;gap:4px}.nek-cost-head .modal-container-title{margin-right:auto}',
@@ -1905,6 +1978,45 @@ function createNekEnhancements(env) {
         }].slice(-20);
     }
     const historyReady = () => costEnabled() && (env.warehouseReady?.() ?? true);
+    let alertAccount = null, alertedItems = new Map(), currentStockAlerts = new Map();
+    const stockNumber = value => value.toLocaleString('zh-CN');
+    function stockItemNames(data, entries) {
+        return entries.map(([id, quantity]) => (data.items[id]?.name || '#' + id) + ' × ' + stockNumber(quantity)).join('、');
+    }
+    function refreshStockAlerts(uid, ledger) {
+        if (uid !== alertAccount) {
+            alertAccount = uid;
+            alertedItems = new Map();
+            currentStockAlerts = new Map();
+        }
+        const previousAlerts = currentStockAlerts;
+        currentStockAlerts = new Map();
+        const data = env.data(), game = env.game();
+        if (!uid || !data?.items || !game || !historyReady()) return;
+        const notify = env.ui()?.notifier;
+        const changed = [];
+        const buffer = env.stockBufferPercentage?.();
+        const nextAlerted = new Map();
+        for (const [key, threshold] of Object.entries((ledger ?? warehouseLedger(uid)).thresholds)) {
+            const id = Number(key);
+            const plan = stockReplenishment(data, id, threshold, buffer, item => game.getItemQuantity(item),
+                previousAlerts.get(id)?.threshold === threshold);
+            if (!plan) continue;
+            currentStockAlerts.set(id, { ...plan, threshold });
+            const type = !plan.complete ? 'unknown' : plan.unavailable.length ? 'unavailable' :
+                plan.purchases.length ? 'purchase' : 'produce';
+            if (!notify?.show) continue;
+            nextAlerted.set(id, type);
+            if (alertedItems.get(id) === type) continue;
+            const name = data.items[id]?.name || '#' + id;
+            changed.push(name + (type === 'purchase' ? '需采购 ' + stockItemNames(data, plan.purchases.slice(0, 2)) +
+                (plan.purchases.length > 2 ? '等' : '') : type === 'produce' ? '可生产补货' :
+                type === 'unavailable' ? '缺少不可交易物资' : '需检查配方'));
+        }
+        alertedItems = nextAlerted;
+        if (changed.length) notify.show('库存预警：' + changed.slice(0, 3).join('；') +
+            (changed.length > 3 ? '等 ' + changed.length + ' 项' : '') + '。详情见库存核算。', 'tip');
+    }
     let historyRequest = null;
     function requestWarehouseHistory(uid, force = false) {
         const msg = env.msg();
@@ -2090,11 +2202,47 @@ function createNekEnhancements(env) {
         const sync = add(form, 'button', 'btn', '读取采购历史');
         const status = add(panel, 'p', '', '');
         status.setAttribute('role', 'status');
+        const thresholdForm = add(panel, 'form', 'nek-inventory-form');
+        thresholdForm.hidden = true;
+        const thresholdLabel = add(thresholdForm, 'label', '', '');
+        const thresholdCaption = add(thresholdLabel, 'span', '', '');
+        const thresholdInput = add(thresholdLabel, 'input', '');
+        thresholdInput.type = 'number';
+        thresholdInput.min = '0';
+        thresholdInput.max = String(MAX_STOCK_THRESHOLD);
+        thresholdInput.step = '1';
+        thresholdInput.required = true;
+        thresholdInput.setAttribute('aria-label', '库存预警阈值，0 表示关闭');
+        const thresholdSave = add(thresholdForm, 'button', 'btn', '保存预警');
+        thresholdSave.type = 'submit';
+        const thresholdCancel = add(thresholdForm, 'button', 'btn', '取消');
+        thresholdCancel.type = 'button';
+        thresholdCancel.addEventListener('click', () => { thresholdForm.hidden = true; });
+        let thresholdItem = null;
         const results = add(panel, 'div', 'nek-cost-results');
         const choices = Object.values(data.items).filter(item => item.id > 1);
         const held = id => Number(game.getItemQuantity(id)) || 0;
         const fmt = value => value.toLocaleString('zh-CN', { maximumFractionDigits: 2 });
         const editingAllowed = () => core.view().account === uid && (env.warehouseReady?.() ?? true);
+        thresholdForm.addEventListener('submit', e => {
+            e.preventDefault();
+            if (!editingAllowed() || !thresholdItem) return;
+            const value = Number(thresholdInput.value);
+            if (!thresholdInput.value || !Number.isSafeInteger(value) || value < 0 || value > MAX_STOCK_THRESHOLD) return;
+            const ledger = warehouseLedger(uid), costs = warehouseCosts(uid);
+            if (!ledger.products.includes(thresholdItem) && !Object.hasOwn(costs, thresholdItem)) {
+                thresholdForm.hidden = true;
+                return;
+            }
+            if (value) ledger.thresholds[thresholdItem] = value;
+            else delete ledger.thresholds[thresholdItem];
+            if (saveWarehouseLedger(uid, ledger, costs)) {
+                thresholdForm.hidden = true;
+                status.textContent = value ? '已保存库存预警。' : '已关闭库存预警。';
+                refreshStockAlerts(uid, ledger);
+                render();
+            } else status.textContent = '保存失败，请重试。';
+        });
         function setInputs() {
             const id = Number(picker.value);
             quantity.value = id ? String(held(id)) : '';
@@ -2128,7 +2276,7 @@ function createNekEnhancements(env) {
             const ledger = warehouseLedger(uid), costs = warehouseCosts(uid);
             const ids = [...new Set([...Object.keys(costs).map(Number), ...ledger.products])];
             const diffs = inventoryDiffUid === uid ? loginInventoryDiffs : new Map();
-            const view = JSON.stringify([ledger, costs, [...diffs]]);
+            const view = JSON.stringify([ledger, costs, [...diffs], [...currentStockAlerts]]);
             if (view === lastView) return;
             lastView = view;
             results.replaceChildren();
@@ -2143,6 +2291,14 @@ function createNekEnhancements(env) {
                 }
                 add(head, 'strong', '', def?.name || '#' + id);
                 const actions = add(card, 'div', 'nek-inventory-actions');
+                add(actions, 'button', 'btn', '设置预警').addEventListener('click', () => {
+                    if (!editingAllowed()) return;
+                    thresholdItem = id;
+                    thresholdCaption.textContent = (def?.name || '#' + id) + '的预警阈值（0 关闭） ';
+                    thresholdInput.value = String(warehouseLedger(uid).thresholds[id] || 0);
+                    thresholdForm.hidden = false;
+                    thresholdInput.focus();
+                });
                 add(actions, 'button', 'btn', '修正单价').addEventListener('click', () => {
                     mode.value = 'stock';
                     search.value = '';
@@ -2154,9 +2310,14 @@ function createNekEnhancements(env) {
                     const next = warehouseLedger(uid), prices = warehouseCosts(uid);
                     next.products = next.products.filter(product => product !== id);
                     delete next.items[id];
+                    delete next.thresholds[id];
                     delete prices[id];
                     if (!next.excluded.includes(id)) next.excluded.push(id);
-                    if (saveWarehouseLedger(uid, next, prices)) { diffs.delete(id); render(); }
+                    if (saveWarehouseLedger(uid, next, prices)) {
+                        if (thresholdItem === id) thresholdForm.hidden = true;
+                        diffs.delete(id);
+                        render();
+                    }
                     else status.textContent = '删除失败，请重试。';
                 });
                 return card;
@@ -2168,6 +2329,21 @@ function createNekEnhancements(env) {
                 add(card, 'div', '', '背包 ' + fmt(actual) + (unit == null ? ' · 缺少材料单价' :
                     ' · ' + (costs[id] == null ? '生产单价 ' : '库存单价 ') + fmt(unit) + ' · 库存总额 ' + fmt(actual * unit)));
                 if (derived != null && costs[id] != null) add(card, 'div', '', '当前配方单价 ' + fmt(derived) + ' 喵点');
+                const threshold = ledger.thresholds[id], plan = currentStockAlerts.get(id);
+                if (threshold) add(card, 'div', '', '预警阈值 ' + fmt(threshold));
+                if (threshold && plan) {
+                    const warning = add(card, 'div', 'nek-stock-alert');
+                    add(warning, 'strong', '', '库存 ' + fmt(plan.actual) + ' · 补货目标 ' + fmt(plan.target) +
+                        ' · 还需 ' + fmt(plan.deficit));
+                    if (!plan.complete) add(warning, 'div', '', '配方无法展开，请手动检查用量。');
+                    else {
+                        if (plan.purchases.length) add(warning, 'div', '', '建议采购 ' + stockItemNames(data, plan.purchases));
+                        if (plan.unavailable.length) add(warning, 'div', '', '需自行获取 ' + stockItemNames(data, plan.unavailable));
+                        if (plan.production.length) add(warning, 'div', '',
+                            (plan.unavailable.length ? '材料补齐后生产 ' : plan.purchases.length ?
+                                '采购后生产 ' : '材料充足，可生产 ') + stockItemNames(data, plan.production));
+                    }
+                }
                 const diff = diffs.get(id);
                 if (diff) {
                     add(card, 'div', '', '登录同步时账面 ' + fmt(diff.book) + '，背包 ' + fmt(diff.actual));
@@ -2637,6 +2813,7 @@ function createNekEnhancements(env) {
                     syncInventoryBalances(uid);
                     requestWarehouseHistory(uid);
                 }
+                refreshStockAlerts(uid);
                 refreshInventoryPanel?.();
             }
         }
@@ -2663,4 +2840,4 @@ function createNekEnhancements(env) {
 }
 
 // CommonJS test exports (not embedded into the userscript).
-if (typeof module !== 'undefined') module.exports = { createNekController, createNekEnhancements, recipeCost, substituteOptions, mergeWarehouseCost, claimCosts, stockTotalOf, directStockTotal, parseStockCost, round2, craftableProduct, warehouseHistoryBatches, inventoryRecipeTotal, normalizeInventoryLedger };
+if (typeof module !== 'undefined') module.exports = { createNekController, createNekEnhancements, recipeCost, substituteOptions, mergeWarehouseCost, claimCosts, stockTotalOf, directStockTotal, parseStockCost, round2, craftableProduct, warehouseHistoryBatches, inventoryRecipeTotal, normalizeInventoryLedger, stockReplenishment, normalizeStockBuffer };

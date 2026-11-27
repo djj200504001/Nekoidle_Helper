@@ -4,10 +4,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { Document } = require('./helpers/dom.cjs');
+const { stockReplenishment } = require('../src/enhancements.js');
 
 // 构造最小 env，加载 enhancement 模块并触发 install()（init 内的 pulse）。
 // 返回 msg / storage，便于模拟「挂单 → 撮合成交进结算池 → 领取 → 入库回包」链路。
-function setup(minutes = 5) {
+function setup(minutes = 5, buffer = 0) {
     const document = new Document();
     const intervals = [], store = new Map();
     const data = { items: { 10: { id: 10, name: '绒毛' } }, quests: {}, research: { facilities: [] } };
@@ -15,6 +16,7 @@ function setup(minutes = 5) {
     let now = Date.now();
     class TestDate extends Date { static now() { return now; } }
     let uploads = 0;
+    const notices = [];
     const game = {
         character: { uid: 669 }, quests: {}, queue: [], order: [], orderHistory: [], settlement: [],
         getItem: id => data.items[id],
@@ -27,7 +29,7 @@ function setup(minutes = 5) {
         researchInfo: { task: null, levels: {} }, researchOffset: 0,
         getActionLevelState: () => ({ successRate: 100 }), getCookingLevelState: () => ({ successRate: 100 }),
         getRewardBonusEffect: () => 0, getActionChestPreview: () => [],
-        notifier: { show: () => {} }, getResearchCost: () => ({}),
+        notifier: { show: message => notices.push(message) }, getResearchCost: () => ({}),
         createItemElement: () => document.createElement('div'), showItem: () => {},
         addOutsideClickHandler: () => {}, removeOutsideClickHandler: () => {},
         bindItemTooltip: () => {}, showItemMenu: () => {},
@@ -79,13 +81,64 @@ function setup(minutes = 5) {
         document, window: sandbox.window, storage, game: () => game, ui: () => ui, msg: () => msg,
         data: () => data, enabled: () => true, costEnabled: () => true,
         productionCloudMinutes: () => minutes, canSyncWarehouse: () => true, syncWarehouseNow: () => uploads++,
+        stockBufferPercentage: () => buffer,
         identifyAction: () => ({}), cookingChestDivisor: 21600
     });
     feature.init();
     return { feature, msg, game, store, document, data, ui, pulse: intervals[0],
-        advance: ms => { now += ms; intervals[0](); }, uploads: () => uploads,
+        advance: ms => { now += ms; intervals[0](); }, uploads: () => uploads, notices,
         setQty: (id, qty, enh = 0) => { quantities[id + '-' + enh] = qty; } };
 }
+
+test('库存低于 2000 时按充裕 25% 补到 2500，共用原料只扣一次，按整批生产', () => {
+    const data = { items: {}, actions: {} };
+    function recipe(id, output, requirements) {
+        data.items[id] = { sources: { actions: [{ id }] } };
+        data.actions[id] = { action: 6, rewards: [{ itemId: id, chance: 100, min: output, max: output }],
+            requirements: requirements.map(([itemId, quantity]) => ({ itemId, quantity })) };
+    }
+    recipe(30, 4, [[20, 2], [10, 1]]);
+    recipe(20, 3, [[10, 2]]);
+    const stock = { 30: 1900, 20: 100, 10: 200 };
+    const held = id => stock[id] || 0;
+    const plan = stockReplenishment(data, 30, 2000, 25, held);
+    assert.equal(plan.target, 2500);
+    assert.equal(stockReplenishment(data, 30, 2000, undefined, held).target, 2500);
+    assert.equal(stockReplenishment(data, 30, 2000, 0, held).target, 2000);
+    assert.equal(plan.deficit, 600);
+    assert.deepEqual(plan.production, [[20, 201], [30, 600]]);
+    assert.deepEqual(plan.purchases, [[10, 84]]);
+
+    stock[20] = 300;
+    assert.deepEqual(stockReplenishment(data, 30, 2000, 25, held).production, [[30, 600]]);
+    assert.deepEqual(stockReplenishment(data, 30, 2000, 25, held).purchases, []);
+    stock[30] = 2000;
+    assert.equal(stockReplenishment(data, 30, 2000, 25, held), null);
+    assert.equal(stockReplenishment(data, 30, 2000, 25, held, true).deficit, 500);
+    assert.equal(stockReplenishment(data, 10, 201, 1000, held).target, 2211);
+    assert.equal(stockReplenishment(data, 10, 201, 0.01, held).target, 202);
+});
+
+test('预警读取实际库存，提醒采购且同一状态只提示一次，补到目标后重新触发', () => {
+    const h = setup(5, 25);
+    h.store.set('nek_inventory_ledger_v1:669', JSON.stringify({
+        items: { 10: { quantity: 2300, since: Date.now() } }, thresholds: { 10: 2000 }
+    }));
+    h.setQty(10, 1900);
+    h.pulse();
+    h.pulse();
+    assert.equal(h.notices.length, 1);
+    assert.match(h.notices[0], /绒毛需采购 绒毛 × 600/);
+    h.setQty(10, 2000);
+    h.pulse();
+    assert.equal(h.notices.length, 1);
+    h.setQty(10, 2500);
+    h.pulse();
+    h.setQty(10, 1999);
+    h.pulse();
+    assert.equal(h.notices.length, 2);
+    assert.match(h.notices[1], /绒毛 × 501/);
+});
 
 function stockCost(store, uid) {
     return JSON.parse(store.get('nek_warehouse_cost_v1:' + uid) || '{}');
