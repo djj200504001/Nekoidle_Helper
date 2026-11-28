@@ -33,7 +33,9 @@ test('云同步保留默认开关、已关闭的开关和进行中的钓鱼链�
     }, LS_FISH_STATE_KEY: 'fish', CLOUD_ENH_SETTING_KEYS: ['holdings', 'researchQueue'], CLOUD_SETTING_KEYS: { harvest: 'hv' },
     currentFishPeriod: () => 32, cloudFavorites: () => [], cloudUidGuard() {}, cloudQueueAlive: q => q,
     cloudStaged: () => ({}), cloudCostItems: () => [], cloudWarehouseCost: () => ({}),
-    cloudNormalizeCostItems: v => v, cloudNormalizeWarehouseCost: v => v, cloudStageUnknown() {},
+    cloudInventoryLedger: () => ({ items: {}, thresholds: {}, trades: [] }),
+    cloudNormalizeCostItems: v => v, cloudNormalizeWarehouseCost: v => v,
+    cloudNormalizeInventory: v => v || { items: {}, thresholds: {}, trades: [] }, cloudStageUnknown() {},
     document: { dispatchEvent() {} }, CustomEvent: function () {} };
     const api = vm.runInNewContext(section('function cloudBuildPayload(', '// 收藏整份覆盖前的确认') +
         '\n;({ cloudBuildPayload, cloudApply, todayLocal })', context);

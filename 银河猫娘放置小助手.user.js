@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.56.0
-// @description  v1.56.0：修复部分成交收购单的库存成本——结算项自带 side/price，改为直接按结算项的求购单价核算（side=2 入库、item=1 金币找零排除），分批成交分别点领取各自按该批成交价入库加权，不再依赖订单列表。v1.55.0——挂单收购物品后库存成本不更新修复：挂单成交先进结算池、领取才入库，领取时按结算 order_id 从订单取真实成交价，入库回包按该价加权（本地有库存但未录成本时直接采用成交价）；移除挂单回包误清空暂存单价与 120 秒过期限制。v1.54.0——成本核算材料树复用游戏原生交互——悬浮材料名显示物品文字说明、点击弹出原生物品菜单（含查看辞典/兑换/库存成本）；成本核算清单与库存成本数据的写入纳入云同步标记（增改条目、录入/清空库存成本、市场买入加权后立即触发上传），不再依赖其他操作顺带上传。v1.53.0——成本核算卡片展开标题左侧加三角指示（展开后旋转）；市场详情只对生产/烹饪成品显示「精算」按钮；成本核算（侧栏入口+精算）改为独立设置开关并纳入云同步；烹饪/生产/采集列表优化、点金辅助、农业辅助五项合并为设置页「生产采集界面优化」一个开关。v1.52.0——库存成本输入限两位小数；小计括号差额为 +0 时不显示；成本核算清单与库存成本纳入云同步（整份覆盖、归一化比对）；云同步改为连续 3 条修改或停止修改 5 秒后上传，云端旧脚本无法本地覆盖的字段暂存并在上传时原样带回。v1.51.0——成本核算卡片改为「直接买入材料」「从基础原料制作」两个可展开块——前者仅列一层直接材料、含库存成本列与按出售/收购小计的括号差额（正数绿字、负数红字），后者列完整逐层树、无库存成本列与括号；展开状态跨重绘保留。v1.50.0——修复小计括号差额：中间产物自身录有库存成本时按它核算，不再误展开子节点显示 +0；成本核算页改为复用主脚本行情 API（含 v1.44.4 单物品强刷修复），缺报价材料恢复行情后自动重绘，不再另拉全量快照自造取数。v1.49.0——修复替换食材按钮尺寸（不再覆盖原生 .btn 字号/内边距）；「仓库成本」改名「库存成本」，录入浮窗改确定/清空/取消三按钮；悬停物品行情新增库存成本行；成本表用量并入材料列（x数字）、第二列改库存成本，最终小计括号显示市场小计−库存合计差额。v1.48.0——物品菜单新增彩色像素图标「仓库成本」（背包无该物品时隐藏，录入浮窗默认填左一价，确定保存、点外部关闭），市场买入后按库存与成交价加权更新本地成本；替换食材按钮与删除按钮等高；面包等战斗掉落物改标「战斗掉落」。v1.47.1——修复成本核算侧栏图标显示样式差异、精算按钮样式，选择浮层筛选点击消失与图标重叠（全部档不显示第二层），采集/掉落类食材误标「配方不可用」，替换食材改用游戏原生选择界面。v1.47.0——成本核算界面改炼金式两层筛选图标网格（全部/生产/烹饪各四分支）；侧栏入口换趋势图表图标；市场详情收藏旁新增「精算」按钮一键加入/剔除清单；成本核算支持烹饪配方与「食材重构」替代食材（研究 126 解锁后显示替换按钮）。v1.46.2——修复全量市场快照漏物品（如无卖单的松露意面）时误判「暂无市场行情」——缺底数先走单物品强刷确认，失败延时重试，快照到达后恢复同物品其他等级。v1.46.1——统一成本核算入口的侧栏文字样式，并换用表格图标。v1.46.0——成本核算支持自选清单与宽屏双列。v1.45.2——收紧成本表，材料用量与双侧报价分列对齐。v1.45.1——修复成本核算页展开长配方后无法滚动的问题。v1.45.0——新增奇点科技生产成本核算，可逐层展开至采集和梳毛原料。v1.44.3——修复云同步开关与预约恢复、研究账号切换、定时钓鱼队列恢复及构建校验。v1.44.2——修复研究队列云同步「已完成研究复活」竞态——云端旧队列覆盖本地时，按游戏实时等级过滤掉目标已达成的条目（与 plan()/settleSubmitted 同口径，含正在研究任务 +1），比对时同口径过滤避免每次刷新误报覆盖。v1.44.1——toolbar「手动云同步」按钮改为与签到按钮同款青色发光样式（文字由「同步」改「手动云同步」）。v1.44.0——云同步新增市场「我的收藏」同步（localStorage.favorite 的 itemId 数组，归一化去重排序后入 payload；挂钩 Utils.setData 自动上传；云端覆盖前弹窗对比两端收藏数量由用户决定整份覆盖）+ toolbar 签到按钮旁新增「同步」按钮（仅上传本地到云端，不拉取）。v1.43.7——修复刷新时误报「云端已覆盖本地」——开关按脚本真实语义归一化比对（null 或 1 都=开、0=关），null 与 1 不再判为不同；研究按钮缺料红框内发光改呼吸动画。v1.43.6——研究队列按钮缺料提示——队首材料确实不足（复用研究队列已有的 researchStatus 判定）时，快捷按钮红边框 + 红色内发光、字保持黑色，title 补注「队首材料不足，等待补充」。v1.43.5——pull 绑定到游戏主界面顶栏 toolbar-container——进入游戏（含刷新、回退登录页后重新进入）时各发一次 GET，同一节点只拉一次、回退清空以允许再拉；服务端 GET/GET 与 PUT/PUT 各自 2 秒限流、两者互不干扰。v1.43.4——修复刷新不发 pull：从 document-idle 延后到主界面就绪后再拉。v1.43.3——云同步 uid 安全加固——覆盖/上传前实时校验当前游戏玩家 uid（pull 请求前后双闸、push 上传前后双闸、flush 检测账号切换丢弃旧状态），防止 A 回退登录页后 B 登录被 A 的云端配置串号覆盖。v1.43.2——云同步与脚本加载并行——4 个 init 立即执行不等网络，服务端不可达/挂起都不影响加载（单次请求 3 秒超时）；启动只 pull 不 push，拉取后与本地比对，一致不覆盖不通知，仅云端覆盖本地 / push 成功 / push 失败三类用通知栏反馈；回退登录页不 push、不 pull；未登录不同步、不等待 uid；设置页云同步开关，本地设置/研究队列/钓鱼预约变化时 2 秒节流自动上传；首次开启云端有数据则二选一，无数据静默启用；钓鱼预约新增 day 日期字段跨日不同步；队列条目去 submitted、本地租约不进 payload；明文 JSON + XOR/Base64 混淆传输。自动收菜按钮 60 秒往返进度 CSS keyframes 动画；研究队列（预留材料与自动结算）、自动接受任务/领奖、市场行情、采集/生产/烹饪详情优化、防呆设置、点金辅助、农业辅助（自动收菜+好友农场预览）、检查更新、定时钓鱼、炼金经验效率与越级计算等，详见脚本正文。
+// @version      1.58.7
+// @description  v1.58.7：生产回包 remove 按背包堆叠 ID 反查真实用料——替换食材/多倍行动不再误用配方原物品或把堆叠 ID 当物品 ID；记账时机与差额口径不变。v1.58.6——移植远端逐层补货计划——库存核算页新增「查看补货计划」，按双阈值汇总预警物品，递归展开配方并合并建议采购/计划生产/需自行获取数量。v1.58.5——修正手动价语义——仅生产成品手动录入的综合单价锁定，生产消耗批次的手动价参与上游价重算。v1.58.4——成品综合单价悬浮显示完整价格计算公式；预警浮窗拆为数值与当日峰值百分比双条件，均为 0 关闭。v1.58.3——生产成品改为一个队列一条批次，材料跨种类/跨批次成本合计后除以总产出得综合单价；旧拆分批次自动合并；缺报价与补录重算按队列生效。v1.58.2——库存核算新增清空数据按钮、移除物品无需二次确认；缺报价与补录重算支持历史批次（按同队列消耗反推来源）。v1.58.1——库存核算不再自动纳入新进仓库物品；生产成品按 FIFO 来源批次拆分单价，缺价显示「XX物品缺报价」并在补录后自动重算，手动录入价优先。v1.58.0——修复生产账本补记反复触发云同步（低优先级合并 + 相同内容不重复上传）；库存核算标签前置并修复物品详情跳转；展开斑马纹悬浮查看批次细节；物品列收窄一半、预警列后加删除按钮；队列按钮行新增库存提醒按钮。v1.57.0——新增库存核算页（成本核算页第二标签）——按「初始库存（仓库无货填0）+ 借贷流水」记账，批次明细逐列对齐、初始库存置顶、借/贷方向标注、预警列显示实时比例，市场分类筛选+搜索选物品，市场交易与历史记录标记式校验，流水保留最近200条并纳入云同步；物品菜单「库存成本」改为「库存核算」跳转。v1.56.0——修复部分成交收购单的库存成本——结算项自带 side/price，改为直接按结算项的求购单价核算（side=2 入库、item=1 金币找零排除），分批成交分别点领取各自按该批成交价入库加权，不再依赖订单列表。v1.55.0——挂单收购物品后库存成本不更新修复：挂单成交先进结算池、领取才入库，领取时按结算 order_id 从订单取真实成交价，入库回包按该价加权（本地有库存但未录成本时直接采用成交价）；移除挂单回包误清空暂存单价与 120 秒过期限制。v1.54.0——成本核算材料树复用游戏原生交互——悬浮材料名显示物品文字说明、点击弹出原生物品菜单（含查看辞典/兑换/库存成本）；成本核算清单与库存成本数据的写入纳入云同步标记（增改条目、录入/清空库存成本、市场买入加权后立即触发上传），不再依赖其他操作顺带上传。v1.53.0——成本核算卡片展开标题左侧加三角指示（展开后旋转）；市场详情只对生产/烹饪成品显示「精算」按钮；成本核算（侧栏入口+精算）改为独立设置开关并纳入云同步；烹饪/生产/采集列表优化、点金辅助、农业辅助五项合并为设置页「生产采集界面优化」一个开关。v1.52.0——库存成本输入限两位小数；小计括号差额为 +0 时不显示；成本核算清单与库存成本纳入云同步（整份覆盖、归一化比对）；云同步改为连续 3 条修改或停止修改 5 秒后上传，云端旧脚本无法本地覆盖的字段暂存并在上传时原样带回。v1.51.0——成本核算卡片改为「直接买入材料」「从基础原料制作」两个可展开块——前者仅列一层直接材料、含库存成本列与按出售/收购小计的括号差额（正数绿字、负数红字），后者列完整逐层树、无库存成本列与括号；展开状态跨重绘保留。v1.50.0——修复小计括号差额：中间产物自身录有库存成本时按它核算，不再误展开子节点显示 +0；成本核算页改为复用主脚本行情 API（含 v1.44.4 单物品强刷修复），缺报价材料恢复行情后自动重绘，不再另拉全量快照自造取数。v1.49.0——修复替换食材按钮尺寸（不再覆盖原生 .btn 字号/内边距）；「仓库成本」改名「库存成本」，录入浮窗改确定/清空/取消三按钮；悬停物品行情新增库存成本行；成本表用量并入材料列（x数字）、第二列改库存成本，最终小计括号显示市场小计−库存合计差额。v1.48.0——物品菜单新增彩色像素图标「仓库成本」（背包无该物品时隐藏，录入浮窗默认填左一价，确定保存、点外部关闭），市场买入后按库存与成交价加权更新本地成本；替换食材按钮与删除按钮等高；面包等战斗掉落物改标「战斗掉落」。v1.47.1——修复成本核算侧栏图标显示样式差异、精算按钮样式，选择浮层筛选点击消失与图标重叠（全部档不显示第二层），采集/掉落类食材误标「配方不可用」，替换食材改用游戏原生选择界面。v1.47.0——成本核算界面改炼金式两层筛选图标网格（全部/生产/烹饪各四分支）；侧栏入口换趋势图表图标；市场详情收藏旁新增「精算」按钮一键加入/剔除清单；成本核算支持烹饪配方与「食材重构」替代食材（研究 126 解锁后显示替换按钮）。v1.46.2——修复全量市场快照漏物品（如无卖单的松露意面）时误判「暂无市场行情」——缺底数先走单物品强刷确认，失败延时重试，快照到达后恢复同物品其他等级。v1.46.1——统一成本核算入口的侧栏文字样式，并换用表格图标。v1.46.0——成本核算支持自选清单与宽屏双列。v1.45.2——收紧成本表，材料用量与双侧报价分列对齐。v1.45.1——修复成本核算页展开长配方后无法滚动的问题。v1.45.0——新增奇点科技生产成本核算，可逐层展开至采集和梳毛原料。v1.44.3——修复云同步开关与预约恢复、研究账号切换、定时钓鱼队列恢复及构建校验。v1.44.2——修复研究队列云同步「已完成研究复活」竞态——云端旧队列覆盖本地时，按游戏实时等级过滤掉目标已达成的条目（与 plan()/settleSubmitted 同口径，含正在研究任务 +1），比对时同口径过滤避免每次刷新误报覆盖。v1.44.1——toolbar「手动云同步」按钮改为与签到按钮同款青色发光样式（文字由「同步」改「手动云同步」）。v1.44.0——云同步新增市场「我的收藏」同步（localStorage.favorite 的 itemId 数组，归一化去重排序后入 payload；挂钩 Utils.setData 自动上传；云端覆盖前弹窗对比两端收藏数量由用户决定整份覆盖）+ toolbar 签到按钮旁新增「同步」按钮（仅上传本地到云端，不拉取）。v1.43.7——修复刷新时误报「云端已覆盖本地」——开关按脚本真实语义归一化比对（null 或 1 都=开、0=关），null 与 1 不再判为不同；研究按钮缺料红框内发光改呼吸动画。v1.43.6——研究队列按钮缺料提示——队首材料确实不足（复用研究队列已有的 researchStatus 判定）时，快捷按钮红边框 + 红色内发光、字保持黑色，title 补注「队首材料不足，等待补充」。v1.43.5——pull 绑定到游戏主界面顶栏 toolbar-container——进入游戏（含刷新、回退登录页后重新进入）时各发一次 GET，同一节点只拉一次、回退清空以允许再拉；服务端 GET/GET 与 PUT/PUT 各自 2 秒限流、两者互不干扰。v1.43.4——修复刷新不发 pull：从 document-idle 延后到主界面就绪后再拉。v1.43.3——云同步 uid 安全加固——覆盖/上传前实时校验当前游戏玩家 uid（pull 请求前后双闸、push 上传前后双闸、flush 检测账号切换丢弃旧状态），防止 A 回退登录页后 B 登录被 A 的云端配置串号覆盖。v1.43.2——云同步与脚本加载并行——4 个 init 立即执行不等网络，服务端不可达/挂起都不影响加载（单次请求 3 秒超时）；启动只 pull 不 push，拉取后与本地比对，一致不覆盖不通知，仅云端覆盖本地 / push 成功 / push 失败三类用通知栏反馈；回退登录页不 push、不 pull；未登录不同步、不等待 uid；设置页云同步开关，本地设置/研究队列/钓鱼预约变化时 2 秒节流自动上传；首次开启云端有数据则二选一，无数据静默启用；钓鱼预约新增 day 日期字段跨日不同步；队列条目去 submitted、本地租约不进 payload；明文 JSON + XOR/Base64 混淆传输。自动收菜按钮 60 秒往返进度 CSS keyframes 动画；研究队列（预留材料与自动结算）、自动接受任务/领奖、市场行情、采集/生产/烹饪详情优化、防呆设置、点金辅助、农业辅助（自动收菜+好友农场预览）、检查更新、定时钓鱼、炼金经验效率与越级计算等，详见脚本正文。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
 // @match        https://nekoidle.net/*
@@ -3617,7 +3617,7 @@
             return value != null && value >= 0 ? value : null;
         }
 
-        // 库存成本：买入后按「原有库存 × 旧单件成本 + 本次买入量 × 成交单价」加权平均。
+        // 库存成本：买入后按「初始库存 × 旧单件成本 + 本次买入量 × 成交单价」加权平均。
         // 无有效旧成本/旧数量时直接采用本次买入价；结果保留两位小数。
         function mergeWarehouseCost(oldCost, oldQty, buyPrice, buyQty) {
             const price = Number(buyPrice), qty = Number(buyQty);
@@ -3651,6 +3651,790 @@
                 } else result[key] = { price, quantity: qty };
             });
             return result;
+        }
+
+        // ===== 库存核算账本：初始库存（建账时仓库快照，无货填 0）+ 后续借贷流水 =====
+        // 账本结构：{ items: { [id]: { batches: [], quantity, since } }, thresholds: {}, trades: [] }
+        // 批次：{ id, at, reason, qty, unitPrice, amount, ref?, from?, verified?, checkAt? }
+        //   reason ∈ 初始库存 / 市场买入 / 市场卖出 / 生产消耗 / 生产成品
+        //   借贷记账：qty 带符号——借（入库：初始库存/买入/产出/退料）为正，贷（出库：卖出/消耗）为负；
+        //   unitPrice 为 null 表示无价；amount = qty * unitPrice（无价为 null）
+        //   ref=批次归属（同一市场操作/同一队列共用）；from=生产消耗来源批次 id（FIFO 去重）。
+        //   verified=核对到历史/订单；checkAt=核对到的操作时间（开始时分秒）
+        const INVENTORY_REASONS = ['初始库存', '市场买入', '市场卖出', '生产消耗', '生产成品'];
+        const MAX_INVENTORY_TRADES = 200;
+        const MAX_INVENTORY_BATCHES = 200;
+        const ARCHIVE_TTL = 5 * 24 * 3600 * 1000;   // 历史记录保留 5 天
+
+        // 预警阈值：{ qty, pct }。数量为「低于该数值」预警；百分比按当日峰值 (基准+当日增加) 计算，
+        // 「低于该百分比」预警；两项均为 0 时删除阈值表示关闭。旧的数字阈值归一为 qty。
+        function normalizeThreshold(value) {
+            if (value && typeof value === 'object') {
+                const qty = Number(value.qty), pct = Number(value.pct);
+                const out = {};
+                if (Number.isSafeInteger(qty) && qty > 0) out.qty = qty;
+                if (Number.isFinite(pct) && pct > 0) out.pct = round2(Math.min(100, pct));
+                return Object.keys(out).length ? out : null;
+            }
+            const qty = Number(value);
+            return Number.isSafeInteger(qty) && qty > 0 ? { qty } : null;
+        }
+
+        // 阈值判定：返回数量/百分比两个独立条件与合并后的预警状态。
+        function thresholdCheck(row, th, qty, now) {
+            const t = normalizeThreshold(th);
+            const have = Math.max(0, Number(qty) || 0);
+            const peak = inventoryDaySegments(row, now).peak;
+            const qtyLimit = Number(t?.qty) || 0, pctLimit = Number(t?.pct) || 0;
+            const pct = peak > 0 ? round2(have / peak * 100) : 0;
+            const qtyShort = qtyLimit > 0 && have < qtyLimit;
+            const pctShort = pctLimit > 0 && peak > 0 && pct < pctLimit;
+            return { short: qtyShort || pctShort, qtyShort, pctShort, have, peak, pct, qtyLimit, pctLimit };
+        }
+
+        // 期初单价优先级由调用方解析后传入；这里只做归一化与合法性校验。
+        function normalizeInventoryLedger(value) {
+            const isId = id => /^\d+$/.test(String(id)) && Number.isSafeInteger(Number(id)) && Number(id) > 1;
+            const items = {};
+            for (const [id, row] of Object.entries(value?.items || {}).slice(0, 1000)) {
+                if (!isId(id) || !row || typeof row !== 'object') continue;
+                // 迁移旧账本（分支 v1.57~1.59 的 purchases 结构）为批次，避免升级后明细丢失。
+                let seed = row.batches;
+                if (!Array.isArray(seed) && Array.isArray(row.purchases)) {
+                    seed = row.purchases.map(p => ({
+                        at: p.at, reason: String(p.source || '').includes('生产') ? '生产成品' : '市场买入',
+                        qty: p.quantity, unitPrice: p.price, verified: false
+                    }));
+                }
+                const batches = (Array.isArray(seed) ? seed : []).slice(-MAX_INVENTORY_BATCHES).map((b, i) => {
+                    if (!b || typeof b !== 'object') return null;
+                    // 迁移旧账本：旧「换日库存」即期初快照→「初始库存」；旧「换日缺口」下阶段才在历史记录展示，此处丢弃。
+                    const rawReason = b.reason === '换日库存' ? '初始库存' : b.reason;
+                    if (rawReason === '换日缺口') return null;
+                    const reason = INVENTORY_REASONS.includes(rawReason) ? rawReason : '初始库存';
+                    const qty = Number(b.qty), at = Number(b.at), unitPrice = b.unitPrice == null ? null : Number(b.unitPrice);
+                    // 初始库存允许 qty=0（建账时仓库无货）；其余批次 qty 必须非 0。
+                    if (!Number.isFinite(qty) || (qty === 0 && reason !== '初始库存') || !Number.isFinite(at) || at < 0) return null;
+                    if (unitPrice != null && (!Number.isFinite(unitPrice) || unitPrice < 0)) return null;
+                    const normalizedPrice = unitPrice == null ? null : round2(unitPrice);
+                    const amount = normalizedPrice == null ? null : b.reason === '生产成品' && qty > 0 &&
+                        Number.isFinite(b.amount) && b.amount >= 0 ? round2(b.amount) : round2(qty * normalizedPrice);
+                    const src = b.source && typeof b.source === 'object' ? b.source : null;
+                    const srcId = Number(src?.id), srcQty = Number(src?.qty), srcPrice = src?.unitPrice == null ? null : Number(src.unitPrice);
+                    const source = src && srcId > 1 && Number.isFinite(srcQty) && srcQty > 0 &&
+                        (srcPrice == null || (Number.isFinite(srcPrice) && srcPrice >= 0))
+                        ? { id: srcId, from: String(src.from || '').slice(0, 80), qty: srcQty,
+                            unitPrice: srcPrice == null ? null : round2(srcPrice) }
+                        : undefined;
+                    const missing = (Array.isArray(b.missing) ? b.missing : []).slice(0, 50).map(m => ({
+                        id: Number(m?.id), name: String(m?.name || '').slice(0, 60)
+                    })).filter(m => Number.isInteger(m.id) && m.id > 1);
+                    return {
+                        id: b.id != null ? String(b.id).slice(0, 80) : 'b' + i,
+                        at, reason,
+                        qty, unitPrice: normalizedPrice, amount,
+                        ref: b.ref != null ? String(b.ref).slice(0, 80) : undefined,
+                        from: b.from != null ? String(b.from).slice(0, 80) : undefined,
+                        verified: b.verified === true,
+                        checkAt: Number.isFinite(b.checkAt) && b.checkAt > 0 ? b.checkAt : undefined,
+                        // 生产成品的 FIFO 来源快照：供材料补录单价后自动重算；手动录入价不再被覆盖。
+                        source, missing: missing.length ? missing : undefined,
+                        manualPrice: b.manualPrice === true
+                    };
+                }).filter(Boolean).sort((a, b) => a.at - b.at);
+                const quantity = Number.isSafeInteger(row.quantity) && row.quantity >= 0 ? row.quantity : 0;
+                // 历史归档：FIFO 耗尽批次，保留 5 天。
+                const now = Date.now();
+                const history = (Array.isArray(row.history) ? row.history : [])
+                    .filter(h => h && typeof h === 'object' && Number.isFinite(h.archivedAt) && now - h.archivedAt <= ARCHIVE_TTL)
+                    .slice(-MAX_INVENTORY_BATCHES)
+                    .map(h => {
+                        const qty = Number(h.qty), at = Number(h.at);
+                        if (!Number.isFinite(qty) || !Number.isFinite(at)) return null;
+                        const price = h.unitPrice == null ? null : Number(h.unitPrice);
+                        if (price != null && (!Number.isFinite(price) || price < 0)) return null;
+                        const hsrc = h.source && typeof h.source === 'object' ? h.source : null;
+                        const hId = Number(hsrc?.id), hQty = Number(hsrc?.qty), hPrice = hsrc?.unitPrice == null ? null : Number(hsrc.unitPrice);
+                        return {
+                            id: h.id != null ? String(h.id).slice(0, 80) : 'h' + at,
+                            at, reason: INVENTORY_REASONS.includes(h.reason) ? h.reason : '生产消耗',
+                            qty, unitPrice: price == null ? null : round2(price),
+                            amount: price == null ? null : round2(qty * price),
+                            from: h.from != null ? String(h.from).slice(0, 80) : undefined,
+                            ref: h.ref != null ? String(h.ref).slice(0, 80) : undefined,
+                            archivedAt: Number(h.archivedAt),
+                            source: hsrc && hId > 1 && Number.isFinite(hQty) && hQty > 0 &&
+                                (hPrice == null || (Number.isFinite(hPrice) && hPrice >= 0))
+                                ? { id: hId, from: String(hsrc.from || '').slice(0, 80), qty: hQty,
+                                    unitPrice: hPrice == null ? null : round2(hPrice) } : undefined,
+                            missing: Array.isArray(h.missing) ? h.missing.slice(0, 50).map(m => ({
+                                id: Number(m?.id), name: String(m?.name || '').slice(0, 60)
+                            })).filter(m => Number.isInteger(m.id) && m.id > 1) : undefined,
+                            manualPrice: h.manualPrice === true
+                        };
+                    }).filter(Boolean);
+                if (!batches.length && !history.length && quantity <= 0) continue;   // 无批次无历史且数量无效的空物品不保留
+                const since = Number.isFinite(row.since) && row.since > 0 ? row.since : now;
+                items[id] = { batches, history, quantity, since };
+            }
+            const thresholds = {};
+            for (const [id, raw] of Object.entries(value?.thresholds || {})) {
+                if (!isId(id)) continue;
+                const th = normalizeThreshold(raw);
+                if (th) thresholds[id] = th;
+            }
+            const trades = (Array.isArray(value?.trades) ? value.trades : []).slice(-MAX_INVENTORY_TRADES).map(t => {
+                if (!t || typeof t !== 'object') return null;
+                const id = Number(t.id), at = Number(t.at), qty = Number(t.qty), price = t.unitPrice == null ? null : Number(t.unitPrice);
+                if (!(id > 1) || !Number.isFinite(at) || at <= 0 || !Number.isFinite(qty) || qty === 0) return null;
+                if (price != null && (!Number.isFinite(price) || price < 0)) return null;
+                return {
+                    at, id, reason: INVENTORY_REASONS.includes(t.reason) ? t.reason : '市场买入',
+                    qty, unitPrice: price == null ? null : round2(price),
+                    ref: t.ref != null ? String(t.ref).slice(0, 80) : undefined
+                };
+            }).filter(Boolean).sort((a, b) => a.at - b.at);
+            return { items, thresholds, trades, orders: normalizeInventoryOrders(value?.orders) };
+        }
+
+        function normalizeInventoryOrders(orders) {
+            return Object.fromEntries(Object.entries(orders || {}).filter(([id, row]) =>
+                /^[1-9]\d*$/.test(id) && Number.isSafeInteger(Number(id)) &&
+                Number.isSafeInteger(row?.quantity) && row.quantity > 0).slice(-1000)
+                .map(([id, row]) => [id, { quantity: row.quantity }]));
+        }
+
+        // 移动平均账本只知道现存数量与均价，不能从历史采购还原剩余 FIFO 批次。
+        function migrateAverageInventory(value, costs) {
+            if (!Array.isArray(value?.products) || Object.values(value.items || {}).some(row => Array.isArray(row?.batches))) return value;
+            const items = {}, trades = [];
+            for (const [id, row] of Object.entries(value.items || {}).slice(0, 1000)) {
+                if (!Number.isSafeInteger(row?.quantity) || row.quantity < 0) continue;
+                const price = costs?.[id];
+                const unitPrice = Number.isFinite(price) && price >= 0 ? price : null;
+                const receipts = Array.isArray(row.purchases) ? row.purchases : [];
+                const at = Math.max(Number(row.since) || 1, ...receipts.slice(-200).map(receipt => (Number(receipt?.at) || 0) + 1));
+                items[id] = { quantity: row.quantity, since: at, batches: [{
+                    id: 'average-opening:' + id, at, reason: '初始库存', qty: row.quantity, unitPrice
+                }] };
+                for (const receipt of receipts) {
+                    if (!receipt || receipt.source === '市场返还') continue;
+                    const outgoing = receipt.source === '市场出库';
+                    trades.push({ at: receipt.at, id: Number(id), reason: outgoing ? '市场卖出' : '市场买入',
+                        qty: outgoing ? -receipt.quantity : receipt.quantity, unitPrice: receipt.price });
+                }
+            }
+            trades.sort((a, b) => a.at - b.at);
+            return { items, thresholds: value.thresholds, orders: value.orders, trades };
+        }
+
+        function orderTime(value) {
+            const number = Number(value);
+            if (Number.isFinite(number) && number > 0) return number < 1e12 ? number * 1000 : number;
+            return Date.parse(value) || 0;
+        }
+
+        function importFifoPurchases(ledger, history, settlements, getQuantity) {
+            const unclaimed = new Map();
+            for (const row of settlements || []) {
+                if (Number(row.side) !== 2) continue;
+                const order = Number(row.order_id);
+                unclaimed.set(order, (unclaimed.get(order) || 0) + (Number(row.quantity) || 0));
+            }
+            const affected = new Set();
+            let changed = false;
+            ledger.orders ??= {};
+            const orders = [...(history || [])].sort((a, b) => orderTime(a.close_time) - orderTime(b.close_time) || Number(a.id) - Number(b.id));
+            for (const order of orders) {
+                const id = Number(order.item), orderId = Number(order.id), unitPrice = Number(order.price);
+                const row = ledger.items[id], at = orderTime(order.close_time);
+                const claimed = Number(order.traded) - (unclaimed.get(orderId) || 0);
+                if (!row || !at || at < row.since || Number(order.side) !== 2 || Number(order.enhancement || 0) !== 0 ||
+                    !Number.isSafeInteger(orderId) || orderId < 1 || !Number.isSafeInteger(claimed) || claimed < 1 ||
+                    !Number.isFinite(unitPrice) || unitPrice <= 0) continue;
+                const previous = ledger.orders[orderId]?.quantity || 0;
+                if (claimed <= previous) continue;
+                // 已经记账或耗用的旧货无法从累计成交准确复原，只补背包确实多出的数量。
+                const balance = inventorySummary(row).quantity;
+                const gap = Math.max(0, stockHeld(getQuantity, id) - balance);
+                const qty = Math.min(claimed - previous, gap);
+                const ref = 'history:' + orderId + ':' + claimed;
+                if (qty > 0 && addInventoryBatch(ledger, { id, at, reason: '市场买入', qty, unitPrice, ref })) {
+                    const batch = ledger.items[id].batches.find(b => b.ref === ref);
+                    batch.verified = true; batch.checkAt = at;
+                    pushInventoryTrade(ledger, { id, at, reason: '市场买入', qty, unitPrice, ref });
+                    affected.add(id);
+                }
+                ledger.orders[orderId] = { quantity: claimed };
+                changed = true;
+            }
+            return { changed, affected };
+        }
+
+        // 迁移旧账本遗留的「有数量无批次」物品：补一条初始库存批次。
+        // 数量取仓库当前实际（无货则 0），避免用过时的 row.quantity 导致初始库存与可用对不上。
+        // getQuantity/getPrice 由调用方注入（闭包内可访问 game/warehouseCosts/leftPrice），便于纯函数测试。
+        function migrateEmptyBatchItems(ledger, getQuantity, getPrice) {
+            let changed = false;
+            for (const [id, row] of Object.entries(ledger?.items || {})) {
+                if (!row || typeof row !== 'object' || (Array.isArray(row.batches) && row.batches.length)) continue;
+                const numId = Number(id);
+                const actual = Math.max(0, Number(getQuantity?.(numId)) || 0);
+                const priceRaw = getPrice?.(numId);
+                const price = Number.isFinite(priceRaw) && priceRaw >= 0 ? round2(priceRaw) : null;
+                row.batches = [{
+                    id: 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+                    at: Number.isFinite(row.since) && row.since > 0 ? row.since : Date.now(),
+                    reason: '初始库存',
+                    qty: actual,
+                    unitPrice: price,
+                    amount: price == null ? null : round2(actual * price),
+                    verified: false
+                }];
+                row.quantity = actual;
+                changed = true;
+            }
+            return changed;
+        }
+
+        // 旧账本同队列被按 FIFO 来源拆成多条「生产成品」，合并为一个综合批次。
+        // 金额直接取各条 amount 之和（即材料成本合计），单价 = 合计 ÷ 合计数量。
+        function mergeQueueOutputBatches(ledger) {
+            let changed = false;
+            for (const row of Object.values(ledger?.items || {})) {
+                if (!row || !Array.isArray(row.batches)) continue;
+                const groups = new Map();
+                row.batches.forEach(b => {
+                    if (!b || b.reason !== '生产成品' || !b.ref || b.manualPrice === true) return;
+                    const key = String(b.ref);
+                    if (!groups.has(key)) groups.set(key, []);
+                    groups.get(key).push(b);
+                });
+                groups.forEach(list => {
+                    if (list.length < 2) return;
+                    const keep = list[0];
+                    let qty = 0, amount = 0, priced = true;
+                    const missing = [];
+                    list.forEach(b => {
+                        qty += Number(b.qty) || 0;
+                        if (b.unitPrice == null || b.amount == null) priced = false;
+                        else amount += Number(b.amount);
+                        (b.missing || []).forEach(m => {
+                            if (!missing.some(x => String(x.id) === String(m.id))) missing.push(m);
+                        });
+                    });
+                    keep.qty = qty;
+                    keep.amount = priced ? round2(amount) : null;
+                    keep.unitPrice = priced && qty > 0 ? round2(amount / qty) : null;
+                    keep.missing = missing.length ? missing : undefined;
+                    // 来源改由同队列的生产消耗批次反推，避免旧快照在补录单价后失真。
+                    keep.source = undefined;
+                    keep.from = undefined;
+                    keep.at = Math.max(...list.map(b => Number(b.at) || 0));
+                    const drop = new Set(list.slice(1).map(b => String(b.id)));
+                    row.batches = row.batches.filter(b => !drop.has(String(b.id)));
+                    changed = true;
+                });
+            }
+            return changed;
+        }
+
+        // 库存汇总：数量取账本登记值；综合单价为有价批次按数量加权；总额为各批次 amount 之和。
+        function inventoryBalanceBatches(row) {
+            const batches = row?.batches || [];
+            const live = new Set(batches.filter(b => b.qty > 0).map(b => b.id));
+            return batches.filter(b => b.qty >= 0 || !b.from || live.has(b.from));
+        }
+
+        function inventorySummary(row) {
+            let quantity = 0, valued = 0, total = 0, priced = 0;
+            for (const b of inventoryBalanceBatches(row)) {
+                quantity += b.qty;
+                if (b.unitPrice != null && b.amount != null) { valued += b.qty; total += b.amount; priced++; }
+            }
+            return {
+                quantity: Math.max(0, quantity),
+                unitPrice: valued > 0 && priced > 0 ? round2(total / valued) : null,
+                total: priced > 0 ? round2(total) : null,
+                priced
+            };
+        }
+
+        // 账本中有价批次按原金额汇总。未标价的净数量可按配方估算，估值不写入 FIFO 批次。
+        function inventoryValuation(ledger, data, costs = {}) {
+            const summary = new Map(Object.entries(ledger.items).map(([id, row]) => [Number(id), inventorySummary(row)]));
+            const prices = new Map();
+            function recipePrice(id, path) {
+                if (path.has(id) || path.size >= 100) return null;
+                if (prices.has(id)) return prices.get(id);
+                const recipe = stockRecipe(data, id);
+                if (!recipe) return null;
+                path.add(id);
+                let cost = 0;
+                for (const req of recipe.requirements) {
+                    const price = summary.get(req.itemId)?.unitPrice ?? costs[req.itemId] ?? recipePrice(req.itemId, path);
+                    if (price == null) { path.delete(id); return null; }
+                    cost += price * req.quantity;
+                }
+                path.delete(id);
+                const unit = cost / recipe.output;
+                prices.set(id, unit);
+                return unit;
+            }
+            let booked = 0, estimated = 0, unpriced = 0;
+            for (const [id, value] of summary) {
+                if (!value.quantity) continue;
+                booked += value.total ?? 0;
+                const priced = inventoryBalanceBatches(ledger.items[id]).reduce((qty, batch) => qty +
+                    (batch.unitPrice != null && batch.amount != null ? batch.qty : 0), 0);
+                const remaining = value.quantity - Math.max(0, priced);
+                if (remaining <= 0) continue;
+                const price = recipePrice(id, new Set());
+                if (price != null) estimated += remaining * price;
+                else unpriced++;
+            }
+            return { total: round2(booked + estimated), estimated: round2(estimated), unpriced };
+        }
+
+        // 当天 00:00 时间戳（本地时区）。
+        function dayStartOf(ts) {
+            const d = new Date(Number.isFinite(ts) ? ts : Date.now());
+            d.setHours(0, 0, 0, 0);
+            return d.getTime();
+        }
+
+        // FIFO 三色可视化分段：按批次时间拆出「换日基准 / 当日增加 / 当日消耗」。
+        // 换日基准 = 当天 00:00 之前所有批次净和（clamp>=0）；当日增加 = 今日正批次；当日消耗 = 今日负批次绝对值和。
+        // 满长 = 当日峰值 = 换日基准 + 当日增加。折叠条三段之和恒等于满长：
+        //   基准段 = 换日基准 - 已被覆盖的消耗；增加段 = 当日增加；消耗段 = min(当日消耗, 换日基准)。
+        //   超出基准的消耗（当日增加也被吃掉）用 overConsume 表示，折叠时压缩增加段。
+        // 每段另带 batches 明细（供展开两行斑马纹），返回比例百分比（0~100，保留两位）。
+        function inventoryDaySegments(row, now) {
+            const dayStart = dayStartOf(now);
+            let base = 0, inc = 0, dec = 0;
+            const incBatches = [], decBatches = [], baseBatches = [];
+            const archivedSources = new Map((row?.history || []).filter(b => b.qty > 0).map(b => [b.id, b]));
+            const ledgerBatches = inventoryBalanceBatches(row);
+            const present = new Set(ledgerBatches);
+            for (const batch of row?.batches || []) {
+                if (!present.has(batch) && batch.at >= dayStart && archivedSources.has(batch.from)) {
+                    const source = archivedSources.get(batch.from);
+                    if (!present.has(source)) { ledgerBatches.push(source); present.add(source); }
+                    ledgerBatches.push(batch);
+                }
+            }
+            ledgerBatches.forEach(b => {
+                const q = Number(b.qty) || 0;
+                if (Number(b.at) < dayStart) {
+                    base += q;
+                    if (q > 0) baseBatches.push(b);
+                } else if (q > 0) {
+                    inc += q;
+                    incBatches.push(b);
+                } else if (q < 0) {
+                    dec += -q;
+                    decBatches.push(b);
+                }
+            });
+            base = Math.max(0, base);
+            const peak = base + inc;
+            const covered = Math.min(dec, base);          // 覆盖基准（第一段）的消耗
+            const over = Math.max(0, dec - covered);      // 超出基准、吃掉增加段的消耗
+            const incLeft = Math.max(0, inc - over);      // 增加段剩余
+            // 折叠三色从左到右：消耗覆盖段(全部 dec，最多到峰值) → 基准剩余 → 增加剩余，三者之和恒为峰值。
+            const decShown = Math.min(dec, peak);
+            const baseLeft = Math.max(0, base - dec);
+            const pct = n => peak > 0 ? round2(Math.max(0, Math.min(100, n / peak * 100))) : 0;
+            return {
+                dayStart, base, inc, dec, peak, covered, over, incLeft, baseLeft,
+                basePct: pct(baseLeft), incPct: pct(incLeft), decPct: pct(decShown),
+                // 展开行1恒为满值（峰值）：完整基准 + 当日增加 = peak = 100%。
+                baseFullPct: pct(base),
+                incBatches, decBatches, baseBatches
+            };
+        }
+
+        // 归档 FIFO 来源已耗尽的正批次：某来源批次被 from 指向的消耗累计 >= 其数量，视为耗尽。
+        // 归档条件：批次时间早于当天 00:00（显示到次日 00:00 或游戏首次加载），带 archivedAt 时间戳。
+        // 历史记录保留 5 天（ARCHIVE_TTL），超期清除；避免无限增长。返回是否发生变更。
+        function archiveExhaustedBatches(ledger, now) {
+            const t = Number.isFinite(now) ? now : Date.now();
+            const dayStart = dayStartOf(t);
+            let changed = false;
+            for (const [id, row] of Object.entries(ledger?.items || {})) {
+                if (!row || !Array.isArray(row.batches)) continue;
+                const used = new Map();
+                row.batches.forEach(b => {
+                    if (b.from && b.qty < 0) used.set(String(b.from), (used.get(String(b.from)) || 0) + Math.abs(Number(b.qty) || 0));
+                });
+                const keep = [], arch = [];
+                row.batches.forEach(b => {
+                    if (b.qty > 0 && Number(b.at) < dayStart && (used.get(String(b.id)) || 0) >= Number(b.qty)) {
+                        arch.push({ ...b, archivedAt: t });
+                        changed = true;
+                    } else keep.push(b);
+                });
+                if (arch.length) row.batches = keep;
+                const old = Array.isArray(row.history) ? row.history : [];
+                const history = old.filter(h => Number.isFinite(h.archivedAt) && t - h.archivedAt <= ARCHIVE_TTL).concat(arch);
+                if (arch.length || history.length !== old.length) { row.history = history; changed = true; }
+            }
+            return changed;
+        }
+
+        // 追加批次并同步数量。默认同一 id+reason+ref+from 视为重复（防止回包重放重复记账）；
+        // merge=true 时把增量并入同一批次（同队列多次完成只记一个批次组，单价按累计金额/数量加权）。
+        // 初始库存允许 qty=0（建账时仓库无货），其余批次 qty 必须非 0。
+        function addInventoryBatch(ledger, { id, at, reason, qty, unitPrice, ref, from, merge, source, missing, manualPrice }) {
+            const key = String(id);
+            if (!(Number(key) > 1) || !INVENTORY_REASONS.includes(reason) || !Number.isFinite(qty)) return false;
+            if (qty === 0 && reason !== '初始库存') return false;
+            const price = unitPrice == null ? null : round2(unitPrice);
+            if (price != null && !(price >= 0)) return false;
+            const src = source && Number(source.id) > 1 && Number(source.qty) > 0
+                ? { id: Number(source.id), from: String(source.from || ''), qty: Number(source.qty),
+                    unitPrice: source.unitPrice == null ? null : round2(source.unitPrice) }
+                : undefined;
+            const lack = Array.isArray(missing) && missing.length ? missing.slice(0, 50) : undefined;
+            const row = ledger.items[key] || (ledger.items[key] = { batches: [], quantity: 0, since: at || Date.now() });
+            const existing = ref != null ? row.batches.find(b => b.reason === reason && String(b.ref || '') === String(ref) &&
+                String(b.from || '') === String(from || '')) : null;
+            if (existing) {
+                if (!merge) return false;   // 默认防重放；队列结算显式 merge 才累加
+                const total = existing.qty + qty;
+                if (total === 0) {
+                    // 正负抵消归零：移除该批次（数量统一由 row.quantity 表达）。
+                    row.batches = row.batches.filter(b => b !== existing);
+                } else {
+                    const oldAmount = existing.unitPrice == null ? null : existing.qty * existing.unitPrice;
+                    const newAmount = price == null ? null : qty * price;
+                    const sum = oldAmount != null && newAmount != null ? round2(oldAmount + newAmount) : null;
+                    // 只有生产成品的手动综合单价在合并时锁定；生产消耗批次的手动价随上游重算更新。
+                    const keepManual = reason === '生产成品' && existing.manualPrice === true;
+                    existing.qty = total;
+                    if (keepManual) {
+                        // 手动录入价优先：合并数量时保留单价，只按新数量重算金额。
+                        existing.amount = existing.unitPrice == null ? null : round2(total * existing.unitPrice);
+                    } else {
+                        existing.unitPrice = sum != null ? round2(Math.abs(sum / total)) : null;
+                        existing.amount = sum;
+                    }
+                    if (src && existing.source && String(existing.source.from) === String(src.from)) {
+                        existing.source.qty = round2(Number(existing.source.qty || 0) + src.qty);
+                        if (!keepManual) existing.source.unitPrice = src.unitPrice;
+                    }
+                    if (lack !== undefined) existing.missing = lack;
+                    if (manualPrice === true) existing.manualPrice = true;
+                    existing.at = Math.max(existing.at, Number.isFinite(at) ? at : 0);   // 结算时间取最后一次
+                }
+                row.quantity = Math.max(0, row.quantity + qty);
+                return true;
+            }
+            row.batches.push({
+                id: 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+                at: Number.isFinite(at) && at > 0 ? at : Date.now(), reason, qty,
+                unitPrice: price, amount: price == null ? null : round2(qty * price),
+                ref: ref != null ? String(ref).slice(0, 80) : undefined,
+                from: from != null ? String(from).slice(0, 80) : undefined, verified: false,
+                source: src, missing: lack, manualPrice: manualPrice === true
+            });
+            if (row.batches.length > MAX_INVENTORY_BATCHES) row.batches.splice(0, row.batches.length - MAX_INVENTORY_BATCHES);
+            row.batches.sort((a, b) => a.at - b.at);
+            row.quantity = Math.max(0, row.quantity + qty);
+            return true;
+        }
+
+        // 生产消耗：按批次时间先进先出取价，生成负值消耗批次（含单价/金额用于核算）。
+        // 可来源批次：初始库存 / 市场买入 / 生产成品（数量为正）。
+        // 关键：不再直接扣减正批次 qty，数量变化统一由负值批次表达（保证「批次求和 == row.quantity」）；
+        // 因此按 from 累计已消耗量，后续 FIFO 跳过已取尽部分，避免同一批早期单价被反复取用。
+        function consumeInventoryFifo(ledger, id, qty, at, ref, merge, reason = '生产消耗') {
+            const row = ledger.items[String(id)];
+            let remaining = Number(qty);
+            if (!row || !Number.isFinite(remaining) || remaining <= 0) return [];
+            const taken = new Map();
+            row.batches.forEach(b => {
+                if (['生产消耗', '市场卖出'].includes(b.reason) && b.from) taken.set(b.from, (taken.get(b.from) || 0) + Math.abs(b.qty));
+            });
+            const used = [];
+            for (const b of row.batches) {
+                if (remaining <= 0) break;
+                if (b.qty <= 0 || !['初始库存', '市场买入', '生产成品'].includes(b.reason)) continue;
+                const available = b.qty - (taken.get(b.id) || 0);
+                if (available <= 0) continue;
+                const take = Math.min(available, remaining);
+                used.push({ unitPrice: b.unitPrice, qty: take, from: b.id });
+                remaining -= take;
+            }
+            // 同一队列的多个 FIFO 消耗段共享 ref（以 from 区分来源），便于按批次分组展示。
+            // merge=true：同队列多次完成时把增量并入现有批次，避免连续生产被拆成多批。
+            used.forEach(u => addInventoryBatch(ledger, {
+                id, at, reason, qty: -u.qty, unitPrice: u.unitPrice, ref, from: u.from, merge
+            }));
+            return used;
+        }
+
+        // 仓库实际变动：以回包处理前后的仓库快照差额入账（内容对上即可，数量按实际）。
+        // before/after 为 { [id]: 数量 }，返回非零差额的 { id, delta } 列表。
+        function inventoryDelta(before, after) {
+            const out = [];
+            const ids = new Set([...Object.keys(before || {}), ...Object.keys(after || {})]);
+            ids.forEach(id => {
+                const d = (Number(after?.[id]) || 0) - (Number(before?.[id]) || 0);
+                if (Number.isFinite(d) && d !== 0) out.push({ id: Number(id), delta: d });
+            });
+            return out.sort((a, b) => a.id - b.id);
+        }
+
+        // 账本理论库存 vs 实际仓库的对账差额。
+        // 队列材料是执行中逐步消耗的（入队不扣、取消不退），单次事件的前后快照捕捉不到整个过程，
+        // 因此以「账本累计数量 - 实际仓库数量」的差额作为待补记的实际消耗/产出：
+        //   gap > 0 → 账本比实际多，实际消耗了 gap 个（记负值生产消耗）；
+        //   gap < 0 → 账本比实际少，实际产出了 -gap 个（记正值生产成品）。
+        // qtyOf(id) 返回实际仓库数量；只对账 candidateIds 中「账本已登记」的物品。
+        // 新进仓库但用户未加入核算的物品不能直接建账，避免自动纳入核算范围。
+        function inventoryReconcile(ledger, candidateIds, qtyOf) {
+            const out = [];
+            (candidateIds || []).forEach(rawId => {
+                const id = Number(rawId);
+                if (!(id > 1)) return;
+                const row = ledger.items[String(id)];
+                if (!row) return;
+                const book = inventorySummary(row).quantity;
+                const actual = Number(qtyOf(id)) || 0;
+                const gap = book - actual;
+                if (Number.isFinite(gap) && Math.abs(gap) >= 1) out.push({ id, delta: -Math.round(gap) });
+            });
+            return out.sort((a, b) => a.id - b.id);
+        }
+
+        // 生产回包 remove 的 row.id 是背包堆叠 id，未必等于物品 id；替换食材/多倍行动时 row.item 也可能是配方原物品。
+        // 用堆叠 id 在背包里反查真实物品 id 与用量（移植自远端 captureProduction 的用料反查），强化道具不计入账本口径。
+        function productionRemovedItems(content, game) {
+            const used = new Map();
+            if (!content || !Array.isArray(content.remove)) return used;
+            const stacks = Array.isArray(game?.inventory) ? game.inventory : [];
+            content.remove.forEach(row => {
+                if (!row || Number(row.enhancement || 0) !== 0) return;
+                const qty = Number(row.quantity);
+                if (!Number.isSafeInteger(qty) || qty <= 0) return;
+                const stack = stacks.find(s => Number(s.id) === Number(row.id));
+                if (Number(stack?.enhancement || 0) !== 0) return;
+                // 远端同口径：堆叠里的 item 优先，row.item 兜底；绝不把堆叠 id 当物品 id。
+                const id = Number(stack?.item ?? row.item);
+                if (!Number.isSafeInteger(id) || id <= 1) return;
+                const total = (used.get(id) || 0) + qty;
+                if (Number.isSafeInteger(total)) used.set(id, total);
+            });
+            return used;
+        }
+
+        // FIFO 消耗批次的加权单价（全部无价时返回 null）。
+        function fifoPrice(used) {
+            const priced = (used || []).filter(u => u.unitPrice != null && u.qty > 0);
+            if (!priced.length) return null;
+            return round2(priced.reduce((s, u) => s + u.unitPrice * u.qty, 0) / priced.reduce((s, u) => s + u.qty, 0));
+        }
+
+        // 在账本（含已归档历史）中按批次 id 查找。
+        function findInventoryBatch(ledger, batchId) {
+            const key = String(batchId || '');
+            if (!key || key === 'undefined') return null;
+            for (const row of Object.values(ledger?.items || {})) {
+                const hit = (row?.batches || []).find(b => String(b?.id) === key) ||
+                    (Array.isArray(row?.history) ? row.history.find(h => String(h?.id) === key) : null);
+                if (hit) return hit;
+            }
+            return null;
+        }
+
+        // 一个队列的成品按「全部材料成本合计 ÷ 全部产出」统一计价，显示为一条成品批次。
+        // 材料按 FIFO 来源批次逐段取价：跨批次只累加金额，不按来源拆分成品批次。
+        //   例：时砂蟹 4@3000 + 12@3500、地元素碎片 12@100 + 12@200
+        //   成本 = 4×3000 + 12×3500 + 12×100 + 12×200，再 ÷ 总产出 = 一个综合单价。
+        // 任一来源批次无价 → 成品无价，返回缺报价物品供界面显示「XX物品缺报价」。
+        function productionQueueCost(ledger, ref, nameOf) {
+            const key = String(ref || '');
+            const consume = [], outs = [];
+            if (!key) return { price: null, amount: null, missing: [], sources: [], consume, outs };
+            Object.entries(ledger?.items || {}).forEach(([id, row]) => {
+                const lists = [row?.batches || [], Array.isArray(row?.history) ? row.history : []];
+                lists.forEach(list => list.forEach(b => {
+                    if (!b || String(b.ref || '') !== key) return;
+                    if (b.reason === '生产消耗' && Number(b.qty) < 0) consume.push({ id: Number(id), b });
+                    else if (b.reason === '生产成品' && Number(b.qty) > 0) outs.push({ id: Number(id), b });
+                }));
+            });
+            const sources = consume.map(({ id, b }) => {
+                const upstream = findInventoryBatch(ledger, b.from);
+                // 生产消耗的手动价只是上游缺价时的兜底；上游有价时以重算后的来源价为准。
+                const price = upstream?.unitPrice ?? b.unitPrice ?? null;
+                return { id, from: String(b.from || ''), qty: Math.abs(Number(b.qty) || 0),
+                    unitPrice: price == null || !(price >= 0) ? null : round2(price), consId: String(b.id || '') };
+            });
+            const missing = [];
+            let cost = 0, allPriced = true;
+            sources.forEach(s => {
+                if (s.unitPrice == null) {
+                    allPriced = false;
+                    if (!missing.some(m => String(m.id) === String(s.id))) {
+                        missing.push({ id: s.id, name: nameOf ? String(nameOf(s.id) || '') : '' });
+                    }
+                } else cost = round2(cost + round2(s.unitPrice * s.qty));
+            });
+            const outQty = outs.reduce((s, o) => s + (Number(o.b.qty) || 0), 0);
+            if (!sources.length || !(outQty > 0) || !allPriced) {
+                return { price: null, amount: null, missing, sources, consume, outs };
+            }
+            return { price: round2(cost / outQty), amount: round2(cost), missing: [], sources, consume, outs };
+        }
+
+        // 成品批次的来源材料：按同一队列的生产消耗批次汇总；无队列信息的旧批次回退到 source 快照。
+        function productionSourcesOf(ledger, batch) {
+            if (batch?.reason !== '生产成品') return [];
+            const queue = productionQueueCost(ledger, batch.ref, null);
+            if (queue.sources.length) return queue.sources;
+            const src = batch?.source;
+            if (src && Number(src.id) > 1 && Number(src.qty) > 0) return [{ ...src }];
+            return [];
+        }
+
+        // 按队列核算成品金额/单价；无队列信息的旧批次按 source 快照单批核算。
+        function productionCostOf(ledger, batch, nameOf) {
+            const queue = productionQueueCost(ledger, batch?.ref, nameOf);
+            if (queue.sources.length && queue.outs.length) {
+                return { price: queue.price, amount: queue.amount, missing: queue.missing, sources: queue.sources };
+            }
+            const sources = productionSourcesOf(ledger, batch);
+            const outQty = Number(batch?.qty) || 0;
+            const missing = [];
+            let cost = 0, allPriced = true;
+            sources.forEach(s => {
+                const price = s.unitPrice == null ? null : Number(s.unitPrice);
+                if (price == null || !(price >= 0)) {
+                    allPriced = false;
+                    if (!missing.some(m => String(m.id) === String(s.id))) {
+                        missing.push({ id: Number(s.id), name: nameOf ? String(nameOf(Number(s.id)) || '') : '' });
+                    }
+                } else cost = round2(cost + round2(price * Number(s.qty)));
+            });
+            if (!sources.length || !(outQty > 0) || !allPriced) return { price: null, amount: null, missing, sources };
+            const amount = round2(cost);
+            return { price: round2(amount / outQty), amount, missing: [], sources };
+        }
+
+        // 成品综合单价的完整计算公式（悬浮提示）：逐项列出 FIFO 来源材料「数量×单价」，
+        // 再按「材料成本合计 ÷ 总产出 = 综合单价」展示；任一来源缺价时提示缺报价物品。
+        function productionFormula(ledger, batch, nameOf) {
+            const label = id => {
+                const n = Number(id);
+                const name = nameOf ? String(nameOf(n) || '') : '';
+                return name || ('#' + n);
+            };
+            const fmt = n => Number(n || 0).toLocaleString('zh-CN', { maximumFractionDigits: 2 });
+            const queue = productionQueueCost(ledger, batch?.ref, nameOf);
+            let sources = queue.sources, outs = queue.outs, amount = queue.amount, missing = queue.missing;
+            if (!sources.length && batch?.source && Number(batch.source.id) > 1 && Number(batch.source.qty) > 0) {
+                // 无队列信息的旧批次：回退到 source 快照。
+                const src = batch.source;
+                const price = src.unitPrice == null ? null : Number(src.unitPrice);
+                sources = [{ id: Number(src.id), qty: Number(src.qty), unitPrice: price }];
+                outs = [{ b: batch }];
+                amount = price == null ? null : round2(price * Number(src.qty));
+                missing = price == null ? [{ id: Number(src.id), name: label(src.id) }] : [];
+            }
+            if (!sources.length || !outs.length) return '暂无可核算的材料来源';
+            const outQty = outs.reduce((s, o) => s + (Number(o.b?.qty) || 0), 0);
+            if (!(outQty > 0)) return '暂无可核算的产出数量';
+            const terms = sources.map(s => label(s.id) + ' ' + fmt(s.qty) + '×' + (s.unitPrice == null ? '缺报价' : fmt(s.unitPrice)));
+            const head = terms.join(' + ');
+            if (missing.length) {
+                return head + ' = 缺报价：' + missing.map(m => m.name || label(m.id)).join('、') + '，无法核算';
+            }
+            const text = head + ' = ' + fmt(amount) + ' ÷ ' + fmt(outQty) + ' = ' + fmt(round2(amount / outQty));
+            return batch?.reason === '生产成品' && batch?.manualPrice === true
+                ? text + '（当前为手动录入的综合单价，不再随材料价重算）' : text;
+        }
+
+        // 材料批次补录单价后联动重算：上游价 → 消耗批次价 → 同队列成品（统一综合单价）→ 下游队列。
+        // 只有生产成品的 manualPrice 锁定综合单价；生产消耗批次的手动价参与重算（上游价变化时同步更新）。
+        function recomputeProductionCost(ledger, changedIds, nameOf) {
+            const pending = new Set((changedIds || []).map(String).filter(Boolean));
+            let touched = false;
+            for (let pass = 0; pass < 12 && pending.size; pass++) {
+                const next = new Set(), refs = new Set(), legacy = [];
+                Object.values(ledger?.items || {}).forEach(row => {
+                    const lists = [row?.batches || [], Array.isArray(row?.history) ? row.history : []];
+                    lists.forEach(list => list.forEach(b => {
+                        if (!b || typeof b !== 'object') return;
+                        if (b.reason === '生产消耗' || b.reason === '市场卖出') {
+                            if (b.from && pending.has(String(b.from))) {
+                                // 手动录入的消耗价也参与重算：上游价变化时同步覆盖，再重算成品。
+                                const src = findInventoryBatch(ledger, b.from);
+                                const price = src?.unitPrice == null ? null : Number(src.unitPrice);
+                                if (b.unitPrice !== price) {
+                                    b.unitPrice = price;
+                                    b.amount = price == null ? null : round2(Number(b.qty) * price);
+                                    touched = true;
+                                    next.add(String(b.id));
+                                }
+                                if (b.ref && b.reason === '生产消耗') refs.add(String(b.ref));
+                            }
+                            if (b.ref && b.reason === '生产消耗' && pending.has(String(b.id))) refs.add(String(b.ref));
+                        }
+                        // 无队列信息的旧批次：按 source.from 关联补录。
+                        if (b.reason === '生产成品' && !b.manualPrice && b.source && pending.has(String(b.source.from))) legacy.push(b);
+                    }));
+                });
+                refs.forEach(ref => {
+                    const r = productionQueueCost(ledger, ref, nameOf);
+                    if (!r.sources.length || !r.outs.length) return;
+                    const totalOut = r.outs.reduce((s, o) => s + (Number(o.b.qty) || 0), 0);
+                    r.outs.forEach(({ b }) => {
+                        if (b.manualPrice === true) return;
+                        const amount = r.amount == null ? null : round2(r.amount * (Number(b.qty) || 0) / totalOut);
+                        if (b.unitPrice !== r.price || b.amount !== amount ||
+                            JSON.stringify(b.missing || []) !== JSON.stringify(r.missing)) {
+                            b.unitPrice = r.price; b.amount = amount;
+                            b.missing = r.missing.length ? r.missing : undefined;
+                            b.source = undefined;
+                            touched = true;
+                            next.add(String(b.id));
+                        }
+                    });
+                });
+                legacy.forEach(b => {
+                    if (b.source) {
+                        const upstream = findInventoryBatch(ledger, b.source.from);
+                        b.source.unitPrice = upstream?.unitPrice ?? null;
+                    }
+                    const r = productionCostOf(ledger, b, nameOf);
+                    if (b.unitPrice !== r.price || b.amount !== r.amount ||
+                        JSON.stringify(b.missing || []) !== JSON.stringify(r.missing)) {
+                        b.unitPrice = r.price; b.amount = r.amount;
+                        b.missing = r.missing.length ? r.missing : undefined;
+                        touched = true;
+                        next.add(String(b.id));
+                    }
+                });
+                pending.clear();
+                next.forEach(id => pending.add(id));
+            }
+            return touched;
+        }
+
+        // 滚动流水：追加一条，超过上限丢弃最早记录。
+        function pushInventoryTrade(ledger, entry) {
+            const at = Number(entry?.at) || Date.now(), id = Number(entry?.id);
+            if (!(id > 1)) return false;
+            ledger.trades.push({
+                at, id, reason: INVENTORY_REASONS.includes(entry.reason) ? entry.reason : '市场买入',
+                qty: Number(entry.qty) || 0,
+                unitPrice: entry.unitPrice == null ? null : round2(entry.unitPrice),
+                ref: entry.ref != null ? String(entry.ref).slice(0, 80) : undefined
+            });
+            if (ledger.trades.length > MAX_INVENTORY_TRADES) ledger.trades.splice(0, ledger.trades.length - MAX_INVENTORY_TRADES);
+            return true;
         }
 
         // 直接买入材料的库存合计：按每层直接材料自身库存单价 × 用量累加；
@@ -3716,7 +4500,7 @@
                 node[side + 'Quote'] = Number.isFinite(price) && price > 0 ? price * quantity : null;
             }
             const raw = actions.find(action => action.action === 1 || action.action === 2);
-            if (raw) {
+            if (raw && !options.directRecipe) {
                 node.source = raw.action === 1 ? '梳毛' : '采集';
                 node.sell = node.sellQuote;
                 node.demand = node.demandQuote;
@@ -3760,6 +4544,13 @@
                     }
                 }
             }
+            // 逐层补货计划只需要「产量 + 每层用量」，不走报价/节点树渲染；采集品若同时有生产配方，也按生产配方计划。
+            if (options.directRecipe) {
+                const usable = reward?.chance === 100 && Number.isSafeInteger(reward.min) && reward.min > 0 &&
+                    requirements?.length && requirements.every(r => Number.isSafeInteger(r.itemId) && r.itemId > 0 &&
+                        Number.isSafeInteger(r.quantity) && r.quantity > 0);
+                return usable ? { output: reward.min, requirements } : null;
+            }
             if (ancestors.has(product)) {
                 node.source = '配方循环';
                 return node;
@@ -3788,6 +4579,87 @@
                 node[side + 'Direct'] = total(side + 'Quote');
             }
             return node;
+        }
+
+        // 逐层补货计划（移植自远端 v1.59.0）：按现有库存逐层抵扣，能生产的记为计划生产，
+        // 无法生产且可交易的记为建议采购，不可交易的记为需自行获取；任一层配方缺失则整体 incomplete。
+        function stockHeld(getQuantity, id) {
+            const quantity = getQuantity(id);
+            return Number.isSafeInteger(quantity) && quantity > 0 ? quantity : 0;
+        }
+
+        const stockRecipes = new WeakMap();
+        function stockRecipe(data, id) {
+            if (!stockRecipes.has(data)) stockRecipes.set(data, new Map());
+            const recipes = stockRecipes.get(data);
+            if (!recipes.has(id)) recipes.set(id, recipeCost(data, id, null, 1, new Set(), { directRecipe: true }));
+            return recipes.get(id);
+        }
+
+        function planStockReplenishment(data, shortages, getQuantity) {
+            const stock = new Map(), production = new Map(), purchases = new Map();
+            const path = new Set();
+
+            function fulfill(id, quantity) {
+                if (!Number.isSafeInteger(quantity) || path.has(id) || path.size >= 100) return false;
+                if (!stock.has(id)) stock.set(id, stockHeld(getQuantity, id));
+                const available = stock.get(id);
+                const used = Math.min(available, quantity);
+                stock.set(id, available - used);
+                const missing = quantity - used;
+                if (!missing) return true;
+                const recipe = stockRecipe(data, id);
+                if (!recipe) {
+                    const total = (purchases.get(id) || 0) + missing;
+                    if (!Number.isSafeInteger(total)) return false;
+                    purchases.set(id, total);
+                    return true;
+                }
+                const batches = Math.ceil(missing / recipe.output);
+                const output = batches * recipe.output;
+                const total = (production.get(id) || 0) + output;
+                if (!Number.isSafeInteger(total)) return false;
+                path.add(id);
+                for (const requirement of recipe.requirements) {
+                    if (!fulfill(requirement.itemId, requirement.quantity * batches)) return false;
+                }
+                path.delete(id);
+                stock.set(id, output - missing);
+                production.set(id, total);
+                return true;
+            }
+
+            // 每个预警物品的现有数量已抵扣自身目标，不得再分给其他配方。
+            for (const [id] of shortages) stock.set(id, 0);
+            const complete = [...shortages].every(([id, deficit]) => fulfill(id, deficit));
+            return { complete, production: complete ? [...production] : [],
+                purchases: complete ? [...purchases].filter(([id]) => data.items[id]?.trade !== false) : [],
+                unavailable: complete ? [...purchases].filter(([id]) => data.items[id]?.trade === false) : [] };
+        }
+
+        // 本地双阈值：数值阈值和当日峰值百分比阈值取较高者作为补货目标。
+        function normalizeStockBuffer(value) {
+            const percentage = value == null || value === '' ? NaN : Number(value);
+            return Number.isFinite(percentage) && percentage >= 0 && percentage <= 1000 ? round2(percentage) : 25;
+        }
+
+        function stockReplenishment(data, item, check, getQuantity, buffer = 0, alreadyLow = false) {
+            const actual = check.have;
+            const byQty = Number(check.qtyLimit) || 0;
+            const byPct = Number(check.pctLimit) > 0 && check.peak > 0
+                ? Math.ceil(check.peak * Number(check.pctLimit) / 100) : 0;
+            if (!check.short && !alreadyLow && (check.qtyShort === false && check.pctShort === false)) return null;
+            const base = Math.max(byQty, byPct);
+            const factor = BigInt(10000 + Math.round(normalizeStockBuffer(buffer) * 100));
+            const target = Number((BigInt(base) * factor + 9999n) / 10000n);
+            if (!Number.isSafeInteger(target)) return null;
+            if (!(target > actual)) return null;
+            const deficit = target - actual;
+            return { actual, target, deficit, ...planStockReplenishment(data, [[item, deficit]], getQuantity) };
+        }
+
+        function stockItemNames(data, entries) {
+            return entries.map(([id, quantity]) => (data.items[id]?.name || '#' + id) + ' × ' + quantity.toLocaleString('zh-CN')).join('、');
         }
 
         // 该烹饪成品是否支持食材替代：研究「食材重构」(cook_reconstruct) 达 1 级，且配方至少有一味可替代食材。
@@ -3928,22 +4800,24 @@
                 }
                 whModal.remove(); whModal = null; whOutside = null;
             }
-            function openWarehouseCostModal(def, enh) {
+            function openWarehouseCostModal(def, enh, historyPrice = null) {
                 closeWarehouseModal();
                 const ui = env.ui(), g = env.game();
                 const uid = core.view().account, id = Number(def?.id);
                 if (!ui || !uid || !(id > 0)) return;
+                const initial = historyPrice != null;
                 const saved = warehouseCosts(uid)[String(id)];
-                const quote = leftPrice(id, enh);
+                const quote = initial ? historyPrice : leftPrice(id, enh);
                 const modal = doc.createElement('div');
                 modal.className = 'selector neon nek-warehouse-cost-modal';
                 const name = doc.createElement('div'); name.className = 'whc-name';
-                name.textContent = '库存成本 · ' + (def.name || '#' + id) + (Number(enh) > 0 ? ' +' + enh : '');
+                name.textContent = (initial ? '期初库存成本 · ' : '库存成本 · ') + (def.name || '#' + id) + (Number(enh) > 0 ? ' +' + enh : '');
                 const hint = doc.createElement('div'); hint.className = 'whc-hint';
-                hint.textContent = '背包 ' + Number(g.getItemQuantity(id, enh) || 0).toLocaleString('zh-CN') + ' 个 · 未记录时默认填左一价 · 最多两位小数';
+                hint.textContent = '背包 ' + Number(g.getItemQuantity(id, enh) || 0).toLocaleString('zh-CN') +
+                    (initial ? ' 个 · 按当前背包录入，已预填订单单价' : ' 个 · 未记录时默认填左一价 · 最多两位小数');
                 const input = doc.createElement('input'); input.className = 'whc-input'; input.type = 'text';
                 input.inputMode = 'decimal';
-                input.value = saved != null && Number.isFinite(Number(saved)) && String(saved).trim() !== ''
+                input.value = !initial && saved != null && Number.isFinite(Number(saved)) && String(saved).trim() !== ''
                     ? String(round2(saved)) : (quote > 0 ? String(round2(quote)) : '');
                 input.setAttribute('aria-label', '库存成本单价');
                 const actions = doc.createElement('div'); actions.className = 'whc-actions';
@@ -3953,16 +4827,36 @@
                 clear.textContent = '清空';
                 const cancel = doc.createElement('button'); cancel.type = 'button'; cancel.className = 'btn';
                 cancel.textContent = '取消';
-                actions.append(confirm, clear, cancel);
+                if (initial) actions.append(confirm, cancel); else actions.append(confirm, clear, cancel);
                 modal.append(name, hint, input, actions);
                 doc.body.appendChild(modal);
                 whModal = modal;
                 const commit = () => {
+                    if (core.view().account !== uid) { closeWarehouseModal(); return; }
                             const raw = input.value.trim();
                             const value = parseStockCost(raw);
                             if (value == null) {
                                 ui.notifier?.show?.('请输入有效的库存成本（最多两位小数）', 'error'); return;
                             }
+                    if (initial) {
+                        const led = normalizeInventoryLedger(inventoryLedger(uid));
+                        const row = led.items[id];
+                        const opening = row?.batches.find(b => b.reason === '初始库存');
+                        if (inventoryUnitPrice(uid, id) != null || (row && !opening)) { closeWarehouseModal(); return; }
+                        if (opening) {
+                            opening.unitPrice = value; opening.amount = round2(opening.qty * value);
+                            recomputeProductionCost(led, [opening.id], item => g.getItem(item)?.name || '#' + item);
+                        } else {
+                            addInventoryBatch(led, { id, at: Date.now(), reason: '初始库存',
+                                qty: Number(g.getItemQuantity(id)) || 0, unitPrice: value });
+                        }
+                        if (saveInventoryLedger(uid, led)) {
+                            publishStockCost(id);
+                            decorateMarketHistoryCosts();
+                            closeWarehouseModal();
+                        }
+                        return;
+                    }
                             const map = warehouseCosts(uid);
                             map[String(id)] = value;
                     if (saveWarehouseCosts(uid, map)) {
@@ -4009,13 +4903,23 @@
                 // 挂单成交先进结算池、领取才入库：领取时按 order_id 从订单取真实成交单价，
                 // 暂存为待入库映射，领取回包 add 到达时用该单价加权。
                 const pendingClaims = new Map();
+                let marketSocket, marketUid;
+                function alignMarket() {
+                    const uid = core.view().account;
+                    if (marketSocket !== msg.ws || marketUid !== uid) {
+                        marketBuys.clear(); pendingClaims.clear();
+                        marketSocket = msg.ws; marketUid = uid;
+                    }
+                    return uid;
+                }
                 const send = msg.send;
                 msg.send = function (type, data) {
+                    alignMarket();
                     const stopping = type === 'queue' && data?.type === 'cancel';
                     const head = stopping ? env.game()?.queue?.[0] : null;
                     const result = send.apply(this, arguments);
                     if (stopping && result === true) cancelRequest = { head, connection: msg.ws };
-                    if (result === true && (type === 'market_instant' || type === 'market_order_place') && Number(data?.side) === 2) {
+                    if (result === true && type === 'market_instant' && Number(data?.side) === 2) {
                         const id = Number(data.item), enh = Number(data.enhancement) || 0;
                         if (id > 0 && Number(data.quantity) > 0) {
                             marketBuys.set(id + ':' + enh, { price: Number(data.price) || 0, quantity: Number(data.quantity), at: Date.now() });
@@ -4023,15 +4927,12 @@
                     }
                     if (result === true && type === 'market_settlement_claim') {
                         const g = env.game();
-                        const costs = claimCosts(g?.settlement, data?.id);
-                        Object.keys(costs).forEach(key => {
-                            const next = costs[key], prev = pendingClaims.get(key);
-                            if (prev) {
-                                const total = prev.quantity + next.quantity;
-                                prev.price = round2((prev.price * prev.quantity + next.price * next.quantity) / total);
-                                prev.quantity = total;
-                            } else pendingClaims.set(key, { price: next.price, quantity: next.quantity });
-                        });
+                        for (const row of g?.settlement || []) {
+                            if ((data?.id == null || Number(data.id) === Number(row.id)) && Number(row.side) === 2 &&
+                                Number(row.item) > 1 && Number(row.quantity) > 0 && Number(row.price) > 0) {
+                                pendingClaims.set(Number(row.id), { ...row, at: Date.now() });
+                            }
+                        }
                     }
                     core.observeSend(type, data, result === true); return result;
                 };
@@ -4039,47 +4940,165 @@
                 if (typeof originalMarketUpdate === 'function') {
                     msg.handlers.market_update = function (data) {
                         const content = data?.content || {};
-                        const uid = core.view().account;
+                        const uid = alignMarket();
                         const before = new Map();
                         (content.add || []).forEach(row => {
                             const id = Number(row.item), enh = Number(row.enhancement) || 0;
                             before.set(id + ':' + enh, Number(env.game().getItemQuantity(id, enh, true)) || 0);
                         });
+                        // 仓库前后快照：入账数量一律取实际变动，回包数量仅作内容匹配。
+                        const removed = productionRemovedItems(content, env.game());
+                        const candidateIds = [
+                            ...(content.add || []).map(r => Number(r.item)),
+                            ...removed.keys()
+                        ].filter(id => id > 1);
+                        const snapBefore = uid ? warehouseSnapshot(candidateIds) : null;
+                        const at = Date.now();
+                        const tradeRef = 'mkt:' + at.toString(36) + Math.random().toString(36).slice(2, 6);
                         const result = originalMarketUpdate.apply(this, arguments);
                         try {
+                            const snapAfter = uid ? warehouseSnapshot(candidateIds) : null;
+                            const deltaOf = new Map((snapBefore && snapAfter ? inventoryDelta(snapBefore, snapAfter) : []).map(d => [d.id, d.delta]));
+                            for (const [id, claim] of pendingClaims) if (at - claim.at > 15000) pendingClaims.delete(id);
                             (content.add || []).forEach(row => {
                                 const id = Number(row.item), enh = Number(row.enhancement) || 0;
-                                if (!(id > 0)) return;
+                                if (!(id > 1)) return;   // 金币等非物品排除
                                 const key = id + ':' + enh;
                                 // 结算领取入库优先用领取时暂存的真实成交价；其次直购暂存单价。
-                                const claim = pendingClaims.get(key);
-                                const pending = claim || marketBuys.get(key);
-                                marketBuys.delete(key);
-                                const bought = Number(row.quantity) || 0;
-                                if (claim && bought > 0) {
-                                    claim.quantity -= bought;
-                                    if (claim.quantity <= 0) pendingClaims.delete(key);
+                                let remaining = Math.min(Number(row.quantity) || 0, deltaOf.get(id) || 0);
+                                if (!uid || !(remaining > 0)) return;
+                                deltaOf.set(id, deltaOf.get(id) - remaining);
+                                const lots = [];
+                                let held = before.get(key) || 0;
+                                const direct = marketBuys.get(key);
+                                if (content.type === 'claim' || (!direct && content.type !== 'cancel')) {
+                                    for (const [sid, claim] of pendingClaims) {
+                                        if (!remaining || Number(claim.item) !== id ||
+                                            Number(claim.enhancement || 0) !== enh) continue;
+                                        const qty = Math.min(remaining, Number(claim.quantity));
+                                        lots.push({ qty, price: Number(claim.price), ref: 'claim:' + sid, order: Number(claim.order_id) });
+                                        remaining -= qty;
+                                        claim.quantity -= qty;
+                                        if (claim.quantity <= 0) pendingClaims.delete(sid);
+                                    }
+                                } else if (direct && at - direct.at <= 15000 && content.type !== 'cancel') {
+                                    marketBuys.delete(key);
+                                    const price = Number(content.price) || direct.price;
+                                    if (price > 0) lots.push({ qty: remaining, price, ref: tradeRef, order: Number(content.order_id) });
                                 }
-                                if (!pending || !uid) return;
-                                const price = Number(content.price) > 0 ? Number(content.price) : pending.price;
-                                if (!(bought > 0) || !(price > 0)) return;
+                                if (!lots.length) return;
                                 const map = warehouseCosts(uid);
-                                const merged = mergeWarehouseCost(map[String(id)], before.get(key) || 0, price, bought);
+                                let merged = map[id];
+                                for (const lot of lots) {
+                                    merged = mergeWarehouseCost(merged, held, lot.price, lot.qty);
+                                    held += lot.qty;
+                                    recordInventory(uid, { id, at, reason: '市场买入', qty: lot.qty,
+                                        unitPrice: lot.price, ref: lot.ref + ':' + id + ':' + enh, order: lot.order });
+                                }
                                 if (merged != null) {
                                     map[String(id)] = merged;
                                     if (saveWarehouseCosts(uid, map)) publishStockCost(id);
                                 }
                             });
+                            // 市场卖出：market_update.remove[] 带出库的堆叠 id 与数量；卖价从结账 add[item=1] 或订单取。
+                            const soldCoins = (content.add || []).find(r => Number(r.item) === 1);
+                            for (const id of removed.keys()) {
+                                if (!(id > 1) || !uid) return;
+                                const sold = -(deltaOf.get(id) || 0);
+                                if (!(sold > 0)) continue;
+                                let price = 0;
+                                const coinGain = Number(soldCoins?.quantity) || 0;
+                                if (coinGain > 0 && sold > 0) price = round2(coinGain / sold);
+                                recordInventory(uid, {
+                                    id, at, reason: '市场卖出', qty: -sold,
+                                    unitPrice: price > 0 ? price : null, ref: tradeRef
+                                });
+                            }
+                            if (uid && candidateIds.length) {
+                                refreshStockAlerts(uid, new Set(candidateIds));
+                                dispatchInventoryUpdate(uid);
+                            }
                         } catch (e) { /* 成本更新失败不影响原生成交处理 */ }
                         return result;
                     };
                 }
-                for (const type of ['action_added', 'action_update', 'action_complete', 'action_canceled']) {
+                // 队列批次身份：以 token 为主键，同一队列完成/取消共享 ref。
+                function productionBatchIdentity(type, content) {
+                    const head = env.game()?.queue?.[0];
+                    const meta = head ? queueMetadata.get(head) : null;
+                    const cancelHead = type === 'action_canceled' && cancelRequest ? cancelRequest.head : null;
+                    const token = content?.token ?? head?.token ?? meta?.token ?? cancelHead?.token;
+                    const key = token != null && token !== ''
+                        ? String(token)
+                        : String(content?.id ?? head?.id ?? cancelHead?.id ?? '0') + ':' + String(content?.type ?? head?.type ?? cancelHead?.type ?? '');
+                    return { ref: 'queue:' + key };
+                }
+                for (const type of ['action_added', 'action_update', 'action_complete', 'action_canceled', 'update_queue']) {
                     const original = msg.handlers[type];
                     if (typeof original !== 'function') continue;
                     msg.handlers[type] = function (data) {
+                        const content = data?.content;
+                        const uid = core.view().account;
+                        const head = env.game()?.queue?.[0];
+                        // FIFO 按回包保留批次顺序。预警单独批量刷新，重复回包无背包变化则不记账。
+                        const isTerminal = type === 'action_complete' || type === 'action_canceled';
+                        const removed = isTerminal ? productionRemovedItems(content, env.game()) : new Map();
+                        const candidateIds = isTerminal && uid ? [...new Set([
+                            ...(content?.add || []).map(r => Number(r.item)),
+                            ...removed.keys()
+                        ])].filter(id => id > 1) : [];
+                        const ident = isTerminal ? productionBatchIdentity(type, content) : null;
+                        const at = Date.now();
                         const result = original.apply(this, arguments);
+                        try {
+                            if (isTerminal && ident && uid) {
+                                const led = inventoryLedger(uid);
+                                // 无物品差额的终止回包仍可能对应此前已经扣除的材料，沿用 FIFO 对账兜底。
+                                const ids = candidateIds.length ? candidateIds : Object.keys(led.items).map(Number);
+                                const snap = warehouseSnapshot(ids);
+                                const deltas = inventoryReconcile(led, ids, id => snap[id] || 0);
+                                if (deltas.length) recordQueueDelta(uid, { deltas, at, ref: ident.ref });
+                                for (const id of candidateIds) productionAlertIds.add(id);
+                                for (const { id } of deltas) productionAlertIds.add(id);
+                            }
+                        } catch (e) { /* 生产记账失败不影响原生成交处理 */ }
                         observeQueue(type, data?.content);
+                        const next = env.game()?.queue?.[0];
+                        const token = entry => entry?.token ?? (entry && queueMetadata.get(entry)?.token);
+                        const switched = head !== next && (token(head) == null || token(head) !== token(next));
+                        const ended = (type === 'action_complete' || type === 'action_canceled') &&
+                            Number(content?.remaining ?? (next && queueMetadata.get(next)?.remaining) ?? (!next ? 0 : NaN)) === 0;
+                        if (uid && (switched || ended)) {
+                            flushProductionAlerts(uid, head);
+                        }
+                        return result;
+                    };
+                }
+                // 历史记录回包：标记式校验——把账本批次与 action_records 对上，标 verified。
+                const originalRecords = msg.handlers.action_records;
+                if (typeof originalRecords === 'function') {
+                    msg.handlers.action_records = function (data) {
+                        const result = originalRecords.apply(this, arguments);
+                        try { verifyInventoryRecords(data?.content); } catch (e) { /* 校验失败不影响原生显示 */ }
+                        return result;
+                    };
+                }
+                // 市场历史订单回包：校验买卖批次（订单 closed_time + side + item + traded）。
+                const originalHistory = msg.handlers.market_history;
+                if (typeof originalHistory === 'function') {
+                    msg.handlers.market_history = function (data) {
+                        const result = originalHistory.apply(this, arguments);
+                        try {
+                            const uid = core.view().account;
+                            if (uid && costEnabled()) {
+                                const led = normalizeInventoryLedger(inventoryLedger(uid)), game = env.game();
+                                const { changed, affected } = importFifoPurchases(led, game.orderHistory, game.settlement,
+                                    id => game.getItemQuantity(id));
+                                if (changed) saveInventoryLedger(uid, led, !affected.size, affected);
+                            }
+                            verifyInventoryTrades();
+                            decorateMarketHistoryCosts();
+                        } catch (e) { /* 校验失败不影响原生显示 */ }
                         return result;
                     };
                 }
@@ -4097,6 +5116,16 @@
                         try { result = original.apply(this, arguments); }
                         finally { silentReward = false; }
                         core.message(type, data?.content);
+                        if (type === 'init_character_data') {
+                            productionAlertIds.clear();
+                            nextProductionAlert = Date.now() + 120000;
+                            stockAlerts = null;
+                            const uid = core.view().account;
+                            if (uid) {
+                                inventoryCache.delete(String(uid));
+                                refreshStockAlerts(uid);
+                            }
+                        }
                         if (autoReward) ui.notifier?.show('小助手：已领取任务奖励', 'success', 3000);
                         return result;
                     };
@@ -4204,7 +5233,7 @@
                         return result;
                     };
                 });
-                // 物品菜单「库存成本」：背包里没有该物品时不插入选项；有则点击打开录入浮窗。
+                // 物品菜单「库存核算」：背包里没有该物品时不插入选项；有则点击跳转库存核算页并定位。
                 if (typeof ui.showItemMenu === 'function' && !ui.showItemMenu.__nekWarehouse) {
                     const originalMenu = ui.showItemMenu;
                     const wrappedMenu = function (slotElement, param) {
@@ -4219,13 +5248,57 @@
                             const btn = doc.createElement('div');
                             btn.className = 'item-menu-button nek-warehouse-cost-btn';
                             btn.innerHTML = '<div class="item-menu-icon"><div class="menu-icon nek-icon-warehouse-cost"></div></div>' +
-                                '<div class="item-menu-button-name">库存成本</div>';
+                                '<div class="item-menu-button-name">库存核算</div>';
                             btn.addEventListener('click', e => {
                                 e.stopPropagation();
                                 if (slotElement) slotElement.classList.remove('menu-active');
                                 menu.remove();
                                 ui.itemMenu = null;
-                                openWarehouseCostModal(def, enh);
+                                // 跳转成本核算页的「库存核算」标签并定位该物品。
+                                // 成本页结构在侧边栏按钮首次点击时才构建；changeContent 之后游戏还可能异步重建页面，
+                                // 因此每次都重新查询 DOM，并在下一帧/延时再确认一次标签，避免落到「市场成本」。
+                                ui.changeContent('nek-cost');
+                                let focused = false;
+                                const ensureInventoryTab = () => {
+                                    let page = doc.querySelector('.page.nek-cost');
+                                    const entry = doc.querySelector('.nek-cost-entry');
+                                    if (page && !page.querySelector('.nek-cost-tabs') && entry) {
+                                        entry.classList.remove('active');
+                                        entry.click();
+                                        page = doc.querySelector('.page.nek-cost');
+                                    }
+                                    const tab = page?.querySelector('.nek-cost-tabs [data-tab="inventory"]');
+                                    if (!tab) return false;
+                                    if (!tab.classList.contains('active')) tab.click();
+                                    return !!(page.querySelector('.nek-inventory-main') && !page.querySelector('.nek-inventory-main').hidden);
+                                };
+                                const focusItem = () => {
+                                    if (focused) return;
+                                    const uid = core.view().account;
+                                    if (!(uid && id > 1)) return;
+                                    const led = inventoryLedger(uid);
+                                    if (!led.items[String(id)]) {
+                                        const price = Number(warehouseCosts(uid)[String(id)]) > 0 ? round2(warehouseCosts(uid)[String(id)]) : (leftPrice(id, enh) > 0 ? round2(leftPrice(id, enh)) : null);
+                                        const qty = Number(env.game().getItemQuantity(id, enh)) || 0;
+                                        addInventoryBatch(led, { id, at: Date.now(), reason: '初始库存', qty: qty || 0, unitPrice: price });
+                                        saveInventoryLedger(uid, led);
+                                    }
+                                    doc.dispatchEvent(new CustomEvent('nek-inventory-updated', { detail: { uid: String(uid), focus: id } }));
+                                    focused = true;
+                                };
+                                const tryOpen = () => { if (ensureInventoryTab()) focusItem(); };
+                                tryOpen();
+                                setTimeout(tryOpen, 0);
+                                // 页面异步重建后再次确认标签；若目标物品尚未渲染则补发一次定位事件。
+                                const assertLater = () => {
+                                    if (!ensureInventoryTab() || !(id > 1)) return;
+                                    if (!doc.querySelector('.nek-inventory-row[data-id="' + id + '"]')) {
+                                        const uid = core.view().account;
+                                        if (uid) doc.dispatchEvent(new CustomEvent('nek-inventory-updated', { detail: { uid: String(uid), focus: id } }));
+                                    }
+                                };
+                                setTimeout(assertLater, 150);
+                                setTimeout(assertLater, 400);
                             });
                             list.appendChild(btn);
                         } catch (e) { /* 不影响原生物品菜单 */ }
@@ -4269,7 +5342,20 @@
                     '.nek-warehouse-cost-modal{position:absolute;z-index:3000;left:50%;top:32%;transform:translateX(-50%);width:300px;max-width:92vw;padding:10px 12px}',
                     '.nek-warehouse-cost-modal .whc-name{font-size:14px;font-weight:700;margin-bottom:4px}',
                     '.nek-warehouse-cost-modal .whc-hint{font-size:12px;color:var(--c-text-dim,#83c3c3);margin-bottom:8px}',
+                    '.nek-warehouse-cost-modal .whc-field-label{font-size:12px;margin:6px 0 3px}',
                     '.nek-warehouse-cost-modal .whc-input{width:100%;box-sizing:border-box}',
+                    // 单价来源标识：自动填左一价（青）/ 读取本地数据（绿）/ 无报价（红）。
+                    '.nek-warehouse-cost-modal .whc-source{font-size:11px;margin-top:4px}',
+                    '.whc-source-auto{color:var(--c-main-bright,#74f9bc)}',
+                    '.whc-source-saved{color:rgb(76,175,80)}',
+                    '.whc-source-blank{color:rgb(255,48,33)}',
+                    '.nek-inventory-threshold{cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px}',
+                    '.nek-inventory-threshold:hover{color:var(--c-main-bright,#74f9bc)}',
+                    '.nek-inventory-threshold.nek-threshold-short{color:#ff6b5e}',
+                    // 预警列后的移除按钮：仅占一列窄位，不跟随数字列右对齐规则。
+                    '.nek-inventory-delete{justify-self:end;width:20px;height:18px;line-height:16px;padding:0;text-align:center;',
+                    '  font-size:12px;color:rgb(255,48,33);border:1px solid rgba(255,48,33,.5);border-radius:3px;background:transparent;cursor:pointer}',
+                    '.nek-inventory-delete:hover{background:rgba(255,48,33,.18);color:#fff}',
                     '.nek-warehouse-cost-modal .whc-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}',
                     // 替换食材面板复用原生 .cooking-substitute-panel 组件，仅补充分组标题间距。
                     '.nek-cost-sub-picker .selector-list{padding:0 6px 6px}',
@@ -4289,6 +5375,54 @@
                     '.nek-cost-caret{display:inline-block;font-size:10px;line-height:1;opacity:.7;transition:transform .15s}',
                     '.nek-cost-expand[open] .nek-cost-caret{transform:rotate(90deg)}',
                     '.nek-cost-diff-pos{color:rgb(76,175,80)}.nek-cost-diff-neg{color:rgb(255,48,33)}',
+                    // 库存核算页：双标签切换 + 批次明细 + 选择浮窗（复用市场分类）。
+                    '.nek-cost-tabs>.page-tab-item{cursor:pointer}',
+                    // 原生 .page-main 的 display 会覆盖 UA 的 [hidden]{display:none}，两个面板都要显式隐藏。
+                    '.nek-inventory-main[hidden],.nek-market-main[hidden]{display:none}',
+                    '.nek-inventory-total{font-weight:700;padding:4px 0}',
+                    '.nek-inventory-plan{width:100%;max-width:76rem;border:1px solid rgba(var(--r),var(--g),var(--b),.25);border-radius:4px;padding:4px 8px;margin-bottom:6px;font-size:12px;line-height:1.6}',
+                    '.nek-inventory-plan[hidden]{display:none}',
+                    '.nek-inventory-plan h4{margin:4px 0 0;font-size:12px}',
+                    '.nek-inventory-plan ul{margin:2px 0;padding-left:18px}',
+                    '.nek-inventory-plan li{list-style:disc}',
+                    '.nek-inventory-list{width:100%;max-width:76rem;display:grid;gap:4px}',
+                    '.nek-inventory-row{border:1px solid rgba(var(--r),var(--g),var(--b),.25);border-radius:4px;padding:4px 6px;background:rgba(var(--r),var(--g),var(--b),.04)}',
+                    '.nek-inventory-head{display:grid;grid-template-columns:minmax(0,0.8fr) repeat(4,minmax(0,1fr)) 26px;align-items:center;gap:4px;padding:2px 6px;font-size:12px;color:var(--c-text-dim,#83c3c3);border-bottom:1px solid rgba(var(--r),var(--g),var(--b),.25)}',
+                    '.nek-inventory-head>span:not(:first-child){text-align:right}',
+                    '.nek-inventory-summary{display:grid;grid-template-columns:minmax(0,0.8fr) repeat(4,minmax(0,1fr)) 26px;align-items:center;gap:4px;cursor:pointer;font-variant-numeric:tabular-nums}',
+                    '.nek-inventory-summary>span:not(:first-child){text-align:right}',
+                    '.nek-inventory-name{display:inline-flex;align-items:center;gap:4px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+                    '.nek-inventory-caret{display:inline-block;font-size:10px;opacity:.7;transition:transform .15s;flex:none}',
+                    '.nek-inventory-row.open .nek-inventory-caret{transform:rotate(90deg)}',
+                    // 批次行与汇总行共用同一 grid 模板，确保逐列严格对齐：
+                    // 第1列(物品名下方)=时间+原因，第2列 可用↔数量变化，第3列 综合单价↔批次单价，
+                    // 第4列 库存价值↔总额变化，第5列 预警↔核对。
+                    '.nek-inventory-batches{margin-top:4px;display:grid;gap:2px}',
+                    '.nek-inventory-batch-row{display:grid;grid-template-columns:minmax(0,0.8fr) repeat(4,minmax(0,1fr)) 26px;align-items:center;gap:4px;font-size:12px;font-variant-numeric:tabular-nums}',
+                    '.nek-inventory-batch-row>span:not(:first-child){text-align:right;white-space:nowrap;min-width:0}',
+                    '.nek-inventory-batch-row:first-child{color:var(--c-text-dim,#83c3c3);font-size:11px}',
+                    '.nek-inventory-batch-cell1{display:flex;flex-direction:column;gap:1px;min-width:0}',
+                    '.nek-inventory-batch-time{color:var(--c-text-dim,#83c3c3);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+                    '.nek-inventory-batch-row:nth-child(even):not(:first-child){background:rgba(var(--r),var(--g),var(--b),.06)}',
+                    // 批次单价：点击录入浮窗，手型 + 虚线下划线提示可交互。
+                    '.nek-inventory-batch-price{cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px}',
+                    '.nek-inventory-batch-price:hover{color:var(--c-main-bright,#74f9bc)}',
+                    '.nek-price-missing{color:#ff8a6b;text-decoration:none;cursor:help}',
+                    '.nek-inventory-verified{color:rgb(76,175,80)}.nek-inventory-unverified{color:rgb(255,48,33)}',
+                    '.nek-inventory-history{color:var(--c-text-dim,#83c3c3)}.nek-inventory-loss{color:#e0a030}',
+                    '.nek-inventory-delta-pos{color:rgb(76,175,80)}.nek-inventory-delta-neg{color:rgb(255,48,33)}',
+                    // 借贷方向：借方（入库）青色、贷方（出库）橙色，沿用中文会计红字冲销语义的弱化版。
+                    '.nek-inventory-debit{color:var(--c-main,#74f9bc)}.nek-inventory-credit{color:#e0a030}',
+                    // FIFO 三色条（方案 A 霓虹冷调）：折叠仅三色，展开两行且增加/消耗按批次斑马纹。
+                    '.nek-inventory-fifo{margin:3px 0;display:grid;gap:2px}',
+                    '.nek-inventory-fifo-line{display:flex;height:9px;width:100%;overflow:hidden;border-radius:2px;background:rgba(0,0,0,.25)}',
+                    '.nek-inventory-fifo-seg{height:100%;flex:none;box-sizing:border-box;min-width:0}',
+                    '.nek-fifo-base{background:#2E7D8F}',
+                    '.nek-fifo-inc{background:#3FB98C}.nek-fifo-inc.alt{background:#34A279}',
+                    '.nek-fifo-dec{background:#D9536E}.nek-fifo-dec.alt{background:#BE455E}',
+                    '.nek-inventory-fifo-hint{font-size:11px;color:var(--c-text-dim,#83c3c3);font-variant-numeric:tabular-nums}',
+                    '.nek-inventory-pick .selector-grid{grid-template-columns:repeat(auto-fill,60px)}',
+                    '.nek-inventory-pick .nek-inventory-search{width:100%;box-sizing:border-box;margin-bottom:6px}',
                     // 材料名复用原生悬浮/点击：可交互时给手型与下划线提示，和普通文本区分。
                     '.nek-cost-material-live{cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px}',
                     '.nek-cost-material-live:hover{color:var(--c-main-bright,#74f9bc)}',
@@ -4481,8 +5615,27 @@
                     toggle('队列自动开研', 'researchQueue', block); toggle('自动领取已完成研究', 'researchFinish', block);
                     toggle('自动接受任务', 'questAccept', block); toggle('自动领取任务奖励', 'questReward', block);
                     toggle('显示产出库存、队列产出和生产材料可用量', 'holdings', block);
+                    const label = doc.createElement('label');
+                    label.className = 'stat-sub';
+                    label.textContent = '库存补货充裕比例（%） ';
+                    const buffer = doc.createElement('input');
+                    buffer.type = 'number'; buffer.min = '0'; buffer.max = '1000'; buffer.step = '0.01';
+                    buffer.className = 'nek-stock-buffer';
+                    buffer.required = true;
+                    label.appendChild(buffer);
+                    block.appendChild(label);
+                    buffer.addEventListener('change', () => {
+                        const uid = core.view().account;
+                        if (!uid || !buffer.checkValidity()) return;
+                        try { storage.setItem(stockBufferKey, String(normalizeStockBuffer(buffer.value))); }
+                        catch { return; }
+                        refreshStockAlerts(uid);
+                        dispatchInventoryUpdate(uid);
+                    });
                     const status = doc.createElement('div'); status.className = 'nek-quest-status stat-sub'; block.appendChild(status); section.appendChild(block);
                 }
+                const buffer = block.querySelector('.nek-stock-buffer');
+                if (buffer && doc.activeElement !== buffer) buffer.value = String(stockBuffer());
                 text(block.querySelector('.nek-quest-status'), v.questStatus);
             }
             function resolveInventoryItem(row, name) {
@@ -4600,13 +5753,391 @@
                 try { storage.setItem(warehouseKey(uid), JSON.stringify(map)); return true; }
                 catch { return false; }
             }
+            // ---- 库存核算账本：按批次记录库存变化，独立于旧的单一均价数据 ----
+            const inventoryKey = uid => 'nek_inventory_ledger_v1:' + uid;
+            const inventoryCache = new Map();
+            let stockAlerts = null;
+            const productionAlertIds = new Set();
+            let nextProductionAlert = 0;
+            const stockBufferKey = 'nek_stock_buffer_percentage';
+            function stockBuffer() {
+                try { return normalizeStockBuffer(storage.getItem(stockBufferKey)); }
+                catch { return 25; }
+            }
+            function refreshStockAlerts(uid, affected = null) {
+                const game = env.game(), data = env.data();
+                if (!uid || !game || !data?.items || !costEnabled()) return null;
+                const ledger = inventoryLedger(uid), buffer = stockBuffer(), now = Date.now();
+                const configuration = JSON.stringify(ledger.thresholds);
+                const day = dayStartOf(now);
+                if (!stockAlerts || stockAlerts.uid !== uid || stockAlerts.configuration !== configuration ||
+                    stockAlerts.buffer !== buffer || stockAlerts.day !== day) {
+                    const previous = stockAlerts?.uid === uid && stockAlerts.configuration === configuration &&
+                        stockAlerts.buffer === buffer && stockAlerts.day === day ? stockAlerts.active : new Set();
+                    stockAlerts = { uid, configuration, buffer, day, quantities: new Map(), dependents: new Map(),
+                        checks: new Map(), plans: new Map(), active: previous, combined: null, notified: new Map() };
+                    for (const root of Object.keys(ledger.thresholds).map(Number)) {
+                        if (!ledger.items[root]) continue;
+                        const pending = [root], seen = new Set();
+                        while (pending.length) {
+                            const id = pending.pop();
+                            if (seen.has(id)) continue;
+                            seen.add(id);
+                            if (!stockAlerts.dependents.has(id)) stockAlerts.dependents.set(id, new Set());
+                            stockAlerts.dependents.get(id).add(root);
+                            for (const req of stockRecipe(data, id)?.requirements || []) pending.push(req.itemId);
+                        }
+                    }
+                    affected = null;
+                }
+                const state = stockAlerts, impacted = new Set();
+                const ids = affected ?? new Set([...state.dependents.keys(), ...Object.keys(ledger.items).map(Number)]);
+                for (const id of ids) {
+                    const dependents = state.dependents.get(id);
+                    if (!dependents && !ledger.items[id]) continue;
+                    const qty = stockHeld(item => game.getItemQuantity(item), id);
+                    if (qty !== state.quantities.get(id) || dependents?.has(id) || !affected) {
+                        state.quantities.set(id, qty);
+                        for (const root of dependents || []) impacted.add(root);
+                    }
+                }
+                const held = id => state.quantities.get(id) ?? 0;
+                const notices = [];
+                for (const id of impacted) {
+                    const check = thresholdCheck(ledger.items[id], ledger.thresholds[id], held(id), now);
+                    const plan = stockReplenishment(data, id, check, held, buffer, state.active.has(id));
+                    state.checks.set(id, { ...check, short: !!plan });
+                    if (plan) {
+                        state.active.add(id);
+                        state.plans.set(id, plan);
+                        const type = !plan.complete ? '需检查配方' : plan.unavailable.length ? '缺少不可交易物资' :
+                            plan.purchases.length ? '需采购' : '可生产补货';
+                        if (state.notified.get(id) !== type) {
+                            notices.push((data.items[id]?.name || '#' + id) + ' ' + type);
+                            state.notified.set(id, type);
+                        }
+                    } else {
+                        state.active.delete(id);
+                        state.plans.delete(id);
+                        state.notified.delete(id);
+                    }
+                }
+                if (impacted.size) state.combined = null;
+                if (notices.length) env.ui()?.notifier?.show?.('库存预警：' + notices.slice(0, 3).join('；') +
+                    (notices.length > 3 ? '等 ' + notices.length + ' 项' : '') + '。详情见补货计划。', 'tip');
+                return state;
+            }
+            function inventoryAlertState(uid) {
+                if (!uid || !costEnabled()) return null;
+                if (stockAlerts?.uid !== uid || stockAlerts.buffer !== stockBuffer() || stockAlerts.day !== dayStartOf(Date.now())) {
+                    return refreshStockAlerts(uid);
+                }
+                return stockAlerts;
+            }
+            function stockShortages() {
+                const state = inventoryAlertState(core.view().account);
+                if (!state) return [];
+                const data = env.data();
+                return [...state.plans].map(([id, plan]) => ({
+                    id, name: data.items[id]?.name || '#' + id, have: plan.actual, th: plan.target
+                })).sort((a, b) => a.have - b.have);
+            }
+            function dispatchInventoryUpdate(uid) {
+                try { doc.dispatchEvent(new CustomEvent('nek-inventory-updated', { detail: { uid: String(uid) } })); }
+                catch { /* 忽略 */ }
+            }
+            function flushProductionAlerts(uid, head) {
+                const data = env.data(), game = env.game();
+                const recipe = head?.type === 'action' ? data?.actions?.[head.id] :
+                    head?.type === 'cooking' ? data?.cookingRecipes?.[head.id] : null;
+                for (const reward of recipe?.rewards || []) productionAlertIds.add(Number(reward.itemId));
+                for (const [i, req] of (recipe?.ingredients || recipe?.requirements || []).entries()) {
+                    const id = head.type === 'cooking' ? queueIngredient(game, data, req, head.item?.choices?.[i], 1, 0).itemId : req.itemId;
+                    productionAlertIds.add(Number(id));
+                }
+                if (productionAlertIds.size) {
+                    refreshStockAlerts(uid, productionAlertIds);
+                    productionAlertIds.clear();
+                    dispatchInventoryUpdate(uid);
+                }
+                nextProductionAlert = Date.now() + 120000;
+            }
+            function inventoryLedger(uid) {
+                if (!uid) return normalizeInventoryLedger(null);
+                if (!inventoryCache.has(String(uid))) {
+                    let saved = null;
+                    try { saved = JSON.parse(storage.getItem(inventoryKey(uid)) || 'null'); } catch { /* 新建账本 */ }
+                    const compatible = migrateAverageInventory(saved, warehouseCosts(uid));
+                    const led = normalizeInventoryLedger(compatible);
+                    const game = env.game();
+                    // 迁移旧账本「有数量无批次」的物品：补初始库存批次（数量取仓库实际，无货则 0）。
+                    // 仅在确实补齐时写回一次，避免每次读取都重写本地存储。
+                    const migrated = migrateEmptyBatchItems(led,
+                        id => game.getItemQuantity(id),
+                        id => {
+                            const old = warehouseCosts(uid)[String(id)];
+                            return Number(old) > 0 ? round2(old) : (leftPrice(id, 0) > 0 ? round2(leftPrice(id, 0)) : null);
+                        });
+                    // 游戏首次加载账本时归档 FIFO 已耗尽批次（显示到次日 00:00 / 首次加载）。
+                    const archived = archiveExhaustedBatches(led, Date.now());
+                    // 旧账本按来源拆开的同队列成品合并为一条综合批次。
+                    const mergedOutputs = mergeQueueOutputBatches(led);
+                    if (migrated || archived || mergedOutputs || compatible !== saved) {
+                        // 首次读取时的本地维护写回：静默，不单独触发云同步。
+                        try { storage.setItem(inventoryKey(uid), JSON.stringify(led), true); } catch { /* 忽略写入失败 */ }
+                    }
+                    inventoryCache.set(String(uid), normalizeInventoryLedger(led));
+                }
+                return inventoryCache.get(String(uid));
+            }
+            // low=true：生产队列完成/取消、标记核对等自动补记，不按普通用户修改触发即时上传。
+            function saveInventoryLedger(uid, ledger, low, affected = null, quiet = false) {
+                if (!uid) return false;
+                try {
+                    storage.setItem(inventoryKey(uid), JSON.stringify(ledger), !!low);
+                    inventoryCache.set(String(uid), normalizeInventoryLedger(ledger));
+                    if (!quiet) {
+                        refreshStockAlerts(uid, affected);
+                        dispatchInventoryUpdate(uid);
+                    }
+                    if (low) env.cloudMarkLow?.();
+                    return true;
+                } catch { return false; }
+            }
+            // 从账本读取某物品的有效均价：优先账本汇总，缺失回退旧库存成本。
+            function inventoryUnitPrice(uid, id) {
+                const row = inventoryLedger(uid).items[String(id)];
+                const summary = row ? inventorySummary(row) : null;
+                return summary?.unitPrice != null ? summary.unitPrice : (warehouseCosts(uid)[String(id)] ?? null);
+            }
+            // 记录库存变化并写滚动流水；生产消耗自动按 FIFO 拆分。
+            // from：生产消耗来源批次 id（可选）；extraRef：批次归属后缀（可选，用于区分终止原因）。
+            function recordInventory(uid, { id, at, reason, qty, unitPrice, ref, from, order }) {
+                const led = inventoryLedger(uid);
+                // 只记账本已登记（用户通过「选择物品」加入）的物品，新进仓库不自动纳入核算。
+                if (!led.items[String(id)]) return false;
+                if (reason === '市场卖出' && qty < 0) {
+                    const used = consumeInventoryFifo(led, id, -qty, at, ref, false, reason);
+                    const untracked = -qty - used.reduce((total, part) => total + part.qty, 0);
+                    if (untracked > 0) addInventoryBatch(led, { id, at, reason, qty: -untracked, unitPrice: null, ref });
+                } else if (!addInventoryBatch(led, { id, at, reason, qty, unitPrice, ref, from })) return false;
+                if (reason === '市场买入' && Number.isSafeInteger(order) && order > 0) {
+                    led.orders[order] = { quantity: (led.orders[order]?.quantity || 0) + qty };
+                }
+                pushInventoryTrade(led, { at, id, reason, qty, unitPrice, ref });
+                return saveInventoryLedger(uid, led, false, new Set([id]));
+            }
+            // 仓库数量快照：按物品 id 累加（同一物品不同强化等级合并，与账本口径一致）。
+            // 优先遍历 inventory 堆叠；无 stacking 数组时按候选 id 读 getItemQuantity（兼容精简环境）。
+            function warehouseSnapshot(candidateIds) {
+                const g = env.game() || {};
+                const snap = {};
+                const candidates = new Set(candidateIds || []);
+                if (!candidates.size) return snap;
+                if (Array.isArray(g.inventory)) {
+                    g.inventory.forEach(s => {
+                        const id = Number(s.item ?? s.id);
+                        if (candidates.has(id)) snap[id] = (snap[id] || 0) + (Number(s.quantity) || 0);
+                    });
+                } else {
+                    (candidateIds || []).forEach(id => {
+                        if (id > 1) snap[id] = Number(typeof g.getItemQuantity === 'function' ? g.getItemQuantity(id, 0, true) : 0) || 0;
+                    });
+                }
+                return snap;
+            }
+            // 把一个队列的消耗/产出差额写入账本（一个队列 = 一个 ref）。
+            // deltas 来自账本理论库存 vs 实际仓库的对账差额：负=实际消耗，正=实际产出。
+            // 材料按 FIFO 逐段记录来源与单价；同队列所有材料成本合计 ÷ 总产出 = 综合单价，
+            // 每种产出自成一个批次（同队列多次完成合并），不再按来源材料拆成多个成品批次。
+            function recordQueueDelta(uid, { deltas, at, ref }) {
+                if (!deltas || !deltas.length) return false;
+                const led = inventoryLedger(uid);
+                const nameOf = id => {
+                    try { return env.game()?.getItem?.(id)?.name || env.data()?.items?.[String(id)]?.name || ('#' + id); }
+                    catch { return '#' + id; }
+                };
+                deltas.filter(d => d.delta < 0 && led.items[String(d.id)]).forEach(d => {
+                    // merge=true：同一队列多次完成累加到同 ref+from 批次，不拆成多批。
+                    const used = consumeInventoryFifo(led, d.id, -d.delta, at, ref, true);
+                    used.forEach(u => {
+                        pushInventoryTrade(led, { at, id: d.id, reason: '生产消耗', qty: -u.qty, unitPrice: u.unitPrice, ref });
+                    });
+                });
+                // 只写入已登记物品；未加入核算的新物品不因生产而自动建账。
+                const outs = deltas.filter(d => d.delta > 0 && led.items[String(d.id)]);
+                outs.forEach(d => {
+                    addInventoryBatch(led, { id: d.id, at, reason: '生产成品', qty: d.delta, unitPrice: null, ref, merge: true });
+                });
+                // 按队列统一核算：材料跨批次、跨种类只累加金额，最后 ÷ 总产出得到一个综合单价。
+                const cost = productionQueueCost(led, ref, nameOf);
+                if (cost.sources.length && cost.outs.length) {
+                    const totalOut = cost.outs.reduce((s, o) => s + (Number(o.b.qty) || 0), 0);
+                    cost.outs.forEach(({ b }) => {
+                        if (b.manualPrice === true) return;
+                        const amount = cost.amount == null ? null : round2(cost.amount * (Number(b.qty) || 0) / totalOut);
+                        b.unitPrice = cost.price;
+                        b.amount = amount;
+                        b.missing = cost.missing.length ? cost.missing : undefined;
+                    });
+                }
+                outs.forEach(d => {
+                    pushInventoryTrade(led, { at, id: d.id, reason: '生产成品', qty: d.delta, unitPrice: cost.price, ref });
+                });
+                // 生产完成/取消是自动补记：合并到较低频的上传窗口，避免连续生产时每次完成都触发云同步。
+                return saveInventoryLedger(uid, led, true, null, true);
+            }
+            // 生产回包解析：action_complete 的 add 是产出、remove 是消耗；产出单价按消耗总额/产出量折算。
+            function captureInventoryProduction(content) {
+                if (!content || !Array.isArray(content.add) || !content.add.length) return null;
+                const data = env.data();
+                if (!data) return null;
+                const action = content.type === 'action' ? data.actions?.[content.id] : null;
+                const recipe = content.type === 'cooking' ? data.cookingRecipes?.[content.id] : action?.action === 6 ? action : null;
+                if (!recipe) return null;
+                const rewardIds = new Set((recipe.rewards || []).map(r => Number(r.itemId)));
+                const outputs = [];
+                content.add.forEach(row => {
+                    const id = Number(row.item), qty = Number(row.quantity);
+                    if (rewardIds.has(id) && qty > 0 && Number(row.enhancement || 0) === 0) outputs.push({ id, qty });
+                });
+                if (!outputs.length) return null;
+                const uid = core.view().account;
+                const costs = uid ? inventoryLedger(uid) : null;
+                const used = [];
+                productionRemovedItems(content, env.game()).forEach((qty, id) => {
+                    const rowCost = costs?.items[String(id)];
+                    const price = rowCost ? inventorySummary(rowCost).unitPrice : inventoryUnitPrice(uid, id);
+                    used.push({ id, qty, unitPrice: price != null ? price : null });
+                });
+                // 产出单价 = 消耗总额 / 产出总量；无消耗或消耗无价时留空。
+                const costTotal = used.reduce((sum, u) => sum + (u.unitPrice != null ? u.qty * u.unitPrice : 0), 0);
+                const outQty = outputs.reduce((sum, o) => sum + o.qty, 0);
+                const allPriced = used.length > 0 && used.every(u => u.unitPrice != null);
+                const outPrice = allPriced && outQty > 0 ? round2(costTotal / outQty) : null;
+                outputs.forEach(o => { o.unitPrice = outPrice; });
+                return { used, outputs, key: String(content.id || '0') + ':' + String(content.type || '') + ':' + Date.now() };
+            }
+            // 标记式校验：账本批次与历史记录按「物品 + 时间窗口」匹配即标已核对（内容对上即可）。
+            // 数量不作为硬条件——批次开始于脚本启动前时，历史记录理论量与仓库实际差额可能不同。
+            // 并记录操作时间（开始时分秒）。历史记录时间为秒级，账本为毫秒级，统一按分钟容差比对。
+            function verifyInventoryRecords(content) {
+                const uid = core.view().account;
+                if (!uid || !content) return;
+                const led = inventoryLedger(uid);
+                const records = [...(content.records || []), ...(content.current ? [content.current] : [])];
+                if (!records.length) return;
+                const keys = [];
+                records.forEach(r => {
+                    const startSec = Number(r.start_time) || 0;
+                    const endSec = Number(r.end_time) || startSec;
+                    const item = r.item;
+                    if (!startSec || !item) return;
+                    const ids = Array.isArray(item) ? item.map(x => Number(x.item || x.id)) : [Number(item.item || item)];
+                    const qtys = Array.isArray(item) ? item.map(x => Number(x.quantity)) : [Number(item.quantity)];
+                    // 保留结束时刻（对账用）与开始时刻（展示用），均为毫秒。
+                    ids.forEach((id, i) => {
+                        if (id > 1 && qtys[i] > 0) keys.push({ id, qty: qtys[i], endMs: endSec * 1000, startMs: startSec * 1000 });
+                    });
+                });
+                let changed = false;
+                // 记账时刻 Date.now() 与历史记录 end_time 可能有数秒偏差，按 id + 10 分钟窗口取最近记录；
+                // 数量不再要求相等（实际差额可能与历史记载不同），只要求内容（物品）对得上。
+                const WINDOW = 600000;
+                Object.entries(led.items).forEach(([id, row]) => row.batches.forEach(b => {
+                    if (b.verified) return;
+                    if (!['生产消耗', '生产成品'].includes(b.reason)) return;
+                    let best = null, bestGap = WINDOW;
+                    keys.forEach(k => {
+                        if (k.id !== Number(id)) return;
+                        const gap = Math.abs(k.endMs - b.at);
+                        if (gap < bestGap) { bestGap = gap; best = k; }
+                    });
+                    if (best) {
+                        b.verified = true; b.checkAt = best.startMs; changed = true;
+                    }
+                }));
+                // 核对标记属于本地校验结果，低优先级同步。
+                if (changed) saveInventoryLedger(uid, led, true);
+            }
+            // 标记式校验：市场买卖批次与 game.orderHistory（30 条）按订单/成交数量+时间匹配。
+            function verifyInventoryTrades() {
+                const uid = core.view().account;
+                if (!uid) return;
+                const led = inventoryLedger(uid);
+                const orders = env.game()?.orderHistory || [];
+                let changed = false;
+                Object.entries(led.items).forEach(([id, row]) => row.batches.forEach(b => {
+                    if (b.verified || !['市场买入', '市场卖出'].includes(b.reason)) return;
+                    const side = b.reason === '市场买入' ? 2 : 1;
+                    const matched = orders.find(o => Number(o.side) === side && Number(o.item) === Number(id) &&
+                        Number(o.traded) >= Math.abs(b.qty) && Math.abs(Number(o.close_time || 0) * 1000 - b.at) < 86400000);
+                    if (matched) {
+                        b.verified = true;
+                        b.checkAt = Number(matched.close_time || 0) * 1000 || b.at;
+                        changed = true;
+                    }
+                }));
+                if (changed) saveInventoryLedger(uid, led, true);
+            }
+            let historyRequest;
+            function requestInventoryHistory(uid, manual = false) {
+                const msg = env.msg(), at = Date.now();
+                if (!uid || !costEnabled() || msg?.ws?.readyState !== 1 || typeof msg.handlers?.market_history !== 'function') return false;
+                if (!Object.keys(inventoryLedger(uid).items).length && !manual) return false;
+                if (historyRequest?.uid === uid && historyRequest.socket === msg.ws &&
+                    (!manual || at - historyRequest.at < 3000)) return false;
+                if (msg.send('market_history', {}) !== true) return false;
+                historyRequest = { uid, socket: msg.ws, at };
+                return true;
+            }
+            function decorateMarketHistoryCosts() {
+                const ui = env.ui(), game = env.game(), list = ui?.marketMy?.historyList;
+                const uid = core.view().account;
+                if (!uid || !list?.isConnected || ui.marketplaceOrderTab !== 'history') return;
+                const rows = list.querySelectorAll('.marketplace-orderBook-info');
+                const orders = (game.orderHistory || []).filter(order => game.getItem(order.item));
+                if (rows.length !== orders.length || !costEnabled()) {
+                    list.querySelectorAll('.nek-history-cost').forEach(button => button.remove());
+                    return;
+                }
+                rows.forEach((row, i) => {
+                    const order = orders[i], id = Number(order.item), price = Number(order.price);
+                    const existing = row.querySelector('.nek-history-cost');
+                    const entry = inventoryLedger(uid).items[id];
+                    if (id <= 1 || Number(order.enhancement || 0) !== 0 || !(price > 0) || !Number.isFinite(price) ||
+                        inventoryUnitPrice(uid, id) != null || (entry && !entry.batches.some(b => b.reason === '初始库存'))) {
+                        existing?.remove();
+                        return;
+                    }
+                    if (existing?.dataset.order === String(order.id)) return;
+                    existing?.remove();
+                    const button = doc.createElement('button');
+                    button.type = 'button'; button.className = 'btn nek-history-cost';
+                    button.dataset.order = String(order.id);
+                    button.textContent = '录入期初成本';
+                    button.addEventListener('click', () => {
+                        if (core.view().account === uid && costEnabled()) openWarehouseCostModal(game.getItem(id), 0, price);
+                    });
+                    row.querySelector('.price')?.appendChild(button);
+                });
+            }
             // 通知主脚本刷新悬停行情里的「库存成本」行（成本页自身在 render 时直接读取）。
             function publishStockCost(id) {
                 try { doc.dispatchEvent(new CustomEvent('nek-stock-cost-updated', { detail: { id: Number(id) || 0 } })); }
                 catch { /* 不支持 CustomEvent 时不影响保存 */ }
             }
             // 左一价 = 市场快照 levels[enh].sell_price（与物品说明中的「左一价」同口径）。
+            // 统一复用主脚本 __NEK_MARKET__.quote（含 v1.44.4 单物品强刷与 60s 缓存），
+            // 不再各自直读 marketCacheData 造轮子；API 缺失时回退直读缓存，保证增强脚本独立可跑。
             function leftPrice(id, enh) {
+                try {
+                    const api = window.__NEK_MARKET__;
+                    if (api && typeof api.quote === 'function') {
+                        const lv = api.quote(Number(id), Number(enh) || 0);
+                        return Number(lv?.sell_price) || 0;
+                    }
+                } catch { /* API 异常则回退直读缓存 */ }
                 try {
                     return Number(env.game().marketCacheData.get(Number(id))?.levels?.[Number(enh) || 0]?.sell_price) || 0;
                 } catch { return 0; }
@@ -4683,8 +6214,25 @@
                     const page = doc.querySelector('.page.nek-cost');
                     if (!page) return;
                     button.classList.add('active');
-                    page.innerHTML = '<div class="page-body neon"><div class="page-tab"><div class="page-tab-item active">成本核算</div></div><div class="page-main"><div class="nek-cost-tools"><button type="button" class="btn nek-cost-pick">选择物品</button><button type="button" class="btn">刷新行情</button></div><p role="status"></p><div class="nek-cost-results"></div></div></div>';
-                    const refresh = page.querySelector('.nek-cost-tools button:not(.nek-cost-pick)');
+                    page.innerHTML = '<div class="page-body neon">' +
+                        '<div class="page-tab nek-cost-tabs"><div class="page-tab-item active" data-tab="inventory">库存核算</div><div class="page-tab-item" data-tab="market">市场成本</div></div>' +
+                        '<div class="page-main nek-market-main" hidden><div class="nek-cost-tools"><button type="button" class="btn nek-cost-pick">选择物品</button><button type="button" class="btn">刷新行情</button></div><p role="status"></p><div class="nek-cost-results"></div></div>' +
+                        '<div class="page-main nek-inventory-main"><div class="nek-inventory-total"></div><div class="nek-cost-tools"><button type="button" class="btn nek-inventory-pick-btn">选择物品</button><button type="button" class="btn nek-inventory-clear-btn">清空数据</button><button type="button" class="btn nek-inventory-plan-btn">查看补货计划</button></div><div class="nek-inventory-plan" hidden></div><p role="status"></p><div class="nek-inventory-list"></div></div>' +
+                        '</div>';
+                    // 标签切换：仅显示对应 page-main，库存核算首次进入时渲染。
+                    const marketMain = page.querySelector('.nek-market-main');
+                    const invMain = page.querySelector('.nek-inventory-main');
+                    page.querySelectorAll('.nek-cost-tabs .page-tab-item').forEach(tab => {
+                        tab.addEventListener('click', e => {
+                            e.stopPropagation();
+                            page.querySelectorAll('.nek-cost-tabs .page-tab-item').forEach(t => t.classList.toggle('active', t === tab));
+                            const inventory = tab.dataset.tab === 'inventory';
+                            marketMain.hidden = inventory;
+                            invMain.hidden = !inventory;
+                            if (inventory && typeof mountInventoryPanel === 'function') mountInventoryPanel();
+                        });
+                    });
+                    const refresh = marketMain.querySelector('.nek-cost-tools button:not(.nek-cost-pick)');
                     const pickBtn = page.querySelector('.nek-cost-pick');
                     const status = page.querySelector('[role="status"]');
                     const results = page.querySelector('.nek-cost-results');
@@ -5027,6 +6575,526 @@
                             if (page.isConnected) status.textContent = '未取得市场行情，请刷新重试。';
                         } finally { refresh.disabled = false; }
                     }
+                    // ===== 库存核算页：市场分类选择浮窗 + 批次账本列表 =====
+                    const CANNED_IDS = new Set([2, 4, 201, 207, 208]);
+                    const TYPE_ORDER = [1, 2, 3, 4, 5];  // 全部/物资/消耗品/装备/材料（排除货币罐头、时装）
+                    function inventoryChoices() {
+                        return Object.values(data.items).filter(item => item.trade && !CANNED_IDS.has(Number(item.id)))
+                            .sort((a, b) => a.id - b.id);
+                    }
+                    function typeOf(item) { return TYPE_ORDER.includes(Number(item.type)) ? Number(item.type) : 0; }
+                    // 二级分类严格对齐市场页：装备按 slot 归并为固定 5 组（武器/防具/首饰/工具/生活），
+                    // 其余类型沿用 sub_type；避免 ring/amulet/earring/bracelet/tool1… 各自单独分页。
+                    const EQUIP_SUBS = [
+                        { key: 'weapon', name: '武器' }, { key: 'armor', name: '防具' },
+                        { key: 'accessory', name: '首饰' }, { key: 'tool', name: '工具' }, { key: 'life', name: '生活' }
+                    ];
+                    const EQUIP_NAMES = Object.fromEntries(EQUIP_SUBS.map(s => [s.key, s.name]));
+                    function subKeyOf(item) {
+                        if (Number(item.type) === 4) {
+                            const slot = String(item.slot || item.sub_type || '');
+                            if (slot === 'weapon') return 'weapon';
+                            if (['ring', 'amulet', 'earring', 'bracelet'].includes(slot)) return 'accessory';
+                            if (/^tool\d+$/.test(slot)) return 'tool';
+                            if (slot === 'life_chip' || /^life_[abc]$/.test(slot)) return 'life';
+                            return 'armor';   // 其余（含空 slot）归防具，与市场页默认一致。
+                        }
+                        return String(item.slot || item.sub_type || '0');
+                    }
+                    function subName(key) {
+                        if (EQUIP_NAMES[key]) return EQUIP_NAMES[key];
+                        try { return data.subType?.[key]?.name || key; }
+                        catch { return key; }
+                    }
+                    // 二级 tab 顺序：装备按固定 5 组顺序（只显示有物品的组），其余按物品 id 升序首次出现顺序。
+                    // all 由调用方（openInventoryPicker）传入：此函数定义在浮窗之外，不能直接引用浮窗内的局部变量。
+                    function subKeys(all, type) {
+                        const owned = new Set(all.filter(i => typeOf(i) === type).map(subKeyOf));
+                        if (type === 4) return EQUIP_SUBS.map(s => s.key).filter(k => owned.has(k));
+                        return [...owned];
+                    }
+                    function inventorySelected(uid) {
+                        const led = inventoryLedger(uid);
+                        return Object.keys(led.items).map(Number).filter(id => id > 1);
+                    }
+                    let invPicker = null;
+                    function closeInventoryPicker() {
+                        if (invPicker) { invPicker.remove(); invPicker = null; }
+                    }
+                    function openInventoryPicker(anchor) {
+                        closeInventoryPicker();
+                        const uid = core.view().account;
+                        if (!uid) return;
+                        invPicker = append(doc.body, 'div', 'selector neon nek-cost-picker nek-inventory-pick');
+                        append(invPicker, 'div', 'neon-title', '选择物品（库存核算）');
+                        const content = append(invPicker, 'div', 'selector-content');
+                        const searchInput = append(content, 'input', 'nek-inventory-search');
+                        searchInput.type = 'text'; searchInput.placeholder = '搜索物品名称…';
+                        const tabs = append(content, 'div', 'selector-tabs ui-tab');
+                        const subs = append(content, 'div', 'nek-cost-subtabs ui-tab');
+                        const grid = append(content, 'div', 'selector-grid');
+                        let type = 1, sub = null, keyword = '';
+                        const all = inventoryChoices();
+                        function drawTabs() {
+                            tabs.replaceChildren();
+                            TYPE_ORDER.forEach(t => {
+                                const name = t === 1 ? '全部' : (data.itemTypes?.[t]?.name || ({ 2: '物资', 3: '消耗品', 4: '装备', 5: '材料' })[t] || String(t));
+                                const el = append(tabs, 'div', 'selector-tab-btn ui-tab-item' + (t === type ? ' active' : ''), name);
+                                el.addEventListener('click', e => { e.stopPropagation(); type = t; sub = null; drawTabs(); drawSubs(); drawGrid(); });
+                            });
+                        }
+                        function drawSubs() {
+                            subs.replaceChildren();
+                            if (type === 1) { subs.hidden = true; return; }
+                            subs.hidden = false;
+                            const keys = subKeys(all, type);
+                            if (!keys.includes(sub)) sub = keys[0];
+                            keys.forEach(key => {
+                                const el = append(subs, 'div', 'ui-tab-item' + (key === sub ? ' active' : ''), subName(key));
+                                el.addEventListener('click', e => { e.stopPropagation(); sub = key; drawSubs(); drawGrid(); });
+                            });
+                        }
+                        function drawGrid() {
+                            grid.replaceChildren();
+                            let items = all.filter(i => type === 1 || typeOf(i) === type);
+                            if (type !== 1 && sub) items = items.filter(i => subKeyOf(i) === sub);
+                            if (keyword) {
+                                try { const ids = new Set(game.searchItems(keyword)); items = items.filter(i => ids.has(Number(i.id))); }
+                                catch { items = items.filter(i => (i.name || '').toLowerCase().includes(keyword.toLowerCase())); }
+                            }
+                            if (!items.length) { append(grid, 'span', 'empty-tip', '没有可以选择的物品'); return; }
+                            const chosen = inventorySelected(uid);
+                            items.forEach(item => {
+                                const def = game.getItem(item.id) || item;
+                                const el = ui.createItemElement(def, { quantity: game.getItemQuantity(item.id), extraClasses: 'selector-item' + (chosen.includes(Number(item.id)) ? ' selected-outline' : '') });
+                                el.title = (chosen.includes(Number(item.id)) ? '✓ ' : '') + (item.name || '#' + item.id);
+                                el.addEventListener('click', e => {
+                                    e.stopPropagation();
+                                    const led = inventoryLedger(uid), key = String(item.id);
+                                    if (led.items[key]) {
+                                        delete led.items[key];
+                                        delete led.thresholds[key];
+                                        saveInventoryLedger(uid, led);
+                                        el.classList.remove('selected-outline');
+                                    } else {
+                                        // 期初库存：按优先级确定单价（旧库存成本/历史采购/左一价），云账本已存在则保留。
+                                        const oldCost = warehouseCosts(uid)[key];
+                                        const price = Number(oldCost) > 0 ? round2(oldCost) : (leftPrice(item.id, 0) > 0 ? round2(leftPrice(item.id, 0)) : null);
+                                        const qty = Number(game.getItemQuantity(item.id)) || 0;
+                                        addInventoryBatch(led, { id: item.id, at: Date.now(), reason: '初始库存', qty: qty || 0, unitPrice: price });
+                                        saveInventoryLedger(uid, led);
+                                        el.classList.add('selected-outline');
+                                    }
+                                    el.title = (el.classList.contains('selected-outline') ? '✓ ' : '') + (item.name || '#' + item.id);
+                                    renderInventory();
+                                });
+                                grid.appendChild(el);
+                            });
+                        }
+                        searchInput.addEventListener('input', e => { e.stopPropagation(); keyword = e.target.value.trim(); drawGrid(); });
+                        searchInput.addEventListener('click', e => e.stopPropagation());
+                        const r = anchor.getBoundingClientRect();
+                        invPicker.style.visibility = 'hidden';
+                        const w = invPicker.offsetWidth, h = invPicker.offsetHeight;
+                        invPicker.style.left = Math.max(4, Math.min(r.left, window.innerWidth - w - 4)) + 'px';
+                        invPicker.style.top = (r.bottom + h + 4 > window.innerHeight && r.top - h - 4 > 0 ? r.top - h - 4 : r.bottom + 4) + 'px';
+                        invPicker.style.visibility = 'visible';
+                        drawTabs(); drawSubs(); drawGrid();
+                        const outside = e => { if (!invPicker.contains(e.target) && e.target !== anchor) { closeInventoryPicker(); doc.removeEventListener('click', outside); } };
+                        setTimeout(() => doc.addEventListener('click', outside), 0);
+                    }
+                    const openBatches = new Set();
+                    // 核对列：初始库存=历史记录（后续实现，本次仅展示）；核对到=操作时间(HH:mm:ss)；其余未核对=待核对。
+                    function checkLabel(b) {
+                        if (b.reason === '初始库存') return { text: '历史记录', cls: 'nek-inventory-history', title: '查看昨天的变化详情（功能开发中）' };
+                        if (b.verified && b.checkAt > 0) {
+                            const d = new Date(b.checkAt);
+                            const text = typeof d.toLocaleTimeString === 'function'
+                                ? d.toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                                : '';
+                            return { text: text || '已核对', cls: 'nek-inventory-verified', title: '已核对 · 操作时间' };
+                        }
+                        if (b.verified) return { text: '已核对', cls: 'nek-inventory-verified', title: '已核对' };
+                        return { text: '待核对', cls: 'nek-inventory-unverified', title: '尚未在历史记录或市场订单中核对到' };
+                    }
+                    // 借贷记账方向：初始库存/买入/产出=借（入库），卖出/消耗=贷（出库）。
+                    function directionOf(reason) {
+                        return ['市场卖出', '生产消耗'].includes(reason) ? '贷' : '借';
+                    }
+                    // 成品批次关联的来源材料还没单价时，界面显示「XX物品缺报价」。
+                    const itemName = id => {
+                        try { return game.getItem(id)?.name || data.items[String(id)]?.name || ('#' + id); }
+                        catch { return '#' + id; }
+                    };
+                    function quoteLackText(row, led) {
+                        const names = [];
+                        const collect = m => {
+                            const name = m?.name || itemName(m?.id);
+                            if (name && !names.includes(name)) names.push(name);
+                        };
+                        (row?.batches || []).forEach(b => {
+                            (b.missing || []).forEach(collect);
+                            // 旧批次没有 missing/source 字段：按同队列消耗批次反推来源，缺价同样显示提示。
+                            if (b.reason === '生产成品') productionCostOf(led, b, itemName).missing.forEach(collect);
+                        });
+                        return names.length ? names.join('、') + '缺报价' : '';
+                    }
+                    // 逐层补货计划：按本地双阈值汇总预警物品，递归展开配方，合并采购/生产/需自行获取量。
+                    function renderPlan(uid) {
+                        const box = invMain.querySelector('.nek-inventory-plan');
+                        if (!box || box.hidden) return;
+                        box.replaceChildren();
+                        const refreshPlan = append(box, 'button', 'btn', '刷新');
+                        refreshPlan.type = 'button';
+                        refreshPlan.addEventListener('click', () => {
+                            refreshStockAlerts(uid);
+                            renderInventory();
+                        });
+                        const state = inventoryAlertState(uid);
+                        const plans = [...(state?.plans || [])].sort(([a], [b]) => a - b);
+                        if (!plans.length) { append(box, 'div', '', '当前没有库存预警。'); return; }
+                        const list = append(box, 'ul', '');
+                        plans.forEach(([id, plan]) => {
+                            append(list, 'li', '', itemName(id) + ' · 库存 ' + plan.actual + ' · 目标 ' + plan.target +
+                                ' · 缺 ' + plan.deficit + (plan.complete ? '' : ' · 配方无法展开'));
+                        });
+                        const shortages = plans.filter(([, plan]) => plan.complete).map(([id, plan]) => [id, plan.deficit]);
+                        const combined = state.combined ??= planStockReplenishment(data, shortages, id => state.quantities.get(id) ?? 0);
+                        if (!combined.complete) { append(box, 'div', '', '无法核算所有物品的合计用量，请查看各物品的预警。'); return; }
+                        [['建议采购', combined.purchases], ['计划生产', combined.production], ['需自行获取', combined.unavailable]].forEach(([title, entries]) => {
+                            if (!entries.length) return;
+                            append(box, 'h4', '', title);
+                            append(box, 'div', '', stockItemNames(data, entries));
+                        });
+                    }
+                    function renderInventory() {
+                        if (!invMain.isConnected) return;
+                        const uid = core.view().account;
+                        const led = inventoryLedger(uid);
+                        const warnings = inventoryAlertState(uid);
+                        const totalEl = invMain.querySelector('.nek-inventory-total');
+                        const list = invMain.querySelector('.nek-inventory-list');
+                        const statusEl = invMain.querySelector('[role="status"]');
+                        list.replaceChildren();
+                        const headRow = append(list, 'div', 'nek-inventory-head');
+                        ['物品', '可用', '综合单价', '库存价值', '预警', ''].forEach(t => append(headRow, 'span', '', t));
+                        const ids = Object.keys(led.items).map(Number).sort((a, b) => a - b);
+                        const valuation = inventoryValuation(led, data, warehouseCosts(uid));
+                        ids.forEach(id => {
+                            const row = led.items[String(id)];
+                            const s = inventorySummary(row);
+                            const lack = quoteLackText(row, led);
+                            const def = game.getItem(id) || data.items[String(id)] || { name: '#' + id };
+                            const block = append(list, 'div', 'nek-inventory-row' + (openBatches.has(id) ? ' open' : ''));
+                            block.dataset.id = String(id);
+                            const head = append(block, 'div', 'nek-inventory-summary');
+                            const nameEl = append(head, 'span', 'nek-inventory-name');
+                            append(nameEl, 'span', 'nek-inventory-caret', '▶');
+                            const nameText = append(nameEl, 'span', '', def.name || '#' + id);
+                            nameText.title = '点击展开/收起批次明细';
+                            const available = warnings?.quantities.get(id) ?? row.quantity;
+                            append(head, 'span', '', available.toLocaleString('zh-CN'));
+                            const priceText = lack || (s.unitPrice != null ? s.unitPrice.toLocaleString('zh-CN', { maximumFractionDigits: 2 }) : '待录入');
+                            const priceSummary = append(head, 'span', lack ? 'nek-price-missing' : '', priceText);
+                            const outputBatches = (row.batches || []).filter(b => b.reason === '生产成品');
+                            const formulaTip = outputBatches.length
+                                ? '成品综合单价计算公式：\n' + outputBatches.map(b => productionFormula(led, b, itemName)).join('\n')
+                                : '';
+                            priceSummary.title = (lack ? '来源材料批次未录入单价，补录后自动重算成品单价' : '有价批次按数量加权') +
+                                (formulaTip ? '\n' + formulaTip : '');
+                            append(head, 'span', '', s.total != null ? s.total.toLocaleString('zh-CN', { maximumFractionDigits: 2 }) : '—');
+                            const check = warnings?.checks.get(id) || { qtyLimit: 0, pctLimit: 0, short: false };
+                            const bits = [];
+                            if (check.qtyLimit > 0) bits.push('数量 ' + check.qtyLimit.toLocaleString('zh-CN'));
+                            if (check.pctLimit > 0) bits.push('峰值 ' + check.pct + '%/' + check.pctLimit + '%');
+                            const thresholdCell = append(head, 'span', 'nek-inventory-threshold' + (check.short ? ' nek-threshold-short' : ''),
+                                bits.length ? bits.join(' · ') : '未设置');
+                            thresholdCell.title = !bits.length
+                                ? '未设置预警，点击设置数值或百分比'
+                                : '可用 ' + check.have + ' · 当日峰值 ' + check.peak +
+                                  (check.qtyLimit > 0 ? ' · 数值阈值 ' + check.qtyLimit : '') +
+                                  (check.pctLimit > 0 ? ' · 峰值百分比阈值 ' + check.pctLimit + '%' : '') +
+                                  (warnings?.plans.has(id) ? ' · 补货目标 ' + warnings.plans.get(id).target : '') + '；点击修改';
+                            thresholdCell.addEventListener('click', e => {
+                                e.stopPropagation();
+                                openThresholdEditor(uid, id);
+                            });
+                            // 预警列后方：移除该物品（同时清掉该物品阈值与展开状态）。
+                            const del = append(head, 'button', 'nek-inventory-delete', '×');
+                            del.type = 'button';
+                            del.title = '从库存核算移除该物品';
+                            del.addEventListener('click', e => {
+                                e.stopPropagation();
+                                const current = inventoryLedger(uid);
+                                delete current.items[String(id)];
+                                delete current.thresholds[String(id)];
+                                openBatches.delete(id);
+                                saveInventoryLedger(uid, current);
+                                renderInventory();
+                            });
+                            // 整行（含左侧三角形）点击都展开/收起批次；录入浮窗改由批次单价单元格触发。
+                            head.addEventListener('click', e => {
+                                e.stopPropagation();
+                                if (openBatches.has(id)) openBatches.delete(id); else openBatches.add(id);
+                                renderInventory();
+                            });
+                            // FIFO 三色条：折叠仅显示三色；展开时两行（第二行消耗）且增加/消耗按批次斑马纹。
+                            const seg = inventoryDaySegments(row, Date.now());
+                            const fifo = append(block, 'div', 'nek-inventory-fifo');
+                            fifo.title = 'FIFO 队列：基准 ' + seg.base + ' · 当日增加 ' + seg.inc + ' · 当日消耗 ' + seg.dec + ' · 峰值 ' + seg.peak;
+                            // 展开段的悬浮提示：逐段显示「原因+数量（时分秒）」。
+                            const batchTip = b => {
+                                const t = new Date(Number(b.at) || 0);
+                                const time = Number.isFinite(t.getTime())
+                                    ? t.toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                                    : '';
+                                return String(b.reason || '') + (Number(b.qty) > 0 ? '+' : '') + Number(b.qty || 0).toLocaleString('zh-CN') + (time ? '（' + time + '）' : '');
+                            };
+                            if (openBatches.has(id)) {
+                                // 展开行1恒为满值（峰值100%）：基准段(完整) + 当日增加段（按批次交替深浅）。
+                                const line1 = append(fifo, 'div', 'nek-inventory-fifo-line');
+                                if (seg.baseFullPct > 0) {
+                                    const s = append(line1, 'div', 'nek-fifo-base nek-inventory-fifo-seg');
+                                    s.style.width = seg.baseFullPct + '%';
+                                    s.title = '换日基准 +' + seg.base.toLocaleString('zh-CN') + '（当日 00:00 前的批次净和）';
+                                }
+                                seg.incBatches.forEach((b, i) => {
+                                    const w = seg.peak > 0 ? Math.max(0, b.qty / seg.peak * 100) : 0;
+                                    if (w <= 0) return;
+                                    const s = append(line1, 'div', 'nek-fifo-inc nek-inventory-fifo-seg' + (i % 2 ? ' alt' : ''));
+                                    s.style.width = w + '%';
+                                    s.title = batchTip(b);
+                                });
+                                // 展开行2：当日消耗段（按批次交替深浅，从左起）。
+                                const line2 = append(fifo, 'div', 'nek-inventory-fifo-line');
+                                seg.decBatches.forEach((b, i) => {
+                                    const w = seg.peak > 0 ? Math.abs(b.qty) / seg.peak * 100 : 0;
+                                    if (w <= 0) return;
+                                    const s = append(line2, 'div', 'nek-fifo-dec nek-inventory-fifo-seg' + (i % 2 ? ' alt' : ''));
+                                    s.style.width = w + '%';
+                                    s.title = batchTip(b);
+                                });
+                                const hint = append(fifo, 'div', 'nek-inventory-fifo-hint',
+                                    '换日基准 ' + seg.base + ' · 增 ' + seg.inc + ' · 耗 ' + seg.dec + '（峰值 ' + seg.peak + '）');
+                                hint.title = '行1=峰值满值（基准+当日增加）；行2=当日消耗';
+                            } else {
+                                // 折叠：纯三色，从左至右 = 消耗覆盖 / 基准剩余 / 增加剩余。
+                                const line = append(fifo, 'div', 'nek-inventory-fifo-line');
+                                if (seg.decPct > 0) { const s = append(line, 'div', 'nek-fifo-dec nek-inventory-fifo-seg'); s.style.width = seg.decPct + '%'; }
+                                if (seg.basePct > 0) { const s = append(line, 'div', 'nek-fifo-base nek-inventory-fifo-seg'); s.style.width = seg.basePct + '%'; }
+                                if (seg.incPct > 0) { const s = append(line, 'div', 'nek-fifo-inc nek-inventory-fifo-seg'); s.style.width = seg.incPct + '%'; }
+                            }
+                            if (openBatches.has(id)) {
+                                const box = append(block, 'div', 'nek-inventory-batches');
+                                // 严格按时间正序：先入库/消耗在上，后入库/消耗在下。
+                                const sorted = row.batches.slice().sort((a, b) => a.at - b.at || String(a.id || '').localeCompare(String(b.id || '')));
+                                sorted.forEach(b => {
+                                    const line = append(box, 'div', 'nek-inventory-batch-row');
+                                    const cell1 = append(line, 'span', 'nek-inventory-batch-cell1');
+                                    append(cell1, 'span', 'nek-inventory-batch-time', new Date(b.at).toLocaleString('zh-CN', { hour12: false }));
+                                    const dir = directionOf(b.reason);
+                                    // 名称前不显示「借/贷」文字，仅用颜色区分方向，悬停仍可见借贷语义。
+                                    const reasonEl = append(cell1, 'span', dir === '贷' ? 'nek-inventory-credit' : 'nek-inventory-debit', b.reason);
+                                    reasonEl.title = (dir === '贷' ? '贷方（出库）' : '借方（入库）') + '：' + b.reason;
+                                    append(line, 'span', (b.qty > 0 ? 'nek-inventory-delta-pos' : 'nek-inventory-delta-neg'), (b.qty > 0 ? '+' : '') + b.qty.toLocaleString('zh-CN'));
+                                    const bLack = quoteLackText({ batches: [b] }, led);
+                                    const priceCell = append(line, 'span', 'nek-inventory-batch-price' + (bLack ? ' nek-price-missing' : ''),
+                                        bLack || (b.unitPrice != null ? b.unitPrice.toLocaleString('zh-CN', { maximumFractionDigits: 2 }) : '—'));
+                                    const formula = b.reason === '生产成品' ? productionFormula(led, b, itemName) : '';
+                                    priceCell.title = (formula ? '综合单价计算公式：' + formula + '\n' : '') +
+                                        (bLack
+                                            ? '该成品的 FIFO 来源材料尚未录入单价；补录来源批次单价后立即重算。'
+                                            : '') + '点击录入/修改该批次单价';
+                                    priceCell.addEventListener('click', e => {
+                                        e.stopPropagation();
+                                        openInventoryEditor(uid, id, b);
+                                    });
+                                    append(line, 'span', b.amount > 0 ? 'nek-inventory-delta-pos' : b.amount < 0 ? 'nek-inventory-delta-neg' : '', b.amount != null ? (b.amount > 0 ? '+' : '') + b.amount.toLocaleString('zh-CN', { maximumFractionDigits: 2 }) : '—');
+                                    const check = checkLabel(b);
+                                    const checkCell = append(line, 'span', check.cls, check.text);
+                                    checkCell.title = check.title;
+                                    append(line, 'span', '');   // 与汇总行的删除按钮列对齐
+                                });
+                                // 已归档历史：FIFO 耗尽批次，保留 5 天。
+                                const history = Array.isArray(row.history) ? row.history : [];
+                                if (history.length) {
+                                    const hTitle = append(box, 'div', 'nek-inventory-fifo-hint',
+                                        '历史记录（' + history.length + ' 条 · 保留 5 天）');
+                                    hTitle.title = 'FIFO 来源已耗尽的批次，次日 00:00 或首次加载后归档；按批次时间正序';
+                                    history.slice().sort((a, b) => a.at - b.at || String(a.id || '').localeCompare(String(b.id || ''))).forEach(h => {
+                                        const line = append(box, 'div', 'nek-inventory-batch-row nek-inventory-history');
+                                        const cell1 = append(line, 'span', 'nek-inventory-batch-cell1');
+                                        append(cell1, 'span', 'nek-inventory-batch-time', new Date(h.at).toLocaleString('zh-CN', { hour12: false }));
+                                        append(cell1, 'span', '', h.reason + '（已归档）');
+                                        append(line, 'span', 'nek-inventory-delta-neg', (h.qty > 0 ? '+' : '') + h.qty.toLocaleString('zh-CN'));
+                                        append(line, 'span', '', h.unitPrice != null ? h.unitPrice.toLocaleString('zh-CN', { maximumFractionDigits: 2 }) : '—');
+                                        append(line, 'span', '', h.amount != null ? h.amount.toLocaleString('zh-CN', { maximumFractionDigits: 2 }) : '—');
+                                        append(line, 'span', '', '已归档');
+                                        append(line, 'span', '');   // 与汇总行的删除按钮列对齐
+                                    });
+                                }
+                            }
+                        });
+                        const formatMoney = amount => amount.toLocaleString('zh-CN', { maximumFractionDigits: 2 });
+                        totalEl.textContent = '库存总价值 ' + formatMoney(valuation.total) + ' 喵点' +
+                            (valuation.estimated > 0 ? '（含配方估值 ' + formatMoney(valuation.estimated) + '）' : '') +
+                            (valuation.unpriced ? ' · ' + valuation.unpriced + ' 项有库存未计价' : '');
+                        renderPlan(uid);
+                        if (!ids.length && statusEl) statusEl.textContent = '点击「选择物品」添加要核算库存的物品。';
+                        else if (statusEl) statusEl.textContent = '';
+                    }
+                    // 单价来源标记：auto=自动填市场左一价（尚未录入）、saved=读取到本地已有数据、blank=无报价。
+                    function openInventoryEditor(uid, id, batch) {
+                        const led = inventoryLedger(uid);
+                        const row = led.items[String(id)];
+                        if (!row) return;
+                        // 从批次单价单元格进入时只改该批次；旧调用未传 batch 时退回期初批次。
+                        const target = batch || row.batches.find(b => b.reason === '初始库存');
+                        const modal = append(doc.body, 'div', 'selector neon nek-warehouse-cost-modal');
+                        append(modal, 'div', 'whc-name', '库存核算 · ' + (game.getItem(id)?.name || data.items[String(id)]?.name || '#' + id));
+                        append(modal, 'div', 'whc-hint', target
+                            ? '录入「' + target.reason + '」批次单价；单价留空表示不参与核算。' +
+                                (target.reason === '生产成品'
+                                    ? (target.manualPrice ? '该成品已手动录入综合单价，不再随材料价格重算。' : '成品录入后锁定，不再随材料价格重算。')
+                                    : '生产消耗批次录入后会随上游材料价格变化自动重算。')
+                            : '录入期初单价；单价留空表示不参与核算。');
+                        const priceInput = append(modal, 'input', 'whc-input');
+                        priceInput.type = 'text'; priceInput.inputMode = 'decimal';
+                        const source = append(modal, 'div', 'whc-source');
+                        const markSource = kind => {
+                            source.className = 'whc-source ' + (kind === 'auto' ? 'whc-source-auto' : kind === 'saved' ? 'whc-source-saved' : 'whc-source-blank');
+                            source.textContent = kind === 'auto' ? '已自动填入市场左一价（尚未录入）'
+                                : kind === 'saved' ? '已读取本地已有的单价数据'
+                                : '未取得市场左一价，请手动录入';
+                        };
+                        let quote = 0;
+                        if (target && target.unitPrice != null) {
+                            priceInput.value = String(target.unitPrice);
+                            markSource('saved');
+                        } else {
+                            quote = Number(leftPrice(id, 0)) || 0;
+                            if (quote > 0) { priceInput.value = String(round2(quote)); markSource('auto'); }
+                            else { priceInput.value = ''; markSource('blank'); }
+                        }
+                        const actions = append(modal, 'div', 'whc-actions');
+                        const confirm = append(actions, 'button', 'btn', '确定');
+                        const clear = append(actions, 'button', 'btn', '移除');
+                        const cancel = append(actions, 'button', 'btn', '取消');
+                        const close = () => { modal.remove(); };
+                        confirm.addEventListener('click', e => {
+                            e.stopPropagation();
+                            const price = priceInput.value.trim() === '' ? null : parseStockCost(priceInput.value);
+                            if (priceInput.value.trim() !== '' && price == null) { ui.notifier?.show?.('单价最多两位小数', 'error'); return; }
+                            if (target) {
+                                target.unitPrice = price;
+                                target.amount = price == null ? null : round2(target.qty * price);
+                                // 只有生产成品的手动综合单价锁定；消耗批次仍参与上游价重算。
+                                target.manualPrice = target.reason === '生产成品' && price != null;
+                                if (target.manualPrice) target.missing = undefined;
+                            }
+                            // 材料批次补录单价后，立即重算对应生产消耗与下游成品单价。
+                            if (target) recomputeProductionCost(led, [target.id], itemName);
+                            // 录入后若用的是自动填的左一价，补记一次来源标记，避免下次仍显示「尚未录入」。
+                            if (price != null && source.classList.contains('whc-source-auto')) markSource('saved');
+                            saveInventoryLedger(uid, led);
+                            close(); renderInventory();
+                        });
+                        clear.addEventListener('click', e => {
+                            e.stopPropagation();
+                            delete led.items[String(id)]; delete led.thresholds[String(id)];
+                            saveInventoryLedger(uid, led); close(); renderInventory();
+                        });
+                        cancel.addEventListener('click', e => { e.stopPropagation(); close(); });
+                        const outside = e => { if (!modal.contains(e.target)) { close(); doc.removeEventListener('click', outside); } };
+                        setTimeout(() => doc.addEventListener('click', outside), 0);
+                    }
+                    // 物品汇总行上的独立预警入口：数值阈值 + 当日峰值百分比阈值，均为 0 关闭。
+                    function openThresholdEditor(uid, id) {
+                        const led = inventoryLedger(uid);
+                        if (!led.items[String(id)]) return;
+                        const th = normalizeThreshold(led.thresholds[String(id)]) || {};
+                        const modal = append(doc.body, 'div', 'selector neon nek-warehouse-cost-modal');
+                        append(modal, 'div', 'whc-name', '库存预警 · ' + (game.getItem(id)?.name || data.items[String(id)]?.name || '#' + id));
+                        append(modal, 'div', 'whc-hint', '当日峰值比例填 0 即关闭该条件，补货目标按固定数量加充裕比例计算。两项均为 0 则关闭预警。');
+                        append(modal, 'div', 'whc-field-label', '低于该数值预警（数量）');
+                        const qtyInput = append(modal, 'input', 'whc-input');
+                        qtyInput.type = 'number'; qtyInput.min = '0'; qtyInput.step = '1';
+                        qtyInput.value = th.qty ? String(th.qty) : '0';
+                        append(modal, 'div', 'whc-field-label', '当日峰值比例（%，0 为关闭）');
+                        const pctInput = append(modal, 'input', 'whc-input');
+                        pctInput.type = 'number'; pctInput.min = '0'; pctInput.max = '100'; pctInput.step = '0.1';
+                        pctInput.value = th.pct ? String(th.pct) : '0';
+                        const actions = append(modal, 'div', 'whc-actions');
+                        const confirm = append(actions, 'button', 'btn', '确定');
+                        const cancel = append(actions, 'button', 'btn', '取消');
+                        const close = () => { modal.remove(); };
+                        confirm.addEventListener('click', e => {
+                            e.stopPropagation();
+                            const next = normalizeThreshold({ qty: Number(qtyInput.value) || 0, pct: Number(pctInput.value) || 0 });
+                            if (next) led.thresholds[String(id)] = next; else delete led.thresholds[String(id)];
+                            saveInventoryLedger(uid, led); close(); renderInventory();
+                        });
+                        cancel.addEventListener('click', e => { e.stopPropagation(); close(); });
+                        const outside = e => { if (!modal.contains(e.target)) { close(); doc.removeEventListener('click', outside); } };
+                        setTimeout(() => doc.addEventListener('click', outside), 0);
+                    }
+                    function mountInventoryPanel() {
+                        const uid = core.view().account;
+                        if (!uid) return;
+                        if (!invMain.querySelector('.nek-inventory-pick-btn')._bound) {
+                            const btn = invMain.querySelector('.nek-inventory-pick-btn');
+                            btn._bound = true;
+                            btn.addEventListener('click', e => { e.stopPropagation(); openInventoryPicker(btn); });
+                            doc.addEventListener('nek-inventory-updated', e => {
+                                if (!page.isConnected || invMain.hidden) return;
+                                // 物品菜单跳转：展开目标物品的批次并滚动定位。
+                                const focus = Number(e.detail?.focus);
+                                if (focus > 1) openBatches.add(focus);
+                                renderInventory();
+                                if (focus > 1) {
+                                    const row = invMain.querySelector('.nek-inventory-row[data-id="' + focus + '"]');
+                                    row?.scrollIntoView({ block: 'nearest' });
+                                }
+                            });
+                        }
+                        const historyBtn = invMain.querySelector('.nek-inventory-history-btn');
+                        if (historyBtn && !historyBtn._bound) {
+                            historyBtn._bound = true;
+                            historyBtn.addEventListener('click', () => {
+                                if (requestInventoryHistory(core.view().account, true)) {
+                                    ui.notifier?.show?.('已请求采购历史', 'tip');
+                                }
+                            });
+                        }
+                        const planBtn = invMain.querySelector('.nek-inventory-plan-btn');
+                        if (planBtn && !planBtn._bound) {
+                            planBtn._bound = true;
+                            planBtn.addEventListener('click', e => {
+                                e.stopPropagation();
+                                const box = invMain.querySelector('.nek-inventory-plan');
+                                box.hidden = !box.hidden;
+                                planBtn.textContent = box.hidden ? '查看补货计划' : '收起补货计划';
+                                planBtn.setAttribute('aria-expanded', String(!box.hidden));
+                                if (!box.hidden) renderInventory();
+                            });
+                        }
+                        const clearBtn = invMain.querySelector('.nek-inventory-clear-btn');
+                        if (clearBtn && !clearBtn._bound) {
+                            clearBtn._bound = true;
+                            clearBtn.addEventListener('click', e => {
+                                e.stopPropagation();
+                                if (!env.window.confirm('清空库存核算的全部数据？所有批次、预警和流水将被清除，且不可撤销。')) return;
+                                const uid = core.view().account;
+                                if (!uid) return;
+                                inventoryCache.delete(String(uid));
+                                openBatches.clear();
+                                saveInventoryLedger(uid, { items: {}, thresholds: {}, trades: [] });
+                                renderInventory();
+                                ui.notifier?.show?.('库存核算数据已清空', 'success', 2500);
+                            });
+                        }
+                        renderInventory();
+                    }
                     refresh.addEventListener('click', load);
                     doc.addEventListener('nek-stock-cost-updated', () => { if (page.isConnected && snapshot) render(snapshot); });
                     // 云同步覆盖成本核算清单后重绘：先按本地重新读取清单，避免闭包里的 products 过期。
@@ -5046,22 +7114,46 @@
                         }, 60);
                     });
                     load();
+                    // 库存核算现在是默认标签：首次打开成本页时就挂载账本列表。
+                    if (typeof mountInventoryPanel === 'function') mountInventoryPanel();
                 });
             }
             function decorate() {
                 const v = core.view();
                 if (!v.account) return;
                 style(); decorateResearch(v); decorateSettings(v); decorateHoldings(v); decorateCostEntry(); decorateMarketCost();
+                decorateMarketHistoryCosts();
                 doc.querySelectorAll('[data-nek-option]').forEach(input => {
                     const checked = v.settings[input.dataset.nekOption]; if (input.checked !== checked) input.checked = checked;
                 });
             }
             function pulse() {
-                try { install(); if (installed) { core.tick(); decorate(); } }
+                try {
+                    install();
+                    if (installed) {
+                        core.tick();
+                        const uid = core.view().account, head = env.game()?.queue?.[0];
+                        if (uid && costEnabled() && stockAlerts?.uid !== uid) {
+                            refreshStockAlerts(uid);
+                            nextProductionAlert = Date.now() + 120000;
+                        }
+                        if (uid && (historyRequest?.uid !== uid || historyRequest.socket !== env.msg()?.ws)) requestInventoryHistory(uid);
+                        if (uid && Date.now() >= nextProductionAlert && (head || productionAlertIds.size)) flushProductionAlerts(uid, head);
+                        decorate();
+                    }
+                }
                 catch (e) { console.warn('[小助手] 研究/任务/库存辅助异常:', e); }
             }
             function init() {
                 if (timer) return;
+                doc.addEventListener('nek-inventory-cloud-applied', e => {
+                    const uid = e.detail?.uid;
+                    if (!uid || uid !== core.view().account) return;
+                    inventoryCache.delete(String(uid));
+                    refreshStockAlerts(uid);
+                    dispatchInventoryUpdate(uid);
+                    requestInventoryHistory(uid, true);
+                });
                 pulse(); timer = setInterval(pulse, 2000);
                 env.window.addEventListener('pagehide', core.release);
             }
@@ -5072,7 +7164,7 @@
                         multiplier: state?.multiplier ?? entry.multiplier ?? entry.item?.multiplier };
                 });
             }
-            return { init, decorate, core, snapshotActions };
+            return { init, decorate, core, snapshotActions, stockShortages };
         }
         const nekEnhancements = createNekEnhancements({
             game: () => typeof game !== 'undefined' ? game : null,
@@ -5081,7 +7173,9 @@
             data: () => typeof Data !== 'undefined' ? Data : null,
             cookingChestDivisor: typeof CHEST_TIME_DIVISOR_COOKING !== 'undefined' ? CHEST_TIME_DIVISOR_COOKING : 21600,
             enabled: isEnabled, costEnabled: isCostEnabled, identifyAction, document, window,
-            storage: { getItem: k => localStorage.getItem(k), setItem: (k, v) => { localStorage.setItem(k, v); if ((k.indexOf('nek_enhancements_v1:') === 0 && k.indexOf(':lease') === -1) || k.indexOf('nek_cost_items_v1:') === 0 || k.indexOf('nek_warehouse_cost_v1:') === 0) cloudMark(); }, removeItem: k => localStorage.removeItem(k) }
+            // low=账本自动补记：静默写入 + 合并到较长窗口后的一次上传，避免连续生产刷屏。
+            cloudMarkLow: () => { try { cloud.markDirty(true); } catch (e) { /* 忽略 */ } },
+            storage: { getItem: k => localStorage.getItem(k), setItem: (k, v, silent) => { localStorage.setItem(k, v); if (!silent && ((k.indexOf('nek_enhancements_v1:') === 0 && k.indexOf(':lease') === -1) || k.indexOf('nek_cost_items_v1:') === 0 || k.indexOf('nek_warehouse_cost_v1:') === 0 || k.indexOf('nek_inventory_ledger_v1:') === 0 || k === 'nek_stock_buffer_percentage')) cloudMark(); }, removeItem: k => localStorage.removeItem(k) }
         });
         // NEK_ENHANCEMENTS_END
 
@@ -5519,6 +7613,15 @@
                 '  50% { box-shadow: inset 0 0 9px 2px rgba(255,48,33,0.95); border-color: rgb(255,48,33); }',
                 '}',
                 '.nek-research-queue-toggle.nek-research-lack { border-color: rgb(255,48,33);',
+                '  animation: nek-research-lack-breathe 1.6s ease-in-out infinite; }',
+                // 库存提醒按钮：与研究队列按钮同款；库存不足时复用同一红色内发光呼吸动画。
+                '.nek-stock-alert-toggle { position: relative; padding: 0 8px; border-radius: 4px; color: #333;',
+                '  background: var(--c-warning, #ffd93b); text-align: center; cursor: pointer;',
+                '  transition: all .2s ease; font-weight: 700; font-family: system-ui; font-size: 12px;',
+                '  height: 20px; line-height: 20px; letter-spacing: 1px;',
+                '  border: 2px solid var(--c-black, #000); white-space: nowrap; }',
+                '.nek-stock-alert-toggle:hover { filter: brightness(1.15); -webkit-filter: brightness(1.15); }',
+                '.nek-stock-alert-toggle.nek-stock-short { border-color: rgb(255,48,33);',
                 '  animation: nek-research-lack-breathe 1.6s ease-in-out infinite; }'
             ].join('\n');
             document.head.appendChild(s);
@@ -5663,9 +7766,11 @@
             injectLockGuardStyle();
             ensureToggleButton();
             ensureResearchQueueButton();
+            ensureStockAlertButton();
             ensureQuestFullBadge();
             setInterval(ensureToggleButton, 2000);      // 游戏重绘行动区后自动补挂开关按钮
             setInterval(ensureResearchQueueButton, 1000);   // 研究队列按钮：每秒刷新文字/进度并自动补挂
+            setInterval(ensureStockAlertButton, 1000);    // 库存提醒：每秒刷新预警状态（无变化不写 DOM）
             setInterval(ensureQuestFullBadge, 30000);   // 任务侧栏「满」角标：每 30 秒核对合同数，满员显示、未满自动移除
             setInterval(protectLockedHarvestBtns, 1500); // 种植页重绘后重新置灰锁定地块的收获按钮
             setInterval(harvestTick, HARVEST_TICK_MS);
@@ -6185,7 +8290,7 @@
         // ---------------- 自动检查更新（GitHub raw 头部 @version 对比） ----------------
         // 注意：发布新版本时需同步修改 CURRENT_VERSION（与头部 @version 保持一致）。
         // 页面上下文无 GM_info（@grant none 且经 <script> 注入），只能内置当前版本号。
-        const CURRENT_VERSION = '1.56.0';
+        const CURRENT_VERSION = '1.58.7';
         const LS_UPD_KEY = 'nek_update_check_enabled';        // 检查更新开关，默认开
         const LS_UPD_REMIND = 'nek_update_remind_last';       // 上次提醒时间戳（提醒节流）
         const UPD_REMIND_INTERVAL = 60 * 60 * 1000;           // 提醒节流：距上次提醒超过 60 分钟才再次提醒
@@ -6623,6 +8728,55 @@
             } catch (e) { /* 忽略 */ }
         }
 
+        // ---- 队列按钮行「库存提醒」：已设置预警的物品库存低于阈值时红色内发光 ----
+        function openInventoryTab() {
+            UI.changeContent('nek-cost');
+            const activate = function () {
+                let page = document.querySelector('.page.nek-cost');
+                const entry = document.querySelector('.nek-cost-entry');
+                if (page && !page.querySelector('.nek-cost-tabs') && entry) {
+                    entry.classList.remove('active');
+                    entry.click();
+                    page = document.querySelector('.page.nek-cost');
+                }
+                const tab = page && page.querySelector('.nek-cost-tabs [data-tab="inventory"]');
+                if (tab && !tab.classList.contains('active')) tab.click();
+            };
+            activate(); setTimeout(activate, 0); setTimeout(activate, 150);
+        }
+        function paintStockAlertButton(btn) {
+            const list = nekEnhancements.stockShortages();
+            let text = '库存充足';
+            let tip = '所有已设置预警的物品库存充足 · 点击进入库存核算';
+            if (list.length) {
+                const first = list[0];
+                text = first.name + '不足：' + first.have + (list.length > 1 ? ' 等' + list.length + '项' : '');
+                tip = list.map(function (x) { return x.name + ' ' + x.have + '/' + x.th; }).join('；') + ' · 点击进入库存核算';
+            }
+            if (btn._nekStockText !== text) { btn._nekStockText = text; btn.textContent = text; }
+            btn.classList.toggle('nek-stock-short', list.length > 0);
+            btn.title = tip;
+        }
+        function ensureStockAlertButton() {
+            try {
+                if (!isEnabled() || !isCostEnabled()) {
+                    const stale = document.querySelector('.nek-stock-alert-toggle');
+                    if (stale) stale.remove();
+                    return;
+                }
+                const row = ensureQueueButtonRow();
+                if (!row) return;
+                let btn = row.querySelector('.nek-stock-alert-toggle');
+                if (!btn) {
+                    btn = document.createElement('div');
+                    btn.className = 'nek-stock-alert-toggle';
+                    btn.addEventListener('click', openInventoryTab);
+                    row.appendChild(btn);   // 排在研究队列按钮右侧
+                }
+                paintStockAlertButton(btn);
+            } catch (e) { /* 忽略 */ }
+        }
+
         // 任务侧栏「满」角标：劳务派遣合同满员时复用种植侧栏黄色角标样式（.tip-container > .tip.tip-default）
         // 合同数 = game.quests.work.length，上限 = game.character.quest_max（与任务页「合同数量 5 / 6」同源）
         function ensureQuestFullBadge() {
@@ -7009,14 +9163,17 @@
             alcsort: 'nek_assistant_alcsort_enabled', cookjump: 'nek_assistant_cookjump_enabled',
             harvest: 'nek_harvest_enabled', farm: 'nek_farm_assist_enabled',
             fishtimer: 'nek_assistant_fishtimer_enabled', update: 'nek_update_check_enabled',
-            alcsortMode: 'nek_assistant_alcsort_mode'
+            alcsortMode: 'nek_assistant_alcsort_mode', stockBufferPercentage: 'nek_stock_buffer_percentage'
         };
         const CLOUD_ENH_SETTING_KEYS = ['researchQueue', 'researchFinish', 'questAccept', 'questReward', 'holdings'];
         // 修改后不再立即上传：连续 3 条修改触发一次，或最后一次修改后 5 秒触发一次。
         const CLOUD_DIRTY_BATCH = 3;
         const CLOUD_DIRTY_DELAY = 5000;
+        // 生产队列完成/取消等账本自动补记不按普通修改处理：不累加编辑数，合并到 5 分钟后的一次上传，
+        // 避免连续生产时每完成一条就触发云同步。
+        const CLOUD_LOW_DELAY = 5 * 60 * 1000;
         // 多脚本版本容错：云端 payload 中本地脚本无法识别/覆盖的字段暂存，上传时原样带回。
-        const CLOUD_KNOWN_TOP = new Set(['schema', 'uid', 'ts', 'settings', 'queue', 'fish', 'favorites', 'costItems', 'warehouseCost']);
+        const CLOUD_KNOWN_TOP = new Set(['schema', 'uid', 'ts', 'settings', 'queue', 'fish', 'favorites', 'costItems', 'warehouseCost', 'inventoryLedger']);
         const CLOUD_STAGED_KEY = uid => 'nek_cloud_staged_v1:' + uid;
         function cloudStaged(uid) {
             try {
@@ -7077,6 +9234,101 @@
         function cloudWarehouseCost(uid) {
             try { return cloudNormalizeWarehouseCost(JSON.parse(localStorage.getItem('nek_warehouse_cost_v1:' + uid) || '{}')); }
             catch (e) { return {}; }
+        }
+        // 库存核算账本：批次 + 阈值 + 最近200条流水，整份覆盖同步。
+        function cloudNormalizeInventory(v, costs) {
+            const empty = { items: {}, thresholds: {}, trades: [] };
+            if (!v || typeof v !== 'object' || Array.isArray(v)) return empty;
+            if (Array.isArray(v.products) || Object.values(v.items || {}).some(row => Array.isArray(row?.purchases))) {
+                v = normalizeInventoryLedger(migrateAverageInventory(v, costs));
+            }
+            const reasons = ['初始库存', '市场买入', '市场卖出', '生产消耗', '生产成品'];
+            const r2 = n => { const x = Number(n); return Number.isFinite(x) ? Math.round(x * 100) / 100 : null; };
+            const out = { items: {}, thresholds: {}, trades: [] };
+            const orders = normalizeInventoryOrders(v.orders);
+            if (Object.keys(orders).length) out.orders = orders;
+            for (const [id, row] of Object.entries(v.items || {}).slice(0, 1000)) {
+                if (!/^\d+$/.test(String(id)) || Number(id) <= 1) continue;
+                if (!row || typeof row !== 'object') continue;
+                let seed = row.batches;
+                if (!Array.isArray(seed) && Array.isArray(row.purchases)) {
+                    seed = row.purchases.map(p => ({ at: p.at, reason: String(p.source || '').includes('生产') ? '生产成品' : '市场买入',
+                        qty: p.quantity, unitPrice: p.price }));
+                }
+                const batches = (Array.isArray(seed) ? seed : []).slice(-200).map((b, i) => {
+                    // 旧「换日库存」即期初快照→「初始库存」；旧「换日缺口」下阶段才在历史记录展示，此处丢弃。
+                    const rawReason = b?.reason === '换日库存' ? '初始库存' : b?.reason;
+                    if (rawReason === '换日缺口') return null;
+                    const reason = reasons.includes(rawReason) ? rawReason : '初始库存';
+                    const qty = Number(b?.qty), at = Number(b?.at), price = b?.unitPrice == null ? null : Number(b.unitPrice);
+                    // 初始库存允许 qty=0（建账时仓库无货）；其余批次 qty 必须非 0。
+                    if (!Number.isFinite(qty) || (qty === 0 && reason !== '初始库存') || !Number.isFinite(at) || at < 0) return null;
+                    if (price != null && (!Number.isFinite(price) || price < 0)) return null;
+                    const p = price == null ? null : r2(price);
+                    const bs = b.source && typeof b.source === 'object' ? b.source : null;
+                    const bsId = Number(bs?.id), bsQty = Number(bs?.qty), bsPrice = bs?.unitPrice == null ? null : Number(bs.unitPrice);
+                    const source = bs && bsId > 1 && Number.isFinite(bsQty) && bsQty > 0 &&
+                        (bsPrice == null || (Number.isFinite(bsPrice) && bsPrice >= 0))
+                        ? { id: bsId, from: String(bs.from || '').slice(0, 80), qty: bsQty,
+                            unitPrice: bsPrice == null ? null : r2(bsPrice) } : undefined;
+                    const missing = (Array.isArray(b.missing) ? b.missing : []).slice(0, 50).map(m => ({
+                        id: Number(m?.id), name: String(m?.name || '').slice(0, 60)
+                    })).filter(m => Number.isInteger(m.id) && m.id > 1);
+                    return { id: String(b.id || 'b' + i).slice(0, 80), at, reason,
+                        qty, unitPrice: p, amount: p == null ? null : b.reason === '生产成品' && qty > 0 &&
+                            Number.isFinite(b.amount) && b.amount >= 0 ? r2(b.amount) : r2(qty * p),
+                        ref: b.ref != null ? String(b.ref).slice(0, 80) : undefined,
+                        from: b.from != null ? String(b.from).slice(0, 80) : undefined, verified: b.verified === true,
+                        checkAt: Number.isFinite(b.checkAt) && b.checkAt > 0 ? b.checkAt : undefined,
+                        source, missing: missing.length ? missing : undefined, manualPrice: b.manualPrice === true };
+                }).filter(Boolean).sort((a, b) => a.at - b.at);
+                const quantity = Number.isSafeInteger(row.quantity) && row.quantity >= 0 ? row.quantity : 0;
+                const now = Date.now();
+                const history = (Array.isArray(row.history) ? row.history : [])
+                    .filter(h => h && typeof h === 'object' && Number.isFinite(h.archivedAt) && now - h.archivedAt <= 5 * 24 * 3600 * 1000)
+                    .slice(-200).map(h => {
+                        const qty = Number(h.qty), at = Number(h.at), price = h.unitPrice == null ? null : Number(h.unitPrice);
+                        if (!Number.isFinite(qty) || !Number.isFinite(at) || (price != null && (!Number.isFinite(price) || price < 0))) return null;
+                        const hs = h.source && typeof h.source === 'object' ? h.source : null;
+                        const hsId = Number(hs?.id), hsQty = Number(hs?.qty), hsPrice = hs?.unitPrice == null ? null : Number(hs.unitPrice);
+                        return { id: String(h.id || 'h' + at).slice(0, 80), at,
+                            reason: reasons.includes(h.reason) ? h.reason : '生产消耗', qty,
+                            unitPrice: price == null ? null : r2(price), amount: price == null ? null : r2(qty * price),
+                            from: h.from != null ? String(h.from).slice(0, 80) : undefined,
+                            ref: h.ref != null ? String(h.ref).slice(0, 80) : undefined, archivedAt: Number(h.archivedAt),
+                            source: hs && hsId > 1 && Number.isFinite(hsQty) && hsQty > 0 &&
+                                (hsPrice == null || (Number.isFinite(hsPrice) && hsPrice >= 0))
+                                ? { id: hsId, from: String(hs.from || '').slice(0, 80), qty: hsQty,
+                                    unitPrice: hsPrice == null ? null : r2(hsPrice) } : undefined,
+                            missing: Array.isArray(h.missing) ? h.missing.slice(0, 50).map(m => ({
+                                id: Number(m?.id), name: String(m?.name || '').slice(0, 60)
+                            })).filter(m => Number.isInteger(m.id) && m.id > 1) : undefined,
+                            manualPrice: h.manualPrice === true };
+                    }).filter(Boolean);
+                if (!batches.length && !history.length && quantity <= 0) continue;
+                out.items[id] = { batches, history, quantity, since: Number.isFinite(row.since) && row.since > 0 ? row.since : now };
+            }
+            for (const [id, raw] of Object.entries(v.thresholds || {})) {
+                if (!(/^\d+$/.test(String(id)) && Number(id) > 1)) continue;
+                const th = raw && typeof raw === 'object'
+                    ? { qty: Number(raw.qty), pct: Number(raw.pct) } : { qty: Number(raw), pct: 0 };
+                const keep = {};
+                if (Number.isSafeInteger(th.qty) && th.qty > 0) keep.qty = th.qty;
+                if (Number.isFinite(th.pct) && th.pct > 0) keep.pct = r2(Math.min(100, th.pct));
+                if (Object.keys(keep).length) out.thresholds[id] = keep;
+            }
+            out.trades = (Array.isArray(v.trades) ? v.trades : []).slice(-200).map(t => {
+                const at = Number(t?.at), id = Number(t?.id), qty = Number(t?.qty), price = t?.unitPrice == null ? null : Number(t.unitPrice);
+                if (!(id > 1) || !Number.isFinite(at) || at <= 0 || !Number.isFinite(qty) || qty === 0) return null;
+                if (price != null && (!Number.isFinite(price) || price < 0)) return null;
+                return { at, id, reason: reasons.includes(t.reason) ? t.reason : '市场买入', qty,
+                    unitPrice: price == null ? null : r2(price), ref: t.ref != null ? String(t.ref).slice(0, 80) : undefined };
+            }).filter(Boolean).sort((a, b) => a.at - b.at);
+            return out;
+        }
+        function cloudInventoryLedger(uid) {
+            try { return cloudNormalizeInventory(JSON.parse(localStorage.getItem('nek_inventory_ledger_v1:' + uid) || 'null'), cloudWarehouseCost(uid)); }
+            catch (e) { return { items: {}, thresholds: {}, trades: [] }; }
         }
 
         const isCloudEnabled = () => {
@@ -7218,7 +9470,7 @@
             Object.keys(stagedSettings).forEach(k => { if (!(k in settings)) settings[k] = stagedSettings[k]; });
             const fish = { bookings };
             Object.keys(stagedFish).forEach(k => { if (!(k in fish)) fish[k] = stagedFish[k]; });
-            const payload = { schema: 1, uid: uid, ts: Date.now(), settings, queue, fish, favorites: cloudFavorites(), costItems: cloudCostItems(uid), warehouseCost: cloudWarehouseCost(uid) };
+            const payload = { schema: 1, uid: uid, ts: Date.now(), settings, queue, fish, favorites: cloudFavorites(), costItems: cloudCostItems(uid), warehouseCost: cloudWarehouseCost(uid), inventoryLedger: cloudInventoryLedger(uid) };
             Object.keys(stagedTop).forEach(k => { if (!CLOUD_KNOWN_TOP.has(k)) payload[k] = stagedTop[k]; });
             return payload;
         }
@@ -7256,7 +9508,9 @@
             // 直接 JSON.stringify 比对会误判为不同 → 刷新时误报「云端已覆盖本地」，
             // 而 cloudApply 对 null 又跳过不覆盖，造成「通知说覆盖、实际没变」的矛盾。
             const settings = cloudStable((p && p.settings) || {});
+            settings.stockBufferPercentage = String(normalizeStockBuffer(settings.stockBufferPercentage));
             Object.keys(settings).forEach(k => {
+                if (k === 'stockBufferPercentage') return;
                 if (k === 'alcsortMode') {   // 字符串枚举，按原值比（null 归一为默认空串）
                     settings[k] = settings[k] == null ? '' : String(settings[k]);
                 } else if (Object.prototype.hasOwnProperty.call(CLOUD_SETTING_KEYS, k) ||
@@ -7275,7 +9529,8 @@
                 bookings: cloudCurrentBookings(Array.isArray(p?.fish?.bookings) ? p.fish.bookings : []),
                 favorites: favorites.slice(0, 500),
                 costItems: cloudNormalizeCostItems(p && p.costItems),
-                warehouseCost: cloudNormalizeWarehouseCost(p && p.warehouseCost)
+                warehouseCost: cloudNormalizeWarehouseCost(p && p.warehouseCost),
+                inventoryLedger: cloudNormalizeInventory(p && p.inventoryLedger, p && p.warehouseCost)
             });
         }
         function cloudSameAsLocal(remote, uid) {
@@ -7285,6 +9540,10 @@
                 // 旧 payload 无成本核算字段：视为与本地一致，避免因新增字段误报「已覆盖本地」。
                 if (!('costItems' in probe)) probe.costItems = local.costItems;
                 if (!('warehouseCost' in probe)) probe.warehouseCost = local.warehouseCost;
+                if (!('inventoryLedger' in probe)) probe.inventoryLedger = local.inventoryLedger;
+                if (!Object.hasOwn(probe.settings || {}, 'stockBufferPercentage')) {
+                    probe.settings = { ...probe.settings, stockBufferPercentage: local.settings.stockBufferPercentage };
+                }
                 return JSON.stringify(cloudPayloadBody(probe)) === JSON.stringify(cloudPayloadBody(local));
             } catch (e) { return false; }
         }
@@ -7308,6 +9567,10 @@
                 Object.keys(p.warehouseCost).length > 500 ||
                 Object.keys(p.warehouseCost).some(k => !/^\d+$/.test(k) || Number(k) <= 0 ||
                     !Number.isFinite(Number(p.warehouseCost[k])) || Number(p.warehouseCost[k]) < 0))) return false;
+            // 库存核算账本：旧 payload 无字段兼容；有则归一化后限量校验。
+            if (p.inventoryLedger != null && (!p.inventoryLedger || typeof p.inventoryLedger !== 'object' || Array.isArray(p.inventoryLedger) ||
+                Object.keys(p.inventoryLedger.items || {}).length > 1000 ||
+                (p.inventoryLedger.trades != null && (!Array.isArray(p.inventoryLedger.trades) || p.inventoryLedger.trades.length > 200)))) return false;
             return true;
         }
         // 应用云端 payload 到本地：queue 去 submitted 且丢弃已完成项、钓鱼预约按 day 过滤跨日
@@ -7323,6 +9586,7 @@
                 const v = p.settings[k];
                 if (v === undefined) return;
                 if (v === null) localStorage.removeItem(CLOUD_SETTING_KEYS[k]);
+                else if (k === 'stockBufferPercentage') localStorage.setItem(CLOUD_SETTING_KEYS[k], String(normalizeStockBuffer(v)));
                 else localStorage.setItem(CLOUD_SETTING_KEYS[k], k === 'alcsortMode' ? String(v) : (v === '0' || v === false ? '0' : '1'));
             });
             enh.settings = enh.settings || {};
@@ -7353,8 +9617,16 @@
                 localStorage.setItem('nek_warehouse_cost_v1:' + uid, JSON.stringify(cloudNormalizeWarehouseCost(p.warehouseCost)));
                 try { document.dispatchEvent(new CustomEvent('nek-stock-cost-updated', { detail: { id: 0 } })); } catch (e) { /* 忽略 */ }
             }
+            if (p.inventoryLedger != null) {
+                localStorage.setItem('nek_inventory_ledger_v1:' + uid, JSON.stringify(cloudNormalizeInventory(p.inventoryLedger, p.warehouseCost)));
+            }
+            if (p.inventoryLedger != null || Object.hasOwn(p.settings, 'stockBufferPercentage')) {
+                try { document.dispatchEvent(new CustomEvent('nek-inventory-cloud-applied', { detail: { uid: String(uid) } })); } catch (e) { /* 忽略 */ }
+            }
             // 较旧脚本无法本地覆盖的字段暂存，上传时原样带回，避免跨版本同步丢数据。
             cloudStageUnknown(p, uid);
+            // 应用云端后本地即与云端一致：记下签名，防止事件回调里的重写立刻把同一份数据推回去。
+            try { cloud.lastBodySig = JSON.stringify(cloudPayloadBody(cloudBuildPayload(String(uid)))); } catch (e) { /* 忽略 */ }
         }
 
         // 收藏整份覆盖前的确认：两端收藏不一致时弹窗对比数量，由用户决定是否用云端覆盖本地。
@@ -7393,7 +9665,8 @@
         // 云同步状态机
         const cloud = {
             uid: '', dirty: false, running: false, lastPushAt: 0, failNotified: false, timer: null,
-            edits: 0, idleTimer: null,   // 修改计数 / 5 秒静默定时器
+            edits: 0, idleTimer: null, idleLow: false,   // 修改计数 / 静默定时器（是否低优先级）
+            lastBodySig: '',   // 上次成功上传/应用云端的数据签名：内容没变就不再重复上传
             booting: true,   // 启动加载阶段：只 pull 不 push，页面加载完成后才允许 push
             async request(method, uid, body) {
                 const url = CLOUD_ENDPOINT + '?uid=' + encodeURIComponent(uid);
@@ -7461,23 +9734,28 @@
                 if (r.status !== 200) throw new Error('http_' + r.status);
                 return { ok: true };
             },
-            markDirty() {
+            markDirty(low) {
                 // 决策2：启动加载阶段禁止 push；决策3：登录页不 push。
                 if (this.booting || !isCloudEnabled() || isLoginScreen()) return;
                 this.dirty = true;
-                this.edits++;
-                if (this.idleTimer) { clearTimeout(this.idleTimer); this.idleTimer = null; }
-                // 连续 3 条修改触发一次上传；否则等最后一次修改后 5 秒再上传。
-                if (this.edits >= CLOUD_DIRTY_BATCH) this.flush();
+                // low=账本自动补记（生产完成/取消、核对标记）：不累加编辑数，
+                // 且延长静默窗口，避免连续生产时每 3 条就上传一次。
+                if (!low) this.edits++;
+                // 已有普通修改待传时，低优先级补记不得把 5 秒窗口拖成 5 分钟。
+                if (low && this.idleTimer && !this.idleLow) return;
+                if (this.idleTimer) { clearTimeout(this.idleTimer); this.idleTimer = null; this.idleLow = false; }
+                this.idleLow = !!low;
+                const delay = low ? CLOUD_LOW_DELAY : CLOUD_DIRTY_DELAY;
+                if (!low && this.edits >= CLOUD_DIRTY_BATCH) this.flush();
                 else this.idleTimer = setTimeout(() => {
-                    this.idleTimer = null;
+                    this.idleTimer = null; this.idleLow = false;
                     if (this.dirty) this.flush();
-                }, CLOUD_DIRTY_DELAY);
+                }, delay);
             },
             async flush(force) {
                 if ((!force && this.booting) || !isCloudEnabled() || isLoginScreen()) {
                     this.dirty = false; this.edits = 0;
-                    if (this.idleTimer) { clearTimeout(this.idleTimer); this.idleTimer = null; }
+                    if (this.idleTimer) { clearTimeout(this.idleTimer); this.idleTimer = null; this.idleLow = false; }
                     return;
                 }
                 if (this.running) return;
@@ -7489,7 +9767,7 @@
                 if (this.uid && String(this.uid) !== String(uid)) {
                     this.dirty = false;
                     this.edits = 0;
-                    if (this.idleTimer) { clearTimeout(this.idleTimer); this.idleTimer = null; }
+                    if (this.idleTimer) { clearTimeout(this.idleTimer); this.idleTimer = null; this.idleLow = false; }
                     if (this.timer) { clearTimeout(this.timer); this.timer = null; }
                     this.lastPushAt = 0;
                 }
@@ -7502,12 +9780,17 @@
                 this.running = true;
                 this.dirty = false;
                 this.edits = 0;
-                if (this.idleTimer) { clearTimeout(this.idleTimer); this.idleTimer = null; }
+                if (this.idleTimer) { clearTimeout(this.idleTimer); this.idleTimer = null; this.idleLow = false; }
                 try {
                     const payload = cloudBuildPayload(uid);
+                    // 重复写入相同内容不再上传：生产账本补记/核对标记可能反复写同一份数据，
+                    // 只有 payload 正文（忽略 ts）真变化才发 PUT；手动同步（force）绕过此判断。
+                    const sig = JSON.stringify(cloudPayloadBody(payload));
+                    if (!force && sig === this.lastBodySig) return;
                     const r = await this.push(uid, payload);
                     this.lastPushAt = Date.now();
                     if (r && r.ok) {
+                        this.lastBodySig = sig;
                         if (this.failNotified) { this.failNotified = false; }
                         cloudNotify('云同步：已上传配置', 'tip', 2500);
                     } else if (r && r.limited) {
@@ -7546,7 +9829,7 @@
                 // Reset lastPushAt 让手动按钮绕过客户端 2 秒节流（服务端 429 仍会兜底）。
                 this.lastPushAt = 0;
                 this.dirty = true;
-                if (this.idleTimer) { clearTimeout(this.idleTimer); this.idleTimer = null; }
+                if (this.idleTimer) { clearTimeout(this.idleTimer); this.idleTimer = null; this.idleLow = false; }
                 this.edits = 0;
                 await this.flush(true);
             }
