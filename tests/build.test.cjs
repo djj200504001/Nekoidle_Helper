@@ -14,9 +14,14 @@ test('安装文件与模块源码一致，入口、版本号和单次初始化�
     assert.equal((script.match(/\/\/ NEK_ENHANCEMENTS_END/g) || []).length, 1);
     assert.equal((script.match(/nekEnhancements\.init\(\);/g) || []).length, 1);
     assert.equal((script.match(/function \(\) \{ nekEnhancements\.decorate\(\); \}/g) || []).length, 1);
-    assert.match(script, /@version\s+1\.58\.7\n/);
-    assert.match(script, /@description\s+v1\.58\.7：/);
-    assert.match(script, /const CURRENT_VERSION = '1\.58\.7';/);
+    assert.match(script, /@version\s+1\.58\.9\n/);
+    assert.match(script, /@description\s+v1\.58\.9：/);
+    assert.match(script, /const CURRENT_VERSION = '1\.58\.9';/);
+    // 物品菜单「库存核算」入口与选择物品浮层共用原料提示（防止再次漏接）
+    assert.match(script, /if \(addedNow\) showInventoryAddedInfo\(uid, id, addedNow\.qty, addedNow\.price, addedNow\.sourceKind\)/);
+    assert.match(script, /function cloudChoice\(title, message, confirmText, cancelText\)/);
+    assert.match(script, /async function cloudApply\(p, uid\)/);
+    assert.doesNotMatch(script, /const useCloud = window\.confirm\(/);
     assert.doesNotThrow(() => new vm.Script(script));
 });
 
@@ -76,7 +81,7 @@ test('云同步模块已注入：端点、限流、登录页停同步、二选�
     assert.match(script, /isLoginScreen\(\)\) return \{ skipped: true \}/);
     // 二选一确认
     assert.match(script, /async function cloudOnToggle\(checked, toggleEl\)/);
-    assert.match(script, /使用云端数据覆盖当前浏览器/);
+    assert.match(script, /用云端数据覆盖当前浏览器/);
     assert.match(script, /保留当前浏览器数据并覆盖云端/);
     // 通知栏反馈
     assert.match(script, /const cloudNotify = \(msg, type, ms\)/);
@@ -165,11 +170,11 @@ test('云同步市场收藏：payload 纳入 favorites、归一化比对、覆�
     // 结构校验：旧 payload 无字段兼容
     assert.match(script, /p\.favorites != null && \(!Array\.isArray\(p\.favorites\)/);
     // 覆盖前弹窗对比两端数量，用户决定整份覆盖
-    assert.match(script, /function cloudConfirmFavorites\(p\)/);
+    assert.match(script, /async function cloudConfirmFavorites\(p, uid\)/);
     assert.match(script, /云端收藏：' \+ remote\.length/);
     assert.match(script, /本地收藏：' \+ local\.length/);
-    assert.match(script, /window\.confirm\(msg\)/);
-    assert.match(script, /if \(p\.favorites != null\) \{[\s\S]{0,200}cloudConfirmFavorites\(p\)/);
+    assert.match(script, /await cloudChoice\('云同步 · 市场收藏'/);
+    assert.match(script, /const applyFav = p\.favorites != null \? await cloudConfirmFavorites\(p, uid\) : false;/);
     assert.match(script, /localStorage\.setItem\('favorite', JSON\.stringify\(cloudNormalizeFavorites\(p\.favorites\)\)\)/);
     // 挂钩 Utils.setData('favorite') 自动上传，且只包一次；cloudApply 走 setItem 不回环
     assert.match(script, /function hookFavoriteCloud\(tries\)/);

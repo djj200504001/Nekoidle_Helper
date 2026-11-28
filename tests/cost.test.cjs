@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { recipeCost, substituteOptions, mergeWarehouseCost, claimCosts, stockTotalOf, directStockTotal, parseStockCost, round2, craftableProduct, normalizeInventoryLedger, normalizeThreshold, thresholdCheck, productionFormula, migrateEmptyBatchItems, inventorySummary, inventoryDaySegments, archiveExhaustedBatches, dayStartOf, addInventoryBatch, consumeInventoryFifo, pushInventoryTrade, inventoryDelta, inventoryReconcile, fifoPrice,
     productionQueueCost, mergeQueueOutputBatches, productionSourcesOf, productionCostOf, recomputeProductionCost, findInventoryBatch,
     stockRecipe, planStockReplenishment, stockReplenishment, stockItemNames, productionRemovedItems,
-    importFifoPurchases, inventoryValuation, migrateAverageInventory } = require('../src/enhancements.js');
+    importFifoPurchases, inventoryValuation, migrateAverageInventory, clearInventoryPrices } = require('../src/enhancements.js');
 
 test('补货按 FIFO 双阈值取较高值，低于阈值触发并持续到充裕目标', () => {
     const data = { items: { 10: { id: 10 } } };
@@ -838,4 +838,35 @@ test('补货目标按本地双阈值取较高者，已达目标不生成计划',
     assert.equal(plan.deficit, 50);
     assert.equal(stockReplenishment(data, 100, { have: 0, peak: 100, qtyLimit: 10, pctLimit: 0 }, held).target, 10);
     assert.equal(stockReplenishment(data, 100, { have: 60, peak: 100, qtyLimit: 10, pctLimit: 50 }, held), null);
+});
+
+test('清空单价仅清单价数据，保留批次数量/来源/队列与预警', () => {
+    const led = { items: { 100: {
+        batches: [
+            { id: 'b1', reason: '初始库存', qty: 10, unitPrice: 100, amount: 1000, at: 1 },
+            { id: 'b2', reason: '生产成品', qty: 5, unitPrice: 250, amount: 1250, manualPrice: true,
+              missing: [{ id: 200, name: '原料' }], source: { id: 200, from: 'b0', qty: 5, unitPrice: 200 }, ref: 'q1', at: 2 },
+            { id: 'b3', reason: '市场买入', qty: 2, unitPrice: 300, amount: 600, ref: 't1', at: 3 }
+        ],
+        history: [{ id: 'b4', reason: '初始库存', qty: 4, unitPrice: 90, amount: 360, at: 0 }],
+        quantity: 17
+    } }, thresholds: { 100: { qty: 5, pct: 20 } } };
+    assert.deepEqual(clearInventoryPrices(led, 100), ['b1', 'b2', 'b3', 'b4']);
+    const row = led.items[100];
+    assert.equal(row.quantity, 17);
+    assert.deepEqual(led.thresholds[100], { qty: 5, pct: 20 });
+    row.batches.concat(row.history).forEach(b => {
+        assert.equal(b.unitPrice, null);
+        assert.equal(b.amount, null);
+        assert.equal(b.manualPrice, false);
+        assert.equal(b.missing, undefined);
+    });
+    assert.deepEqual(row.batches.map(b => [b.qty, b.ref, b.reason]),
+        [[10, undefined, '初始库存'], [5, 'q1', '生产成品'], [2, 't1', '市场买入']]);
+    assert.equal(row.batches[1].source.id, 200);
+    assert.equal(row.batches[1].source.qty, 5);
+    assert.equal(row.batches[1].source.unitPrice, null);
+    assert.equal(row.history[0].qty, 4);
+    assert.deepEqual(clearInventoryPrices(led, 999), []);
+    assert.deepEqual(clearInventoryPrices({ items: {} }, 100), []);
 });

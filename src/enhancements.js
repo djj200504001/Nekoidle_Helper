@@ -1338,6 +1338,26 @@ function recomputeProductionCost(ledger, changedIds, nameOf) {
     return touched;
 }
 
+// 清空单个物品的全部单价数据（含归档批次），保留批次数量、ref/from、来源物品与阈值。
+// 返回被修改的批次 id，供 recomputeProductionCost 重算下游：成品手动价被清后恢复自动计算。
+function clearInventoryPrices(ledger, id) {
+    const row = ledger?.items?.[String(id)];
+    if (!row) return [];
+    const changed = [];
+    const wipe = b => {
+        if (!b || typeof b !== 'object') return;
+        b.unitPrice = null;
+        b.amount = null;
+        b.manualPrice = false;
+        delete b.missing;
+        if (b.source && typeof b.source === 'object') b.source.unitPrice = null;
+        if (b.id) changed.push(String(b.id));
+    };
+    (row.batches || []).forEach(wipe);
+    (Array.isArray(row.history) ? row.history : []).forEach(wipe);
+    return changed;
+}
+
 // 滚动流水：追加一条，超过上限丢弃最早记录。
 function pushInventoryTrade(ledger, entry) {
     const at = Number(entry?.at) || Date.now(), id = Number(entry?.id);
@@ -2192,14 +2212,21 @@ function createNekEnhancements(env) {
                             const uid = core.view().account;
                             if (!(uid && id > 1)) return;
                             const led = inventoryLedger(uid);
+                            let addedNow = null;
                             if (!led.items[String(id)]) {
-                                const price = Number(warehouseCosts(uid)[String(id)]) > 0 ? round2(warehouseCosts(uid)[String(id)]) : (leftPrice(id, enh) > 0 ? round2(leftPrice(id, enh)) : null);
+                                // 与「选择物品」浮层同口径：旧库存成本 → 左一价 → 待录入。
+                                const oldCost = Number(warehouseCosts(uid)[String(id)]) > 0 ? round2(warehouseCosts(uid)[String(id)]) : null;
+                                const quote = leftPrice(id, enh) > 0 ? round2(leftPrice(id, enh)) : null;
+                                const price = oldCost != null ? oldCost : quote;
                                 const qty = Number(env.game().getItemQuantity(id, enh)) || 0;
                                 addInventoryBatch(led, { id, at: Date.now(), reason: '初始库存', qty: qty || 0, unitPrice: price });
                                 saveInventoryLedger(uid, led);
+                                addedNow = { qty, price, sourceKind: oldCost != null ? 'saved' : (quote != null ? 'auto' : 'blank') };
                             }
                             doc.dispatchEvent(new CustomEvent('nek-inventory-updated', { detail: { uid: String(uid), focus: id } }));
                             focused = true;
+                            // 从物品菜单加入核算时同样提示直接生产原料，支持一键加入未登记原料。
+                            if (addedNow) showInventoryAddedInfo(uid, id, addedNow.qty, addedNow.price, addedNow.sourceKind);
                         };
                         const tryOpen = () => { if (ensureInventoryTab()) focusItem(); };
                         tryOpen();
@@ -2272,6 +2299,12 @@ function createNekEnhancements(env) {
             '  font-size:12px;color:rgb(255,48,33);border:1px solid rgba(255,48,33,.5);border-radius:3px;background:transparent;cursor:pointer}',
             '.nek-inventory-delete:hover{background:rgba(255,48,33,.18);color:#fff}',
             '.nek-warehouse-cost-modal .whc-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}',
+            // 加入核算后的原料提示浮窗：在常用录入浮窗样式上加宽并限高。
+            '.nek-inventory-added-modal{width:420px;top:26%;max-height:70vh;overflow:auto}',
+            '.nek-inventory-added-list{font-size:12px;line-height:1.7;margin:6px 0 2px}',
+            '.nek-inventory-added-list .added-row{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid rgba(var(--r),var(--g),var(--b),.16);padding:2px 0}',
+            '.nek-inventory-added-tag{font-size:11px;color:var(--c-text-dim,#83c3c3);white-space:nowrap}',
+            '.nek-inventory-added-tag.added-ready{color:rgb(76,175,80)}',
             // 替换食材面板复用原生 .cooking-substitute-panel 组件，仅补充分组标题间距。
             '.nek-cost-sub-picker .selector-list{padding:0 6px 6px}',
             '.nek-cost-sub-picker .cooking-sub-ingredient-label{font-size:12px;color:var(--c-main-bright,#74F9BC);margin:6px 0 2px}',
@@ -2307,8 +2340,12 @@ function createNekEnhancements(env) {
             '.nek-inventory-summary{display:grid;grid-template-columns:minmax(0,0.8fr) repeat(4,minmax(0,1fr)) 26px;align-items:center;gap:4px;cursor:pointer;font-variant-numeric:tabular-nums}',
             '.nek-inventory-summary>span:not(:first-child){text-align:right}',
             '.nek-inventory-name{display:inline-flex;align-items:center;gap:4px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-            '.nek-inventory-caret{display:inline-block;font-size:10px;opacity:.7;transition:transform .15s;flex:none}',
+            // 三角独立热区：放大到 20px 见方（透明内边距式，不挤占右侧列），点击仅展开/收起。
+            '.nek-inventory-caret{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;margin:-2px 0;',
+            '  flex:none;font-size:10px;opacity:.7;transition:transform .15s;cursor:pointer;user-select:none;border-radius:3px}',
+            '.nek-inventory-caret:hover{opacity:1;background:rgba(var(--r),var(--g),var(--b),.14);color:var(--c-main-bright,#74f9bc)}',
             '.nek-inventory-row.open .nek-inventory-caret{transform:rotate(90deg)}',
+            '.nek-inventory-name-text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
             // 批次行与汇总行共用同一 grid 模板，确保逐列严格对齐：
             // 第1列(物品名下方)=时间+原因，第2列 可用↔数量变化，第3列 综合单价↔批次单价，
             // 第4列 库存价值↔总额变化，第5列 预警↔核对。
@@ -3536,6 +3573,66 @@ function createNekEnhancements(env) {
             function closeInventoryPicker() {
                 if (invPicker) { invPicker.remove(); invPicker = null; }
             }
+            // 物品加入核算后的即时反馈：显示期初数量/单价来源与直接生产原料的登记状态，
+            // 并提供「一键加入未登记原料」，避免逐项回选择物品浮层。
+            function showInventoryAddedInfo(uid, id, qty, price, sourceKind) {
+                const name = itemName(id);
+                const modal = append(doc.body, 'div', 'selector neon nek-warehouse-cost-modal nek-inventory-added-modal');
+                append(modal, 'div', 'whc-name', '已加入库存核算 · ' + name);
+                append(modal, 'div', 'whc-hint', '期初数量 ' + Number(qty || 0).toLocaleString('zh-CN') +
+                    ' · 单价' + (sourceKind === 'saved' ? '读取本地已有数据'
+                        : sourceKind === 'auto' ? '自动填入市场左一价（尚未录入）'
+                        : '未取得报价，待手动录入') +
+                    (price != null ? '：' + round2(price).toLocaleString('zh-CN') : ''));
+                const recipe = stockRecipe(data, id);
+                const needs = recipe ? recipe.requirements : [];
+                const list = append(modal, 'div', 'nek-inventory-added-list');
+                if (!recipe) {
+                    append(list, 'div', '', '基础材料：无生产配方，无需继续加入原料。');
+                } else {
+                    append(list, 'div', '', '生产配方（产出 ' + recipe.output.toLocaleString('zh-CN') + '）所需直接原料：');
+                    const ledNow = inventoryLedger(uid);
+                    needs.forEach(r => {
+                        const mid = Number(r.itemId);
+                        const row = append(list, 'div', 'added-row');
+                        append(row, 'span', '', itemName(mid) + ' × ' +
+                            Number(r.quantity).toLocaleString('zh-CN', { maximumFractionDigits: 2 }));
+                        const registered = !!ledNow.items[String(mid)];
+                        const trade = data.items[mid]?.trade === false ? '需自行获取' : '可交易';
+                        append(row, 'span', 'nek-inventory-added-tag' + (registered ? ' added-ready' : ''),
+                            (registered ? '✓ 已登记' : '未登记') + ' · ' + trade);
+                    });
+                }
+                const actions = append(modal, 'div', 'whc-actions');
+                const pending = needs.filter(r => !inventoryLedger(uid).items[String(Number(r.itemId))]);
+                let addBtn = null;
+                if (pending.length) {
+                    addBtn = append(actions, 'button', 'btn', '一键加入未登记原料');
+                    addBtn.addEventListener('click', e => {
+                        e.stopPropagation();
+                        const led = inventoryLedger(uid);
+                        let added = 0;
+                        pending.forEach(r => {
+                            const mid = Number(r.itemId);
+                            if (led.items[String(mid)]) return;
+                            const oldCost = warehouseCosts(uid)[String(mid)];
+                            const quote = leftPrice(mid, 0);
+                            const p = Number(oldCost) > 0 ? round2(oldCost) : (quote > 0 ? round2(quote) : null);
+                            const q = Number(game.getItemQuantity(mid)) || 0;
+                            if (addInventoryBatch(led, { id: mid, at: Date.now(), reason: '初始库存', qty: q || 0, unitPrice: p })) added++;
+                        });
+                        saveInventoryLedger(uid, led);
+                        close(); renderInventory();
+                        if (added) ui.notifier?.show?.('已加入 ' + added + ' 项原料到库存核算', 'tip', 2200);
+                    });
+                }
+                const closeBtn = append(actions, 'button', 'btn', '关闭');
+                closeBtn.addEventListener('click', e => { e.stopPropagation(); close(); });
+                const close = () => { modal.remove(); doc.removeEventListener('click', outside); doc.removeEventListener('keydown', onKey); };
+                const outside = e => { if (!modal.contains(e.target)) close(); };
+                const onKey = e => { if (e.key === 'Escape') close(); };
+                setTimeout(() => { doc.addEventListener('click', outside); doc.addEventListener('keydown', onKey); }, 0);
+            }
             function openInventoryPicker(anchor) {
                 closeInventoryPicker();
                 const uid = core.view().account;
@@ -3594,11 +3691,14 @@ function createNekEnhancements(env) {
                             } else {
                                 // 期初库存：按优先级确定单价（旧库存成本/历史采购/左一价），云账本已存在则保留。
                                 const oldCost = warehouseCosts(uid)[key];
-                                const price = Number(oldCost) > 0 ? round2(oldCost) : (leftPrice(item.id, 0) > 0 ? round2(leftPrice(item.id, 0)) : null);
+                                const quote = leftPrice(item.id, 0);
+                                const price = Number(oldCost) > 0 ? round2(oldCost) : (quote > 0 ? round2(quote) : null);
+                                const sourceKind = Number(oldCost) > 0 ? 'saved' : (quote > 0 ? 'auto' : 'blank');
                                 const qty = Number(game.getItemQuantity(item.id)) || 0;
                                 addInventoryBatch(led, { id: item.id, at: Date.now(), reason: '初始库存', qty: qty || 0, unitPrice: price });
                                 saveInventoryLedger(uid, led);
                                 el.classList.add('selected-outline');
+                                showInventoryAddedInfo(uid, item.id, qty, price, sourceKind);
                             }
                             el.title = (el.classList.contains('selected-outline') ? '✓ ' : '') + (item.name || '#' + item.id);
                             renderInventory();
@@ -3704,9 +3804,30 @@ function createNekEnhancements(env) {
                     block.dataset.id = String(id);
                     const head = append(block, 'div', 'nek-inventory-summary');
                     const nameEl = append(head, 'span', 'nek-inventory-name');
-                    append(nameEl, 'span', 'nek-inventory-caret', '▶');
-                    const nameText = append(nameEl, 'span', '', def.name || '#' + id);
-                    nameText.title = '点击展开/收起批次明细';
+                    const caretEl = append(nameEl, 'span', 'nek-inventory-caret', '▶');
+                    caretEl.title = '展开/收起批次明细';
+                    // 三角独立热区：自己的点击只切展开，不触发整行监听（stopPropagation）。
+                    caretEl.addEventListener('click', e => {
+                        e.stopPropagation();
+                        if (openBatches.has(id)) openBatches.delete(id); else openBatches.add(id);
+                        renderInventory();
+                    });
+                    const nameText = append(nameEl, 'span', 'nek-inventory-name-text', def.name || '#' + id);
+                    // 物品名复用游戏原生交互：悬浮显示物品说明，点击打开原生物品菜单；
+                    // 名字与三角各有专属点击，其余行区域仍保留整行展开。
+                    if (def && Number(def.id) > 0 && typeof ui.bindItemTooltip === 'function') {
+                        const item = { id: Number(def.id), enhancement: 0, quantity: Number(game.getItemQuantity(id)) || 0 };
+                        ui.bindItemTooltip(nameText, def, { item });
+                        nameText.classList.add('nek-cost-material-live');
+                        if (typeof ui.showItemMenu === 'function') {
+                            nameText.addEventListener('click', e => {
+                                e.stopPropagation();
+                                ui.showItemMenu(nameText, { itemDef: def, enhancement: 0 });
+                            });
+                        }
+                    } else {
+                        nameText.title = '点击展开/收起批次明细';
+                    }
                     const available = warnings?.quantities.get(id) ?? row.quantity;
                     append(head, 'span', '', available.toLocaleString('zh-CN'));
                     const priceText = lack || (s.unitPrice != null ? s.unitPrice.toLocaleString('zh-CN', { maximumFractionDigits: 2 }) : '待录入');
@@ -3893,7 +4014,8 @@ function createNekEnhancements(env) {
                 }
                 const actions = append(modal, 'div', 'whc-actions');
                 const confirm = append(actions, 'button', 'btn', '确定');
-                const clear = append(actions, 'button', 'btn', '移除');
+                const clear = append(actions, 'button', 'btn', '清空');
+                clear.title = '清空该物品所有批次已录入的单价数据，保留批次数量、来源与预警设置';
                 const cancel = append(actions, 'button', 'btn', '取消');
                 const close = () => { modal.remove(); };
                 confirm.addEventListener('click', e => {
@@ -3916,7 +4038,9 @@ function createNekEnhancements(env) {
                 });
                 clear.addEventListener('click', e => {
                     e.stopPropagation();
-                    delete led.items[String(id)]; delete led.thresholds[String(id)];
+                    // 只清单价数据：批次数量、ref/from、时间、来源物品与阈值全部保留。
+                    // 成品手动价被清后恢复自动重算，材料缺价也传播到下游。
+                    recomputeProductionCost(led, clearInventoryPrices(led, id), itemName);
                     saveInventoryLedger(uid, led); close(); renderInventory();
                 });
                 cancel.addEventListener('click', e => { e.stopPropagation(); close(); });
@@ -4086,4 +4210,4 @@ function createNekEnhancements(env) {
 if (typeof module !== 'undefined') module.exports = { createNekController, createNekEnhancements, recipeCost, substituteOptions, mergeWarehouseCost, claimCosts, stockTotalOf, directStockTotal, parseStockCost, round2, craftableProduct, normalizeInventoryLedger, normalizeThreshold, thresholdCheck, migrateEmptyBatchItems, inventorySummary, inventoryDaySegments, archiveExhaustedBatches, dayStartOf, addInventoryBatch, consumeInventoryFifo, pushInventoryTrade, inventoryDelta, inventoryReconcile, fifoPrice,
     findInventoryBatch, productionQueueCost, productionFormula, mergeQueueOutputBatches, productionSourcesOf, productionCostOf, recomputeProductionCost,
     stockHeld, stockRecipe, planStockReplenishment, stockReplenishment, stockItemNames, productionRemovedItems,
-    normalizeStockBuffer, importFifoPurchases, inventoryValuation, migrateAverageInventory };
+    normalizeStockBuffer, importFifoPurchases, inventoryValuation, migrateAverageInventory, clearInventoryPrices };

@@ -26,7 +26,7 @@ test('定时钓鱼补回缺失配置，使用剩余次数、原倍率，并跳�
     ]);
 });
 
-test('云同步保留默认开关、已关闭的开关和进行中的钓鱼链，只同步有效预约', () => {
+test('云同步保留默认开关、已关闭的开关和进行中的钓鱼链，只同步有效预约', async () => {
     const storage = new Map(), uid = '7', key = 'nek_enhancements_v1:7';
     const context = { localStorage: {
         getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v), removeItem: k => storage.delete(k)
@@ -51,14 +51,14 @@ test('云同步保留默认开关、已关闭的开关和进行中的钓鱼链�
     assert.deepEqual(Array.from(payload.fish.bookings, b => b.pondId), [2]);
     delete payload.favorites;
     payload.settings.harvest = null;
-    api.cloudApply(payload, uid);
+    await api.cloudApply(payload, uid);
     assert.equal(storage.has('hv'), false);
     const fish = JSON.parse(storage.get('fish'));
     assert.deepEqual(fish.chain.snapshot, [2]);
     assert.deepEqual(fish.bookings.map(b => b.pondId), [1, 2]);
     storage.set(key, JSON.stringify({ queue: [{ submitted: { targetLevel: 1 } }] }));
     const before = [...storage];
-    assert.throws(() => api.cloudApply(payload, uid), /研究正在确认/);
+    await assert.rejects(() => api.cloudApply(payload, uid), /研究正在确认/);
     assert.deepEqual([...storage], before);
 });
 

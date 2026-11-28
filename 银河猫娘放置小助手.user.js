@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         银河猫娘放置小助手
 // @namespace    https://nekoidle.com/
-// @version      1.58.7
-// @description  v1.58.7：生产回包 remove 按背包堆叠 ID 反查真实用料——替换食材/多倍行动不再误用配方原物品或把堆叠 ID 当物品 ID；记账时机与差额口径不变。v1.58.6——移植远端逐层补货计划——库存核算页新增「查看补货计划」，按双阈值汇总预警物品，递归展开配方并合并建议采购/计划生产/需自行获取数量。v1.58.5——修正手动价语义——仅生产成品手动录入的综合单价锁定，生产消耗批次的手动价参与上游价重算。v1.58.4——成品综合单价悬浮显示完整价格计算公式；预警浮窗拆为数值与当日峰值百分比双条件，均为 0 关闭。v1.58.3——生产成品改为一个队列一条批次，材料跨种类/跨批次成本合计后除以总产出得综合单价；旧拆分批次自动合并；缺报价与补录重算按队列生效。v1.58.2——库存核算新增清空数据按钮、移除物品无需二次确认；缺报价与补录重算支持历史批次（按同队列消耗反推来源）。v1.58.1——库存核算不再自动纳入新进仓库物品；生产成品按 FIFO 来源批次拆分单价，缺价显示「XX物品缺报价」并在补录后自动重算，手动录入价优先。v1.58.0——修复生产账本补记反复触发云同步（低优先级合并 + 相同内容不重复上传）；库存核算标签前置并修复物品详情跳转；展开斑马纹悬浮查看批次细节；物品列收窄一半、预警列后加删除按钮；队列按钮行新增库存提醒按钮。v1.57.0——新增库存核算页（成本核算页第二标签）——按「初始库存（仓库无货填0）+ 借贷流水」记账，批次明细逐列对齐、初始库存置顶、借/贷方向标注、预警列显示实时比例，市场分类筛选+搜索选物品，市场交易与历史记录标记式校验，流水保留最近200条并纳入云同步；物品菜单「库存成本」改为「库存核算」跳转。v1.56.0——修复部分成交收购单的库存成本——结算项自带 side/price，改为直接按结算项的求购单价核算（side=2 入库、item=1 金币找零排除），分批成交分别点领取各自按该批成交价入库加权，不再依赖订单列表。v1.55.0——挂单收购物品后库存成本不更新修复：挂单成交先进结算池、领取才入库，领取时按结算 order_id 从订单取真实成交价，入库回包按该价加权（本地有库存但未录成本时直接采用成交价）；移除挂单回包误清空暂存单价与 120 秒过期限制。v1.54.0——成本核算材料树复用游戏原生交互——悬浮材料名显示物品文字说明、点击弹出原生物品菜单（含查看辞典/兑换/库存成本）；成本核算清单与库存成本数据的写入纳入云同步标记（增改条目、录入/清空库存成本、市场买入加权后立即触发上传），不再依赖其他操作顺带上传。v1.53.0——成本核算卡片展开标题左侧加三角指示（展开后旋转）；市场详情只对生产/烹饪成品显示「精算」按钮；成本核算（侧栏入口+精算）改为独立设置开关并纳入云同步；烹饪/生产/采集列表优化、点金辅助、农业辅助五项合并为设置页「生产采集界面优化」一个开关。v1.52.0——库存成本输入限两位小数；小计括号差额为 +0 时不显示；成本核算清单与库存成本纳入云同步（整份覆盖、归一化比对）；云同步改为连续 3 条修改或停止修改 5 秒后上传，云端旧脚本无法本地覆盖的字段暂存并在上传时原样带回。v1.51.0——成本核算卡片改为「直接买入材料」「从基础原料制作」两个可展开块——前者仅列一层直接材料、含库存成本列与按出售/收购小计的括号差额（正数绿字、负数红字），后者列完整逐层树、无库存成本列与括号；展开状态跨重绘保留。v1.50.0——修复小计括号差额：中间产物自身录有库存成本时按它核算，不再误展开子节点显示 +0；成本核算页改为复用主脚本行情 API（含 v1.44.4 单物品强刷修复），缺报价材料恢复行情后自动重绘，不再另拉全量快照自造取数。v1.49.0——修复替换食材按钮尺寸（不再覆盖原生 .btn 字号/内边距）；「仓库成本」改名「库存成本」，录入浮窗改确定/清空/取消三按钮；悬停物品行情新增库存成本行；成本表用量并入材料列（x数字）、第二列改库存成本，最终小计括号显示市场小计−库存合计差额。v1.48.0——物品菜单新增彩色像素图标「仓库成本」（背包无该物品时隐藏，录入浮窗默认填左一价，确定保存、点外部关闭），市场买入后按库存与成交价加权更新本地成本；替换食材按钮与删除按钮等高；面包等战斗掉落物改标「战斗掉落」。v1.47.1——修复成本核算侧栏图标显示样式差异、精算按钮样式，选择浮层筛选点击消失与图标重叠（全部档不显示第二层），采集/掉落类食材误标「配方不可用」，替换食材改用游戏原生选择界面。v1.47.0——成本核算界面改炼金式两层筛选图标网格（全部/生产/烹饪各四分支）；侧栏入口换趋势图表图标；市场详情收藏旁新增「精算」按钮一键加入/剔除清单；成本核算支持烹饪配方与「食材重构」替代食材（研究 126 解锁后显示替换按钮）。v1.46.2——修复全量市场快照漏物品（如无卖单的松露意面）时误判「暂无市场行情」——缺底数先走单物品强刷确认，失败延时重试，快照到达后恢复同物品其他等级。v1.46.1——统一成本核算入口的侧栏文字样式，并换用表格图标。v1.46.0——成本核算支持自选清单与宽屏双列。v1.45.2——收紧成本表，材料用量与双侧报价分列对齐。v1.45.1——修复成本核算页展开长配方后无法滚动的问题。v1.45.0——新增奇点科技生产成本核算，可逐层展开至采集和梳毛原料。v1.44.3——修复云同步开关与预约恢复、研究账号切换、定时钓鱼队列恢复及构建校验。v1.44.2——修复研究队列云同步「已完成研究复活」竞态——云端旧队列覆盖本地时，按游戏实时等级过滤掉目标已达成的条目（与 plan()/settleSubmitted 同口径，含正在研究任务 +1），比对时同口径过滤避免每次刷新误报覆盖。v1.44.1——toolbar「手动云同步」按钮改为与签到按钮同款青色发光样式（文字由「同步」改「手动云同步」）。v1.44.0——云同步新增市场「我的收藏」同步（localStorage.favorite 的 itemId 数组，归一化去重排序后入 payload；挂钩 Utils.setData 自动上传；云端覆盖前弹窗对比两端收藏数量由用户决定整份覆盖）+ toolbar 签到按钮旁新增「同步」按钮（仅上传本地到云端，不拉取）。v1.43.7——修复刷新时误报「云端已覆盖本地」——开关按脚本真实语义归一化比对（null 或 1 都=开、0=关），null 与 1 不再判为不同；研究按钮缺料红框内发光改呼吸动画。v1.43.6——研究队列按钮缺料提示——队首材料确实不足（复用研究队列已有的 researchStatus 判定）时，快捷按钮红边框 + 红色内发光、字保持黑色，title 补注「队首材料不足，等待补充」。v1.43.5——pull 绑定到游戏主界面顶栏 toolbar-container——进入游戏（含刷新、回退登录页后重新进入）时各发一次 GET，同一节点只拉一次、回退清空以允许再拉；服务端 GET/GET 与 PUT/PUT 各自 2 秒限流、两者互不干扰。v1.43.4——修复刷新不发 pull：从 document-idle 延后到主界面就绪后再拉。v1.43.3——云同步 uid 安全加固——覆盖/上传前实时校验当前游戏玩家 uid（pull 请求前后双闸、push 上传前后双闸、flush 检测账号切换丢弃旧状态），防止 A 回退登录页后 B 登录被 A 的云端配置串号覆盖。v1.43.2——云同步与脚本加载并行——4 个 init 立即执行不等网络，服务端不可达/挂起都不影响加载（单次请求 3 秒超时）；启动只 pull 不 push，拉取后与本地比对，一致不覆盖不通知，仅云端覆盖本地 / push 成功 / push 失败三类用通知栏反馈；回退登录页不 push、不 pull；未登录不同步、不等待 uid；设置页云同步开关，本地设置/研究队列/钓鱼预约变化时 2 秒节流自动上传；首次开启云端有数据则二选一，无数据静默启用；钓鱼预约新增 day 日期字段跨日不同步；队列条目去 submitted、本地租约不进 payload；明文 JSON + XOR/Base64 混淆传输。自动收菜按钮 60 秒往返进度 CSS keyframes 动画；研究队列（预留材料与自动结算）、自动接受任务/领奖、市场行情、采集/生产/烹饪详情优化、防呆设置、点金辅助、农业辅助（自动收菜+好友农场预览）、检查更新、定时钓鱼、炼金经验效率与越级计算等，详见脚本正文。
+// @version      1.58.9
+// @description  v1.58.9：修复从物品菜单「库存核算」加入账本时未弹出原料提示浮窗——该入口与「选择物品」浮层统一提示直接生产原料并支持一键加入。v1.58.8——库存核算物品名复用游戏原生悬浮说明与点击菜单，三角独立热区扩大；单价浮窗中间按钮改「清空」——仅清单价数据、保留批次与预警；加入核算后浮窗提示直接生产原料并支持一键加入；云同步二选一改用游戏内浮窗替代系统弹窗。v1.58.7——生产回包 remove 按背包堆叠 ID 反查真实用料——替换食材/多倍行动不再误用配方原物品或把堆叠 ID 当物品 ID；记账时机与差额口径不变。v1.58.6——移植远端逐层补货计划——库存核算页新增「查看补货计划」，按双阈值汇总预警物品，递归展开配方并合并建议采购/计划生产/需自行获取数量。v1.58.5——修正手动价语义——仅生产成品手动录入的综合单价锁定，生产消耗批次的手动价参与上游价重算。v1.58.4——成品综合单价悬浮显示完整价格计算公式；预警浮窗拆为数值与当日峰值百分比双条件，均为 0 关闭。v1.58.3——生产成品改为一个队列一条批次，材料跨种类/跨批次成本合计后除以总产出得综合单价；旧拆分批次自动合并；缺报价与补录重算按队列生效。v1.58.2——库存核算新增清空数据按钮、移除物品无需二次确认；缺报价与补录重算支持历史批次（按同队列消耗反推来源）。v1.58.1——库存核算不再自动纳入新进仓库物品；生产成品按 FIFO 来源批次拆分单价，缺价显示「XX物品缺报价」并在补录后自动重算，手动录入价优先。v1.58.0——修复生产账本补记反复触发云同步（低优先级合并 + 相同内容不重复上传）；库存核算标签前置并修复物品详情跳转；展开斑马纹悬浮查看批次细节；物品列收窄一半、预警列后加删除按钮；队列按钮行新增库存提醒按钮。v1.57.0——新增库存核算页（成本核算页第二标签）——按「初始库存（仓库无货填0）+ 借贷流水」记账，批次明细逐列对齐、初始库存置顶、借/贷方向标注、预警列显示实时比例，市场分类筛选+搜索选物品，市场交易与历史记录标记式校验，流水保留最近200条并纳入云同步；物品菜单「库存成本」改为「库存核算」跳转。v1.56.0——修复部分成交收购单的库存成本——结算项自带 side/price，改为直接按结算项的求购单价核算（side=2 入库、item=1 金币找零排除），分批成交分别点领取各自按该批成交价入库加权，不再依赖订单列表。v1.55.0——挂单收购物品后库存成本不更新修复：挂单成交先进结算池、领取才入库，领取时按结算 order_id 从订单取真实成交价，入库回包按该价加权（本地有库存但未录成本时直接采用成交价）；移除挂单回包误清空暂存单价与 120 秒过期限制。v1.54.0——成本核算材料树复用游戏原生交互——悬浮材料名显示物品文字说明、点击弹出原生物品菜单（含查看辞典/兑换/库存成本）；成本核算清单与库存成本数据的写入纳入云同步标记（增改条目、录入/清空库存成本、市场买入加权后立即触发上传），不再依赖其他操作顺带上传。v1.53.0——成本核算卡片展开标题左侧加三角指示（展开后旋转）；市场详情只对生产/烹饪成品显示「精算」按钮；成本核算（侧栏入口+精算）改为独立设置开关并纳入云同步；烹饪/生产/采集列表优化、点金辅助、农业辅助五项合并为设置页「生产采集界面优化」一个开关。v1.52.0——库存成本输入限两位小数；小计括号差额为 +0 时不显示；成本核算清单与库存成本纳入云同步（整份覆盖、归一化比对）；云同步改为连续 3 条修改或停止修改 5 秒后上传，云端旧脚本无法本地覆盖的字段暂存并在上传时原样带回。v1.51.0——成本核算卡片改为「直接买入材料」「从基础原料制作」两个可展开块——前者仅列一层直接材料、含库存成本列与按出售/收购小计的括号差额（正数绿字、负数红字），后者列完整逐层树、无库存成本列与括号；展开状态跨重绘保留。v1.50.0——修复小计括号差额：中间产物自身录有库存成本时按它核算，不再误展开子节点显示 +0；成本核算页改为复用主脚本行情 API（含 v1.44.4 单物品强刷修复），缺报价材料恢复行情后自动重绘，不再另拉全量快照自造取数。v1.49.0——修复替换食材按钮尺寸（不再覆盖原生 .btn 字号/内边距）；「仓库成本」改名「库存成本」，录入浮窗改确定/清空/取消三按钮；悬停物品行情新增库存成本行；成本表用量并入材料列（x数字）、第二列改库存成本，最终小计括号显示市场小计−库存合计差额。v1.48.0——物品菜单新增彩色像素图标「仓库成本」（背包无该物品时隐藏，录入浮窗默认填左一价，确定保存、点外部关闭），市场买入后按库存与成交价加权更新本地成本；替换食材按钮与删除按钮等高；面包等战斗掉落物改标「战斗掉落」。v1.47.1——修复成本核算侧栏图标显示样式差异、精算按钮样式，选择浮层筛选点击消失与图标重叠（全部档不显示第二层），采集/掉落类食材误标「配方不可用」，替换食材改用游戏原生选择界面。v1.47.0——成本核算界面改炼金式两层筛选图标网格（全部/生产/烹饪各四分支）；侧栏入口换趋势图表图标；市场详情收藏旁新增「精算」按钮一键加入/剔除清单；成本核算支持烹饪配方与「食材重构」替代食材（研究 126 解锁后显示替换按钮）。v1.46.2——修复全量市场快照漏物品（如无卖单的松露意面）时误判「暂无市场行情」——缺底数先走单物品强刷确认，失败延时重试，快照到达后恢复同物品其他等级。v1.46.1——统一成本核算入口的侧栏文字样式，并换用表格图标。v1.46.0——成本核算支持自选清单与宽屏双列。v1.45.2——收紧成本表，材料用量与双侧报价分列对齐。v1.45.1——修复成本核算页展开长配方后无法滚动的问题。v1.45.0——新增奇点科技生产成本核算，可逐层展开至采集和梳毛原料。v1.44.3——修复云同步开关与预约恢复、研究账号切换、定时钓鱼队列恢复及构建校验。v1.44.2——修复研究队列云同步「已完成研究复活」竞态——云端旧队列覆盖本地时，按游戏实时等级过滤掉目标已达成的条目（与 plan()/settleSubmitted 同口径，含正在研究任务 +1），比对时同口径过滤避免每次刷新误报覆盖。v1.44.1——toolbar「手动云同步」按钮改为与签到按钮同款青色发光样式（文字由「同步」改「手动云同步」）。v1.44.0——云同步新增市场「我的收藏」同步（localStorage.favorite 的 itemId 数组，归一化去重排序后入 payload；挂钩 Utils.setData 自动上传；云端覆盖前弹窗对比两端收藏数量由用户决定整份覆盖）+ toolbar 签到按钮旁新增「同步」按钮（仅上传本地到云端，不拉取）。v1.43.7——修复刷新时误报「云端已覆盖本地」——开关按脚本真实语义归一化比对（null 或 1 都=开、0=关），null 与 1 不再判为不同；研究按钮缺料红框内发光改呼吸动画。v1.43.6——研究队列按钮缺料提示——队首材料确实不足（复用研究队列已有的 researchStatus 判定）时，快捷按钮红边框 + 红色内发光、字保持黑色，title 补注「队首材料不足，等待补充」。v1.43.5——pull 绑定到游戏主界面顶栏 toolbar-container——进入游戏（含刷新、回退登录页后重新进入）时各发一次 GET，同一节点只拉一次、回退清空以允许再拉；服务端 GET/GET 与 PUT/PUT 各自 2 秒限流、两者互不干扰。v1.43.4——修复刷新不发 pull：从 document-idle 延后到主界面就绪后再拉。v1.43.3——云同步 uid 安全加固——覆盖/上传前实时校验当前游戏玩家 uid（pull 请求前后双闸、push 上传前后双闸、flush 检测账号切换丢弃旧状态），防止 A 回退登录页后 B 登录被 A 的云端配置串号覆盖。v1.43.2——云同步与脚本加载并行——4 个 init 立即执行不等网络，服务端不可达/挂起都不影响加载（单次请求 3 秒超时）；启动只 pull 不 push，拉取后与本地比对，一致不覆盖不通知，仅云端覆盖本地 / push 成功 / push 失败三类用通知栏反馈；回退登录页不 push、不 pull；未登录不同步、不等待 uid；设置页云同步开关，本地设置/研究队列/钓鱼预约变化时 2 秒节流自动上传；首次开启云端有数据则二选一，无数据静默启用；钓鱼预约新增 day 日期字段跨日不同步；队列条目去 submitted、本地租约不进 payload；明文 JSON + XOR/Base64 混淆传输。自动收菜按钮 60 秒往返进度 CSS keyframes 动画；研究队列（预留材料与自动结算）、自动接受任务/领奖、市场行情、采集/生产/烹饪详情优化、防呆设置、点金辅助、农业辅助（自动收菜+好友农场预览）、检查更新、定时钓鱼、炼金经验效率与越级计算等，详见脚本正文。
 // @author       一心不乱
 // @match        https://nekoidle.com/*
 // @match        https://nekoidle.net/*
@@ -4423,6 +4423,26 @@
             return touched;
         }
 
+        // 清空单个物品的全部单价数据（含归档批次），保留批次数量、ref/from、来源物品与阈值。
+        // 返回被修改的批次 id，供 recomputeProductionCost 重算下游：成品手动价被清后恢复自动计算。
+        function clearInventoryPrices(ledger, id) {
+            const row = ledger?.items?.[String(id)];
+            if (!row) return [];
+            const changed = [];
+            const wipe = b => {
+                if (!b || typeof b !== 'object') return;
+                b.unitPrice = null;
+                b.amount = null;
+                b.manualPrice = false;
+                delete b.missing;
+                if (b.source && typeof b.source === 'object') b.source.unitPrice = null;
+                if (b.id) changed.push(String(b.id));
+            };
+            (row.batches || []).forEach(wipe);
+            (Array.isArray(row.history) ? row.history : []).forEach(wipe);
+            return changed;
+        }
+
         // 滚动流水：追加一条，超过上限丢弃最早记录。
         function pushInventoryTrade(ledger, entry) {
             const at = Number(entry?.at) || Date.now(), id = Number(entry?.id);
@@ -5277,14 +5297,21 @@
                                     const uid = core.view().account;
                                     if (!(uid && id > 1)) return;
                                     const led = inventoryLedger(uid);
+                                    let addedNow = null;
                                     if (!led.items[String(id)]) {
-                                        const price = Number(warehouseCosts(uid)[String(id)]) > 0 ? round2(warehouseCosts(uid)[String(id)]) : (leftPrice(id, enh) > 0 ? round2(leftPrice(id, enh)) : null);
+                                        // 与「选择物品」浮层同口径：旧库存成本 → 左一价 → 待录入。
+                                        const oldCost = Number(warehouseCosts(uid)[String(id)]) > 0 ? round2(warehouseCosts(uid)[String(id)]) : null;
+                                        const quote = leftPrice(id, enh) > 0 ? round2(leftPrice(id, enh)) : null;
+                                        const price = oldCost != null ? oldCost : quote;
                                         const qty = Number(env.game().getItemQuantity(id, enh)) || 0;
                                         addInventoryBatch(led, { id, at: Date.now(), reason: '初始库存', qty: qty || 0, unitPrice: price });
                                         saveInventoryLedger(uid, led);
+                                        addedNow = { qty, price, sourceKind: oldCost != null ? 'saved' : (quote != null ? 'auto' : 'blank') };
                                     }
                                     doc.dispatchEvent(new CustomEvent('nek-inventory-updated', { detail: { uid: String(uid), focus: id } }));
                                     focused = true;
+                                    // 从物品菜单加入核算时同样提示直接生产原料，支持一键加入未登记原料。
+                                    if (addedNow) showInventoryAddedInfo(uid, id, addedNow.qty, addedNow.price, addedNow.sourceKind);
                                 };
                                 const tryOpen = () => { if (ensureInventoryTab()) focusItem(); };
                                 tryOpen();
@@ -5357,6 +5384,12 @@
                     '  font-size:12px;color:rgb(255,48,33);border:1px solid rgba(255,48,33,.5);border-radius:3px;background:transparent;cursor:pointer}',
                     '.nek-inventory-delete:hover{background:rgba(255,48,33,.18);color:#fff}',
                     '.nek-warehouse-cost-modal .whc-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}',
+                    // 加入核算后的原料提示浮窗：在常用录入浮窗样式上加宽并限高。
+                    '.nek-inventory-added-modal{width:420px;top:26%;max-height:70vh;overflow:auto}',
+                    '.nek-inventory-added-list{font-size:12px;line-height:1.7;margin:6px 0 2px}',
+                    '.nek-inventory-added-list .added-row{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid rgba(var(--r),var(--g),var(--b),.16);padding:2px 0}',
+                    '.nek-inventory-added-tag{font-size:11px;color:var(--c-text-dim,#83c3c3);white-space:nowrap}',
+                    '.nek-inventory-added-tag.added-ready{color:rgb(76,175,80)}',
                     // 替换食材面板复用原生 .cooking-substitute-panel 组件，仅补充分组标题间距。
                     '.nek-cost-sub-picker .selector-list{padding:0 6px 6px}',
                     '.nek-cost-sub-picker .cooking-sub-ingredient-label{font-size:12px;color:var(--c-main-bright,#74F9BC);margin:6px 0 2px}',
@@ -5392,8 +5425,12 @@
                     '.nek-inventory-summary{display:grid;grid-template-columns:minmax(0,0.8fr) repeat(4,minmax(0,1fr)) 26px;align-items:center;gap:4px;cursor:pointer;font-variant-numeric:tabular-nums}',
                     '.nek-inventory-summary>span:not(:first-child){text-align:right}',
                     '.nek-inventory-name{display:inline-flex;align-items:center;gap:4px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-                    '.nek-inventory-caret{display:inline-block;font-size:10px;opacity:.7;transition:transform .15s;flex:none}',
+                    // 三角独立热区：放大到 20px 见方（透明内边距式，不挤占右侧列），点击仅展开/收起。
+                    '.nek-inventory-caret{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;margin:-2px 0;',
+                    '  flex:none;font-size:10px;opacity:.7;transition:transform .15s;cursor:pointer;user-select:none;border-radius:3px}',
+                    '.nek-inventory-caret:hover{opacity:1;background:rgba(var(--r),var(--g),var(--b),.14);color:var(--c-main-bright,#74f9bc)}',
                     '.nek-inventory-row.open .nek-inventory-caret{transform:rotate(90deg)}',
+                    '.nek-inventory-name-text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
                     // 批次行与汇总行共用同一 grid 模板，确保逐列严格对齐：
                     // 第1列(物品名下方)=时间+原因，第2列 可用↔数量变化，第3列 综合单价↔批次单价，
                     // 第4列 库存价值↔总额变化，第5列 预警↔核对。
@@ -6621,6 +6658,66 @@
                     function closeInventoryPicker() {
                         if (invPicker) { invPicker.remove(); invPicker = null; }
                     }
+                    // 物品加入核算后的即时反馈：显示期初数量/单价来源与直接生产原料的登记状态，
+                    // 并提供「一键加入未登记原料」，避免逐项回选择物品浮层。
+                    function showInventoryAddedInfo(uid, id, qty, price, sourceKind) {
+                        const name = itemName(id);
+                        const modal = append(doc.body, 'div', 'selector neon nek-warehouse-cost-modal nek-inventory-added-modal');
+                        append(modal, 'div', 'whc-name', '已加入库存核算 · ' + name);
+                        append(modal, 'div', 'whc-hint', '期初数量 ' + Number(qty || 0).toLocaleString('zh-CN') +
+                            ' · 单价' + (sourceKind === 'saved' ? '读取本地已有数据'
+                                : sourceKind === 'auto' ? '自动填入市场左一价（尚未录入）'
+                                : '未取得报价，待手动录入') +
+                            (price != null ? '：' + round2(price).toLocaleString('zh-CN') : ''));
+                        const recipe = stockRecipe(data, id);
+                        const needs = recipe ? recipe.requirements : [];
+                        const list = append(modal, 'div', 'nek-inventory-added-list');
+                        if (!recipe) {
+                            append(list, 'div', '', '基础材料：无生产配方，无需继续加入原料。');
+                        } else {
+                            append(list, 'div', '', '生产配方（产出 ' + recipe.output.toLocaleString('zh-CN') + '）所需直接原料：');
+                            const ledNow = inventoryLedger(uid);
+                            needs.forEach(r => {
+                                const mid = Number(r.itemId);
+                                const row = append(list, 'div', 'added-row');
+                                append(row, 'span', '', itemName(mid) + ' × ' +
+                                    Number(r.quantity).toLocaleString('zh-CN', { maximumFractionDigits: 2 }));
+                                const registered = !!ledNow.items[String(mid)];
+                                const trade = data.items[mid]?.trade === false ? '需自行获取' : '可交易';
+                                append(row, 'span', 'nek-inventory-added-tag' + (registered ? ' added-ready' : ''),
+                                    (registered ? '✓ 已登记' : '未登记') + ' · ' + trade);
+                            });
+                        }
+                        const actions = append(modal, 'div', 'whc-actions');
+                        const pending = needs.filter(r => !inventoryLedger(uid).items[String(Number(r.itemId))]);
+                        let addBtn = null;
+                        if (pending.length) {
+                            addBtn = append(actions, 'button', 'btn', '一键加入未登记原料');
+                            addBtn.addEventListener('click', e => {
+                                e.stopPropagation();
+                                const led = inventoryLedger(uid);
+                                let added = 0;
+                                pending.forEach(r => {
+                                    const mid = Number(r.itemId);
+                                    if (led.items[String(mid)]) return;
+                                    const oldCost = warehouseCosts(uid)[String(mid)];
+                                    const quote = leftPrice(mid, 0);
+                                    const p = Number(oldCost) > 0 ? round2(oldCost) : (quote > 0 ? round2(quote) : null);
+                                    const q = Number(game.getItemQuantity(mid)) || 0;
+                                    if (addInventoryBatch(led, { id: mid, at: Date.now(), reason: '初始库存', qty: q || 0, unitPrice: p })) added++;
+                                });
+                                saveInventoryLedger(uid, led);
+                                close(); renderInventory();
+                                if (added) ui.notifier?.show?.('已加入 ' + added + ' 项原料到库存核算', 'tip', 2200);
+                            });
+                        }
+                        const closeBtn = append(actions, 'button', 'btn', '关闭');
+                        closeBtn.addEventListener('click', e => { e.stopPropagation(); close(); });
+                        const close = () => { modal.remove(); doc.removeEventListener('click', outside); doc.removeEventListener('keydown', onKey); };
+                        const outside = e => { if (!modal.contains(e.target)) close(); };
+                        const onKey = e => { if (e.key === 'Escape') close(); };
+                        setTimeout(() => { doc.addEventListener('click', outside); doc.addEventListener('keydown', onKey); }, 0);
+                    }
                     function openInventoryPicker(anchor) {
                         closeInventoryPicker();
                         const uid = core.view().account;
@@ -6679,11 +6776,14 @@
                                     } else {
                                         // 期初库存：按优先级确定单价（旧库存成本/历史采购/左一价），云账本已存在则保留。
                                         const oldCost = warehouseCosts(uid)[key];
-                                        const price = Number(oldCost) > 0 ? round2(oldCost) : (leftPrice(item.id, 0) > 0 ? round2(leftPrice(item.id, 0)) : null);
+                                        const quote = leftPrice(item.id, 0);
+                                        const price = Number(oldCost) > 0 ? round2(oldCost) : (quote > 0 ? round2(quote) : null);
+                                        const sourceKind = Number(oldCost) > 0 ? 'saved' : (quote > 0 ? 'auto' : 'blank');
                                         const qty = Number(game.getItemQuantity(item.id)) || 0;
                                         addInventoryBatch(led, { id: item.id, at: Date.now(), reason: '初始库存', qty: qty || 0, unitPrice: price });
                                         saveInventoryLedger(uid, led);
                                         el.classList.add('selected-outline');
+                                        showInventoryAddedInfo(uid, item.id, qty, price, sourceKind);
                                     }
                                     el.title = (el.classList.contains('selected-outline') ? '✓ ' : '') + (item.name || '#' + item.id);
                                     renderInventory();
@@ -6789,9 +6889,30 @@
                             block.dataset.id = String(id);
                             const head = append(block, 'div', 'nek-inventory-summary');
                             const nameEl = append(head, 'span', 'nek-inventory-name');
-                            append(nameEl, 'span', 'nek-inventory-caret', '▶');
-                            const nameText = append(nameEl, 'span', '', def.name || '#' + id);
-                            nameText.title = '点击展开/收起批次明细';
+                            const caretEl = append(nameEl, 'span', 'nek-inventory-caret', '▶');
+                            caretEl.title = '展开/收起批次明细';
+                            // 三角独立热区：自己的点击只切展开，不触发整行监听（stopPropagation）。
+                            caretEl.addEventListener('click', e => {
+                                e.stopPropagation();
+                                if (openBatches.has(id)) openBatches.delete(id); else openBatches.add(id);
+                                renderInventory();
+                            });
+                            const nameText = append(nameEl, 'span', 'nek-inventory-name-text', def.name || '#' + id);
+                            // 物品名复用游戏原生交互：悬浮显示物品说明，点击打开原生物品菜单；
+                            // 名字与三角各有专属点击，其余行区域仍保留整行展开。
+                            if (def && Number(def.id) > 0 && typeof ui.bindItemTooltip === 'function') {
+                                const item = { id: Number(def.id), enhancement: 0, quantity: Number(game.getItemQuantity(id)) || 0 };
+                                ui.bindItemTooltip(nameText, def, { item });
+                                nameText.classList.add('nek-cost-material-live');
+                                if (typeof ui.showItemMenu === 'function') {
+                                    nameText.addEventListener('click', e => {
+                                        e.stopPropagation();
+                                        ui.showItemMenu(nameText, { itemDef: def, enhancement: 0 });
+                                    });
+                                }
+                            } else {
+                                nameText.title = '点击展开/收起批次明细';
+                            }
                             const available = warnings?.quantities.get(id) ?? row.quantity;
                             append(head, 'span', '', available.toLocaleString('zh-CN'));
                             const priceText = lack || (s.unitPrice != null ? s.unitPrice.toLocaleString('zh-CN', { maximumFractionDigits: 2 }) : '待录入');
@@ -6978,7 +7099,8 @@
                         }
                         const actions = append(modal, 'div', 'whc-actions');
                         const confirm = append(actions, 'button', 'btn', '确定');
-                        const clear = append(actions, 'button', 'btn', '移除');
+                        const clear = append(actions, 'button', 'btn', '清空');
+                        clear.title = '清空该物品所有批次已录入的单价数据，保留批次数量、来源与预警设置';
                         const cancel = append(actions, 'button', 'btn', '取消');
                         const close = () => { modal.remove(); };
                         confirm.addEventListener('click', e => {
@@ -7001,7 +7123,9 @@
                         });
                         clear.addEventListener('click', e => {
                             e.stopPropagation();
-                            delete led.items[String(id)]; delete led.thresholds[String(id)];
+                            // 只清单价数据：批次数量、ref/from、时间、来源物品与阈值全部保留。
+                            // 成品手动价被清后恢复自动重算，材料缺价也传播到下游。
+                            recomputeProductionCost(led, clearInventoryPrices(led, id), itemName);
                             saveInventoryLedger(uid, led); close(); renderInventory();
                         });
                         cancel.addEventListener('click', e => { e.stopPropagation(); close(); });
@@ -8290,7 +8414,7 @@
         // ---------------- 自动检查更新（GitHub raw 头部 @version 对比） ----------------
         // 注意：发布新版本时需同步修改 CURRENT_VERSION（与头部 @version 保持一致）。
         // 页面上下文无 GM_info（@grant none 且经 <script> 注入），只能内置当前版本号。
-        const CURRENT_VERSION = '1.58.7';
+        const CURRENT_VERSION = '1.58.9';
         const LS_UPD_KEY = 'nek_update_check_enabled';        // 检查更新开关，默认开
         const LS_UPD_REMIND = 'nek_update_remind_last';       // 上次提醒时间戳（提醒节流）
         const UPD_REMIND_INTERVAL = 60 * 60 * 1000;           // 提醒节流：距上次提醒超过 60 分钟才再次提醒
@@ -9574,12 +9698,15 @@
             return true;
         }
         // 应用云端 payload 到本地：queue 去 submitted 且丢弃已完成项、钓鱼预约按 day 过滤跨日
-        function cloudApply(p, uid) {
+        async function cloudApply(p, uid) {
             if (!cloudValidate(p)) throw new Error('bad_payload');
             cloudUidGuard(uid);   // 覆盖前确认目标 uid 仍是当前游戏玩家（防异步期间切换账号串配置）
             if (String(p.uid) !== String(uid)) throw new Error('uid_mismatch');
             const enh = JSON.parse(localStorage.getItem('nek_enhancements_v1:' + uid) || '{}') || {};
             if (enh.queue?.some(entry => entry?.submitted)) throw new Error('研究正在确认，请稍后同步');
+            // 收藏覆盖需用户确认：放在所有本地写入之前，浮窗等待期间不写任何数据。
+            const applyFav = p.favorites != null ? await cloudConfirmFavorites(p, uid) : false;
+            cloudUidGuard(uid);   // 等待选择期间若切换账号，全部放弃
             const st = JSON.parse(localStorage.getItem(LS_FISH_STATE_KEY) || '{}') || {};
             const activeBooking = st.chain && st.bookings?.find(b => b.period === st.chain.currentPeriod);
             Object.keys(CLOUD_SETTING_KEYS).forEach(k => {
@@ -9600,12 +9727,9 @@
                 st.bookings = [activeBooking, ...st.bookings.filter(b => b.period !== activeBooking.period)];
             }
             localStorage.setItem(LS_FISH_STATE_KEY, JSON.stringify(st));
-            // 市场收藏：整份覆盖，覆盖前弹窗对比两端数量由用户决定；旧 payload 无该字段则不动本地。
-            if (p.favorites != null) {
-                const applyFav = cloudConfirmFavorites(p);
-                if (applyFav) {
-                    localStorage.setItem('favorite', JSON.stringify(cloudNormalizeFavorites(p.favorites)));
-                }
+            // 市场收藏：整份覆盖，已由游戏内浮窗确认；旧 payload 无该字段或用户取消则不动本地。
+            if (applyFav) {
+                localStorage.setItem('favorite', JSON.stringify(cloudNormalizeFavorites(p.favorites)));
             }
             // 成本核算条目与库存成本整份覆盖；无字段的旧 payload 不动本地。
             // 写入后通知增强模块重绘成本页与悬停行情（增强模块监听这两个事件）。
@@ -9629,18 +9753,76 @@
             try { cloud.lastBodySig = JSON.stringify(cloudPayloadBody(cloudBuildPayload(String(uid)))); } catch (e) { /* 忽略 */ }
         }
 
-        // 收藏整份覆盖前的确认：两端收藏不一致时弹窗对比数量，由用户决定是否用云端覆盖本地。
+        // 云同步二选一：复用游戏风格 .selector.neon 浮窗，替代系统 confirm。
+        // 点浮窗外部或 Esc 视为「取消」；同时只保留一个待决浮窗，新选择会取消旧选择。
+        let cloudChoiceResolve = null;
+        function injectCloudChoiceStyle() {
+            if (document.getElementById('nek-cloud-choice-style')) return;
+            const s = document.createElement('style');
+            s.id = 'nek-cloud-choice-style';
+            s.textContent = [
+                '.selector.neon.nek-cloud-choice{position:fixed;z-index:2147483000;left:50%;top:50%;transform:translate(-50%,-50%);',
+                '  width:420px;max-width:92vw;padding:14px 16px;line-height:1.6;color:var(--c-text,#d9f6ef)}',
+                '.nek-cloud-choice .cloud-choice-title{font-size:15px;font-weight:700;margin-bottom:8px}',
+                '.nek-cloud-choice .cloud-choice-msg{font-size:13px;white-space:pre-line;margin-bottom:12px}',
+                '.nek-cloud-choice .cloud-choice-actions{display:flex;justify-content:flex-end;gap:8px}',
+                '.nek-cloud-choice .cloud-choice-actions .btn{cursor:pointer}'
+            ].join('\n');
+            document.head.appendChild(s);
+        }
+        function cloudChoice(title, message, confirmText, cancelText) {
+            injectCloudChoiceStyle();
+            if (cloudChoiceResolve) { const prev = cloudChoiceResolve; cloudChoiceResolve = null; prev(false); }
+            return new Promise(resolve => {
+                const modal = document.createElement('div');
+                modal.className = 'selector neon nek-cloud-choice';
+                const titleEl = document.createElement('div');
+                titleEl.className = 'cloud-choice-title';
+                titleEl.textContent = title;
+                const msgEl = document.createElement('div');
+                msgEl.className = 'cloud-choice-msg';
+                msgEl.textContent = message;
+                const actions = document.createElement('div');
+                actions.className = 'cloud-choice-actions';
+                const no = document.createElement('button');
+                no.className = 'btn'; no.textContent = cancelText || '取消';
+                const yes = document.createElement('button');
+                yes.className = 'btn'; yes.textContent = confirmText || '确定';
+                actions.appendChild(no); actions.appendChild(yes);
+                modal.appendChild(titleEl); modal.appendChild(msgEl); modal.appendChild(actions);
+                document.body.appendChild(modal);
+                const done = value => {
+                    if (cloudChoiceResolve !== done) return;
+                    cloudChoiceResolve = null;
+                    modal.remove();
+                    document.removeEventListener('click', outside);
+                    document.removeEventListener('keydown', onKey);
+                    resolve(value);
+                };
+                const outside = e => { if (!modal.contains(e.target)) done(false); };
+                const onKey = e => { if (e.key === 'Escape') done(false); };
+                yes.addEventListener('click', e => { e.stopPropagation(); done(true); });
+                no.addEventListener('click', e => { e.stopPropagation(); done(false); });
+                cloudChoiceResolve = done;
+                setTimeout(() => { document.addEventListener('click', outside); document.addEventListener('keydown', onKey); }, 0);
+            });
+        }
+
+        // 收藏整份覆盖前的确认：两端收藏不一致时用游戏内浮窗对比数量，由用户决定是否用云端覆盖本地。
         // 返回 true=允许覆盖收藏（含两端一致无需确认的情况），false=用户取消、保留本地收藏。
-        function cloudConfirmFavorites(p) {
+        async function cloudConfirmFavorites(p, uid) {
             const remote = cloudNormalizeFavorites(p && p.favorites);
             const local = cloudFavorites();
             if (JSON.stringify(remote) === JSON.stringify(local)) return true;   // 一致：无需打扰
-            const msg = '云同步：市场「我的收藏」两端不一致\n\n' +
+            const accepted = await cloudChoice('云同步 · 市场收藏',
+                '云端与本地的「我的收藏」不一致：\n' +
                 '云端收藏：' + remote.length + ' 项\n' +
                 '本地收藏：' + local.length + ' 项\n\n' +
-                '【确定】用云端收藏整份覆盖本地\n' +
-                '【取消】保留本地收藏（其余设置仍按云端覆盖）';
-            return window.confirm(msg);
+                '【使用云端】整份覆盖本地收藏\n' +
+                '【保留本地】其余设置仍按云端覆盖',
+                '使用云端', '保留本地');
+            cloudUidGuard(uid);   // 浮窗等待期间若切换账号，放弃覆盖
+            return accepted;
         }
 
         // 挂钩游戏 Utils.setData('favorite', …)：市场收藏变化时自动触发上传。
@@ -9700,7 +9882,7 @@
                 cloudStageUnknown(r.data.data, curUid);
                 // 决策2：云端与本地一致则不覆盖、不通知；仅覆盖时反馈。
                 if (cloudSameAsLocal(r.data.data, curUid)) return { found: true, applied: false };
-                cloudApply(r.data.data, curUid);
+                await cloudApply(r.data.data, curUid);
                 cloudNotify('云同步：云端数据已覆盖本地（' + new Date().toLocaleTimeString() + '）', 'tip', 2500);
                 return { found: true, applied: true };
             },
@@ -9717,7 +9899,7 @@
                     const remote = r.data && r.data.data;
                     if (remote && Number(remote.ts) > payload.ts) {
                         if (!isCloudEnabled()) return { skipped: true };
-                        cloudApply(remote, curUid);
+                        await cloudApply(remote, curUid);
                         cloudNotify('云同步：已采用云端较新配置', 'tip', 2500);
                         return { appliedRemote: true };
                     }
@@ -9861,14 +10043,16 @@
             if (r.status !== 200 || !r.data || !r.data.data) {
                 toggleEl.checked = false; cloudNotify('云同步：服务端响应异常', 'error', 3500); return;
             }
-            // 有云端数据：二选一
-            const useCloud = window.confirm(
-                '云同步：该账号在云端已有配置数据。\n\n' +
-                '【确定】使用云端数据覆盖当前浏览器\n' +
-                '【取消】保留当前浏览器数据并覆盖云端'
-            );
+            // 有云端数据：游戏内浮窗二选一（浮窗等待期间开关可能被再次操作或换号）。
+            const useCloud = await cloudChoice('云同步 · 发现云端数据',
+                '该账号在云端已有配置数据。\n\n' +
+                '【使用云端】用云端数据覆盖当前浏览器\n' +
+                '【保留本地】保留当前浏览器数据并覆盖云端',
+                '使用云端', '保留本地');
+            if (revision !== cloudToggleRevision) return;
+            if (isLoginScreen() || readUidCloud() !== uid) { toggleEl.checked = false; return; }
             if (useCloud) {
-                try { cloudApply(r.data.data, uid); setCloudEnabled(true); cloudNotify('云同步：已开启并应用云端数据', 'tip', 3000); }
+                try { await cloudApply(r.data.data, uid); setCloudEnabled(true); cloudNotify('云同步：已开启并应用云端数据', 'tip', 3000); }
                 catch (e) { toggleEl.checked = false; cloudNotify('云同步：云端数据异常，未启用', 'error', 3500); }
             } else {
                 setCloudEnabled(true);
