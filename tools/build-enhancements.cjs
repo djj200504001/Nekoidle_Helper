@@ -19,7 +19,7 @@ const block = start + '\n' + source.split('\n').map(l => l.trim() ? '        ' +
             enabled: isEnabled, costEnabled: isCostEnabled, identifyAction, document, window,
             // low=账本自动补记：静默写入 + 合并到较长窗口后的一次上传，避免连续生产刷屏。
             cloudMarkLow: () => { try { cloud.markDirty(true); } catch (e) { /* 忽略 */ } },
-            storage: { getItem: k => localStorage.getItem(k), setItem: (k, v, silent) => { localStorage.setItem(k, v); if (!silent && ((k.indexOf('nek_enhancements_v1:') === 0 && k.indexOf(':lease') === -1) || k.indexOf('nek_cost_items_v1:') === 0 || k.indexOf('nek_warehouse_cost_v1:') === 0 || k.indexOf('nek_inventory_ledger_v1:') === 0)) cloudMark(); }, removeItem: k => localStorage.removeItem(k) }
+            storage: { getItem: k => localStorage.getItem(k), setItem: (k, v, silent) => { localStorage.setItem(k, v); if (!silent && ((k.indexOf('nek_enhancements_v1:') === 0 && k.indexOf(':lease') === -1) || k.indexOf('nek_cost_items_v1:') === 0 || k.indexOf('nek_warehouse_cost_v1:') === 0 || k.indexOf('nek_inventory_ledger_v1:') === 0 || k === 'nek_stock_buffer_percentage')) cloudMark(); }, removeItem: k => localStorage.removeItem(k) }
         });\n` + end;
 const from = script.indexOf(start), to = script.indexOf(end);
 if (from < 0 || to <= from || from !== script.lastIndexOf(start) || to !== script.lastIndexOf(end)) {

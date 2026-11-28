@@ -139,6 +139,10 @@ test('直购仍按回包成交价加权，结算领取映射不干扰直购', ()
 function queueSetup() {
     const document = new Document();
     const intervals = [], store = new Map();
+    let clock = Date.now();
+    class TestDate extends Date {
+        static now() { return clock; }
+    }
     const data = { items: { 10: { id: 10, name: '材料' }, 20: { id: 20, name: '成品' } }, quests: {}, research: { facilities: [] } };
     const quantities = { '10-0': 100, '20-0': 0 };
     const game = {
@@ -192,7 +196,7 @@ function queueSetup() {
         setTimeout: fn => { fn(); return 1; }, clearTimeout: () => {},
         getComputedStyle: () => ({ borderTopWidth: '0px', paddingTop: '0px' }),
         CustomEvent: function (type, opts) { this.type = type; this.detail = opts?.detail; },
-        Date, Math, Number, String, Object, Array, JSON, Set, Map, WeakMap, RegExp, isNaN
+        Date: TestDate, Math, Number, String, Object, Array, JSON, Set, Map, WeakMap, RegExp, isNaN
     };
     sandbox.window = { addEventListener: () => {}, removeEventListener: () => {}, matchMedia: () => ({ matches: false, addEventListener: () => {} }), innerWidth: 1200, innerHeight: 800 };
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/enhancements.js'), 'utf8'), sandbox);
@@ -201,17 +205,41 @@ function queueSetup() {
         data: () => data, enabled: () => true, costEnabled: () => true,
         identifyAction: () => ({}), cookingChestDivisor: 21600
     });
-    feature.init();
     // 建账：材料 100 个 @10。
     const led = JSON.parse(store.get('nek_inventory_ledger_v1:669') || '{"items":{},"thresholds":{},"trades":[]}');
     led.items['10'] = { batches: [{ id: 'seed', at: 1000, reason: '初始库存', qty: 100, unitPrice: 10, amount: 1000, verified: false }], quantity: 100, since: 1000 };
     // 成品需先由用户加入核算（初始库存 0），否则生产新产出不自动建账。
     led.items['20'] = { batches: [{ id: 'outseed', at: 1000, reason: '初始库存', qty: 0, unitPrice: null, amount: null, verified: false }], quantity: 0, since: 1000 };
     store.set('nek_inventory_ledger_v1:669', JSON.stringify(led));
-    return { msg, store, quantities };
+    feature.init();
+    function replaceLedger(ledger) {
+        store.set('nek_inventory_ledger_v1:669', JSON.stringify(ledger));
+        for (const listener of document.listeners['nek-inventory-cloud-applied'] || []) listener({ detail: { uid: '669' } });
+    }
+    return { feature, msg, game, store, quantities, replaceLedger,
+        advance(ms) { clock += ms; for (const tick of intervals) tick(); } };
 }
 
 function ledgerOf(h) { return JSON.parse(h.store.get('nek_inventory_ledger_v1:669')); }
+
+test('生产逐次保留 FIFO 记账，预警在两分钟或队列结束时才随背包变化', () => {
+    const h = queueSetup(), led = ledgerOf(h);
+    led.thresholds[10] = { qty: 90 };
+    h.replaceLedger(led);
+    const head = { type: 'action', id: 7, token: 'active', remaining: 3 };
+    h.game.queue = [head];
+    const complete = (remaining, quantity) => h.msg.handlers.action_complete({ content: { ...head, remaining,
+        remove: [{ item: 10, quantity }] } });
+    complete(2, 20);
+    assert.equal(ledgerOf(h).items[10].quantity, 80);
+    h.advance(119999);
+    assert.equal(h.feature.stockShortages().length, 0);
+    h.advance(1);
+    assert.equal(h.feature.stockShortages()[0].have, 80);
+    complete(0, 10);
+    assert.equal(h.feature.stockShortages()[0].have, 70);
+    assert.equal(h.feature.stockShortages()[0].th, 113);
+});
 
 test('生产队列完成：账本 vs 实际差额补记，原料 FIFO 消耗、成品入账，共享队列 ref', () => {
     const h = queueSetup(), complete = h.msg.handlers.action_complete;
@@ -291,7 +319,7 @@ test('跨批次生产：成品仍为一个批次，综合单价 = 全部来源�
     const h = queueSetup(), complete = h.msg.handlers.action_complete;
     const led = ledgerOf(h);
     led.items['10'].batches.push({ id: 'b2', at: 1100, reason: '市场买入', qty: 100, unitPrice: 20, amount: 2000, verified: false });
-    h.store.set('nek_inventory_ledger_v1:669', JSON.stringify(led));
+    h.replaceLedger(led);
     // 原生 handler 会先扣料：设材料 200 使回包后实际为 50（消耗 150 = 100@10 + 50@20），成品 0→30。
     h.quantities['10-0'] = 200; h.quantities['20-0'] = 0;
     complete({ content: { type: 'action', id: 7, token: 'tkSplit',
@@ -312,7 +340,7 @@ test('材料缺单价时成品标记「材料缺报价」，补录来源单价�
     const h = queueSetup(), complete = h.msg.handlers.action_complete;
     const led = ledgerOf(h);
     led.items['10'].batches[0].unitPrice = null; led.items['10'].batches[0].amount = null;
-    h.store.set('nek_inventory_ledger_v1:669', JSON.stringify(led));
+    h.replaceLedger(led);
     // 回包扣除 40 后实际 60，与账本 100 相差 40（该批次无价）。
     h.quantities['10-0'] = 100; h.quantities['20-0'] = 0;
     complete({ content: { type: 'action', id: 7, token: 'tkLack',
@@ -332,7 +360,7 @@ test('未加入核算的物品即使生产产出也不自动建立账本', () =>
     const h = queueSetup(), complete = h.msg.handlers.action_complete;
     const led = ledgerOf(h);
     delete led.items['20'];
-    h.store.set('nek_inventory_ledger_v1:669', JSON.stringify(led));
+    h.replaceLedger(led);
     h.quantities['10-0'] = 80; h.quantities['20-0'] = 10;
     complete({ content: { type: 'action', id: 7, token: 'tkNew',
         remove: [{ id: 11, item: 10, quantity: 20 }], add: [{ id: 12, item: 20, quantity: 10 }] } });

@@ -493,7 +493,7 @@ test('v1.57：库存核算双标签、市场分类选择、批次列表与流水
     assert.match(script, /const MAX_INVENTORY_TRADES = 200/);
     assert.match(script, /'nek_inventory_ledger_v1:' \+ uid/);
     assert.match(script, /function normalizeInventoryLedger\(value\)/);
-    assert.match(script, /function consumeInventoryFifo\(ledger, id, qty, at, ref, merge\)/);
+    assert.match(script, /function consumeInventoryFifo\(ledger, id, qty, at, ref, merge, reason = '生产消耗'\)/);
     // 市场分类选择浮窗：排除罐头、一级 itemTypes、二级 sub_type、搜索
     assert.match(script, /const CANNED_IDS = new Set\(\[2, 4, 201, 207, 208\]\)/);
     assert.match(script, /return String\(item\.slot \|\| item\.sub_type \|\| '0'\);/);
@@ -553,7 +553,7 @@ test('v1.57：库存核算交互细化——装备分类/左一价标识/借贷�
     assert.match(script, /function migrateEmptyBatchItems\(ledger, getQuantity, getPrice\)/);
     assert.match(script, /const migrated = migrateEmptyBatchItems\(led,/);
     assert.match(script, /migrateEmptyBatchItems\(led,[\s\S]{0,200}id => game\.getItemQuantity\(id\)/);
-    assert.match(script, /if \(migrated \|\| archived \|\| mergedOutputs\) \{[\s\S]{0,120}storage\.setItem\(inventoryKey\(uid\), JSON\.stringify\(led\), true\)/);
+    assert.match(script, /if \(migrated \|\| archived \|\| mergedOutputs \|\| compatible !== saved\) \{[\s\S]{0,120}storage\.setItem\(inventoryKey\(uid\), JSON\.stringify\(led\), true\)/);
     // 单价浮窗：只有一个输入框 + 左一价自动填入 + 来源标识；预警独立入口。
     assert.match(script, /function openInventoryEditor\(uid, id, batch\)/);
     assert.match(script, /quote = Number\(leftPrice\(id, 0\)\) \|\| 0;/);
@@ -568,8 +568,8 @@ test('v1.57：库存核算交互细化——装备分类/左一价标识/借贷�
     assert.match(script, /function openThresholdEditor\(uid, id\)/);
     assert.match(script, /append\(head, 'span', 'nek-inventory-threshold'/);
     // 预警列：数值阈值 + 当日峰值百分比阈值，均为 0 则未设置。
-    assert.match(script, /const th = normalizeThreshold\(led\.thresholds\[String\(id\)\]\);/);
-    assert.match(script, /const check = thresholdCheck\(row, th, available, Date\.now\(\)\);/);
+    assert.match(script, /const check = thresholdCheck\(ledger\.items\[id\], ledger\.thresholds\[id\], held\(id\), now\);/);
+    assert.match(script, /const check = warnings\?\.checks\.get\(id\)/);
     assert.match(script, /'峰值 ' \+ check\.pct \+ '%\/' \+ check\.pctLimit \+ '%'/);
     assert.match(script, /qtyInput\.value = th\.qty \? String\(th\.qty\) : '0'/);
     assert.match(script, /pctInput\.value = th\.pct \? String\(th\.pct\) : '0'/);
@@ -594,7 +594,7 @@ test('v1.57：库存核算交互细化——装备分类/左一价标识/借贷�
     assert.match(script, /function inventoryDelta\(before, after\)/);
     assert.match(script, /function fifoPrice\(used\)/);
     assert.match(script, /const tradeRef = 'mkt:' \+ at\.toString\(36\)/);
-    assert.match(script, /ref: claim \? 'claim:' \+ String\(claim\.sid \?\? at\) \+ ':' \+ id \+ ':' \+ enh : tradeRef/);
+    assert.match(script, /ref: 'claim:' \+ sid, order: Number\(claim\.order_id\)/);
     // 生产：按 token 标识队列批次；材料执行中实时消耗，完成时按账本 vs 实际差额对账补记；FIFO 来源写入 from。
     assert.match(script, /function productionBatchIdentity\(type, content\)/);
     assert.match(script, /return \{ ref: 'queue:' \+ key \};/);
@@ -639,13 +639,13 @@ test('v1.57：FIFO 三色可视化 + 耗尽批次归档与 5 天历史', () => {
 test('v1.57：库存核算账本纳入云同步 payload/校验/比对/回写', () => {
     const script = fs.readFileSync(path.join(root, '银河猫娘放置小助手.user.js'), 'utf8').replace(/\r\n/g, '\n');
     assert.match(script, /'costItems', 'warehouseCost', 'inventoryLedger'/);
-    assert.match(script, /function cloudNormalizeInventory\(v\)/);
+    assert.match(script, /function cloudNormalizeInventory\(v, costs\)/);
     assert.match(script, /function cloudInventoryLedger\(uid\)/);
     assert.match(script, /inventoryLedger: cloudInventoryLedger\(uid\)/);
-    assert.match(script, /inventoryLedger: cloudNormalizeInventory\(p && p\.inventoryLedger\)/);
+    assert.match(script, /inventoryLedger: cloudNormalizeInventory\(p && p\.inventoryLedger, p && p\.warehouseCost\)/);
     assert.match(script, /if \(p\.inventoryLedger != null && \(!p\.inventoryLedger/);
     assert.match(script, /if \(!\('inventoryLedger' in probe\)\) probe\.inventoryLedger = local\.inventoryLedger/);
-    assert.match(script, /localStorage\.setItem\('nek_inventory_ledger_v1:' \+ uid, JSON\.stringify\(cloudNormalizeInventory\(p\.inventoryLedger\)\)\)/);
+    assert.match(script, /localStorage\.setItem\('nek_inventory_ledger_v1:' \+ uid, JSON\.stringify\(cloudNormalizeInventory\(p\.inventoryLedger, p\.warehouseCost\)\)\)/);
     // 200 条上限与批次原因在云同步侧同样归一
     assert.match(script, /const reasons = \['初始库存', '市场买入', '市场卖出', '生产消耗', '生产成品'\]/);
     assert.match(script, /out\.trades = \(Array\.isArray\(v\.trades\) \? v\.trades : \[\]\)\.slice\(-200\)/);
@@ -697,7 +697,7 @@ test('v1.58.1：只登记已选物品、缺报价与手动价优先', () => {
     assert.match(script, /\.nek-price-missing\{color:#ff8a6b/);
     assert.match(script, /target\.manualPrice = target\.reason === '生产成品' && price != null;/);
     assert.match(script, /recomputeProductionCost\(led, \[target\.id\], itemName\)/);
-    assert.match(script, /if \(b\.ref && pending\.has\(String\(b\.id\)\)\) refs\.add\(String\(b\.ref\)\)/);
+    assert.match(script, /if \(b\.ref && b\.reason === '生产消耗' && pending\.has\(String\(b\.id\)\)\) refs\.add\(String\(b\.ref\)\)/);
     // 云同步保留来源快照、缺报价与手动价标记。
     assert.match(script, /source, missing: missing\.length \? missing : undefined, manualPrice: b\.manualPrice === true/);
     assert.match(script, /manualPrice: h\.manualPrice === true/);
@@ -738,8 +738,8 @@ test('v1.58.4：成品单价悬浮显示完整公式、预警双阈值与队列�
     assert.match(script, /点击录入\/修改该批次单价/);
     assert.match(script, /function normalizeThreshold\(value\)/);
     assert.match(script, /function thresholdCheck\(row, th, qty, now\)/);
-    // 主脚本（注入块之外）的库存提醒按钮同样识别双阈值。
-    assert.match(script, /const qtyLimit = Number\(th\.qty\) \|\| 0, pctLimit = Number\(th\.pct\) \|\| 0;/);
+    // 队列快捷提醒复用同一份预警缓存。
+    assert.match(script, /const list = nekEnhancements\.stockShortages\(\);/);
     assert.match(script, /const pctShort = pctLimit > 0 && peak > 0 && pct < pctLimit;/);
     // 云端归一化保留双阈值字段。
     assert.match(script, /if \(Number\.isFinite\(th\.pct\) && th\.pct > 0\) keep\.pct = r2\(Math\.min\(100, th\.pct\)\);/);

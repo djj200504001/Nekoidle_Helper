@@ -2,7 +2,77 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { recipeCost, substituteOptions, mergeWarehouseCost, claimCosts, stockTotalOf, directStockTotal, parseStockCost, round2, craftableProduct, normalizeInventoryLedger, normalizeThreshold, thresholdCheck, productionFormula, migrateEmptyBatchItems, inventorySummary, inventoryDaySegments, archiveExhaustedBatches, dayStartOf, addInventoryBatch, consumeInventoryFifo, pushInventoryTrade, inventoryDelta, inventoryReconcile, fifoPrice,
     productionQueueCost, mergeQueueOutputBatches, productionSourcesOf, productionCostOf, recomputeProductionCost, findInventoryBatch,
-    stockRecipe, planStockReplenishment, stockReplenishment, stockItemNames, productionRemovedItems } = require('../src/enhancements.js');
+    stockRecipe, planStockReplenishment, stockReplenishment, stockItemNames, productionRemovedItems,
+    importFifoPurchases, inventoryValuation, migrateAverageInventory } = require('../src/enhancements.js');
+
+test('补货按 FIFO 双阈值取较高值，低于阈值触发并持续到充裕目标', () => {
+    const data = { items: { 10: { id: 10 } } };
+    const check = { have: 1900, qtyLimit: 2000, pctLimit: 50, peak: 4200, short: true };
+    assert.equal(stockReplenishment(data, 10, check, () => 1900, 25).target, 2625);
+    const above = { ...check, have: 2200, short: false, qtyShort: false, pctShort: false };
+    assert.equal(stockReplenishment(data, 10, above, () => 2200, 25), null);
+    assert.equal(stockReplenishment(data, 10, above, () => 2200, 25, true).deficit, 425);
+    const now = Date.now();
+    const row = { batches: [{ at: now, qty: 10000 }] };
+    const fixed = { qty: 2000, pct: 0 };
+    const low = thresholdCheck(row, fixed, 1900, now);
+    const plan = stockReplenishment(data, 10, low, () => 1900, 25);
+    assert.equal(plan.target, 2500);
+    assert.equal(plan.deficit, 600);
+    const atThreshold = thresholdCheck(row, fixed, 2000, now);
+    assert.equal(stockReplenishment(data, 10, atThreshold, () => 2000, 25), null);
+});
+
+test('采购历史仅补已领取且尚在背包的差额，重新读取不会重复记账', () => {
+    const ledger = normalizeInventoryLedger(null);
+    const time = 1700000000000;
+    addInventoryBatch(ledger, { id: 10, at: time, reason: '初始库存', qty: 10, unitPrice: 3 });
+    const history = [{ id: 1, item: 10, side: 2, traded: 12, price: 7, close_time: time + 1000 }];
+    let result = importFifoPurchases(ledger, history, [{ order_id: 1, side: 2, quantity: 4 }], () => 16);
+    assert.deepEqual([...result.affected], [10]);
+    assert.equal(ledger.items[10].batches[1].qty, 6);
+    assert.equal(ledger.orders[1].quantity, 8);
+    assert.equal(importFifoPurchases(ledger, history, [{ order_id: 1, side: 2, quantity: 4 }], () => 16).changed, false);
+    result = importFifoPurchases(ledger, history, [], () => 20);
+    assert.deepEqual([...result.affected], [10]);
+    assert.equal(ledger.items[10].batches[2].qty, 4);
+    assert.equal(inventorySummary(ledger.items[10]).total, 100);
+});
+
+test('库存总价值保留 FIFO 成本，单列配方估值并排除账本外物品', () => {
+    const data = { items: { 10: { id: 10 }, 20: { id: 20, sources: { actions: [{ id: 7 }] } }, 30: { id: 30 } },
+        actions: { 7: { action: 6, requirements: [{ itemId: 10, quantity: 2 }],
+            rewards: [{ itemId: 20, chance: 100, min: 1, max: 1 }] } } };
+    const ledger = normalizeInventoryLedger(null);
+    addInventoryBatch(ledger, { id: 10, at: 1000, reason: '初始库存', qty: 5, unitPrice: 4 });
+    addInventoryBatch(ledger, { id: 20, at: 1000, reason: '初始库存', qty: 3, unitPrice: null });
+    assert.deepEqual(inventoryValuation(ledger, data, { 30: 999 }), { total: 44, estimated: 24, unpriced: 0 });
+});
+
+test('均价账本迁移保留余额和旧均价，采购明细只作为历史流水', () => {
+    const old = { products: [], items: { 10: { quantity: 3, since: 1000, purchases: [
+        { at: 2000, quantity: 100, price: 10, source: '历史采购' }
+    ] } }, thresholds: { 10: 5 }, orders: { 99: { quantity: 100 } } };
+    const ledger = normalizeInventoryLedger(migrateAverageInventory(old, { 10: 12.34 }));
+    assert.equal(ledger.items[10].batches.length, 1);
+    assert.equal(ledger.items[10].batches[0].qty, 3);
+    assert.equal(ledger.items[10].batches[0].unitPrice, 12.34);
+    assert.equal(ledger.trades[0].qty, 100);
+    assert.deepEqual(ledger.thresholds[10], { qty: 5 });
+    assert.equal(ledger.orders[99].quantity, 100);
+});
+
+test('市场卖出扣 FIFO 成本，旧批次归档后不再重复扣库存余额', () => {
+    const today = new Date(2026, 10, 28, 12).getTime();
+    const ledger = normalizeInventoryLedger(null);
+    addInventoryBatch(ledger, { id: 10, at: today - 86400000, reason: '初始库存', qty: 5, unitPrice: 4 });
+    addInventoryBatch(ledger, { id: 10, at: today, reason: '市场买入', qty: 3, unitPrice: 9 });
+    consumeInventoryFifo(ledger, 10, 5, today, 'sale', false, '市场卖出');
+    assert.equal(inventorySummary(ledger.items[10]).total, 27);
+    assert.equal(archiveExhaustedBatches(ledger, today), true);
+    assert.deepEqual(inventoryReconcile(ledger, [10], () => 3), []);
+    assert.equal(inventorySummary(ledger.items[10]).total, 27);
+});
 
 test('多层生产按实际产量折算，直接买料与原料成本独立，单边缺价只影响该侧', () => {
     const items = Object.fromEntries([1, 2, 3].map(id => [id, { sources: { actions: [{ id }] } }]));
